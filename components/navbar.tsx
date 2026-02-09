@@ -6,6 +6,16 @@ import Image from "next/image"
 import { ShoppingBag, Menu, X, Search } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 
+const navLinks = [
+  { href: "/", label: "Inicio" },
+  { href: "/nosotros", label: "Nosotros" },
+  { href: "/alforjas", label: "Alforjas" },
+  { href: "/accesorios", label: "Accesorios" },
+  { href: "/travel", label: "CERO.UNO Travel" },
+  { href: "/contacto", label: "Contacto" },
+  { href: "/blog", label: "Blog" },
+]
+
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { totalItems, setIsOpen } = useCart()
@@ -37,7 +47,11 @@ export function Navbar() {
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Menu"
           >
-            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {mobileOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
           </button>
 
           {/* Logo */}
@@ -53,42 +67,25 @@ export function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden lg:flex items-center gap-8">
-            <Link
-              href="/"
-              className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary transition-colors"
-            >
-              Inicio
-            </Link>
-            <Link
-              href="/tienda"
-              className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary transition-colors"
-            >
-              Tienda
-            </Link>
-            <Link
-              href="/blog"
-              className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary transition-colors"
-            >
-              Journal
-            </Link>
-            <Link
-              href="#logistica"
-              className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary transition-colors"
-            >
-              Logistica
-            </Link>
-            <Link
-              href="#nosotros"
-              className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary transition-colors"
-            >
-              Nosotros
-            </Link>
+          <div className="hidden lg:flex items-center gap-6">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-xs font-medium uppercase tracking-wider text-foreground hover:text-primary transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
 
           {/* Right icons */}
           <div className="flex items-center gap-4">
-            <button type="button" aria-label="Buscar" className="text-foreground hover:text-primary transition-colors">
+            <button
+              type="button"
+              aria-label="Buscar"
+              className="text-foreground hover:text-primary transition-colors"
+            >
               <Search className="h-5 w-5" />
             </button>
             <button
@@ -111,41 +108,16 @@ export function Navbar() {
         {mobileOpen && (
           <div className="lg:hidden border-t border-border bg-background px-4 py-6">
             <div className="flex flex-col gap-4">
-              <Link
-                href="/"
-                className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary"
-                onClick={() => setMobileOpen(false)}
-              >
-                Inicio
-              </Link>
-              <Link
-                href="/tienda"
-                className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary"
-                onClick={() => setMobileOpen(false)}
-              >
-                Tienda
-              </Link>
-              <Link
-                href="/blog"
-                className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary"
-                onClick={() => setMobileOpen(false)}
-              >
-                Journal
-              </Link>
-              <Link
-                href="#logistica"
-                className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary"
-                onClick={() => setMobileOpen(false)}
-              >
-                Logistica
-              </Link>
-              <Link
-                href="#nosotros"
-                className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary"
-                onClick={() => setMobileOpen(false)}
-              >
-                Nosotros
-              </Link>
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
         )}

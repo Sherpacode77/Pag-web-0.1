@@ -4,11 +4,11 @@ import { CartProvider } from "@/lib/cart-context"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { HeroSection } from "@/components/hero-section"
+import { BusinessLinesSection } from "@/components/business-lines-section"
 import { BestsellersSection } from "@/components/bestsellers-section"
-import { CategoriesSection } from "@/components/categories-section"
-import { LogisticsSection } from "@/components/logistics-section"
+import { VideoSection } from "@/components/video-section"
+import { ReviewsSection } from "@/components/reviews-section"
 import { BlogSection } from "@/components/blog-section"
-import { NewsletterSection } from "@/components/newsletter-section"
 import { Footer } from "@/components/footer"
 
 export default function HomePage() {
@@ -18,11 +18,11 @@ export default function HomePage() {
       <CartSidebar />
       <main>
         <HeroSection />
+        <BusinessLinesSection />
         <BestsellersSection />
-        <CategoriesSection />
-        <LogisticsSection />
+        <VideoSection />
+        <ReviewsSection />
         <BlogSection />
-        <NewsletterSection />
       </main>
       <Footer />
     </CartProvider>

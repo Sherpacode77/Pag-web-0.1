@@ -6,7 +6,7 @@ import { products } from "@/lib/data"
 import { ProductCard } from "./product-card"
 
 export function BestsellersSection() {
-  const bestSellers = products.filter((p) => p.bestSeller)
+  const featured = products.filter((p) => p.featured || p.bestSeller).slice(0, 8)
 
   return (
     <section id="bestsellers" className="py-16 lg:py-24">
@@ -17,7 +17,7 @@ export function BestsellersSection() {
               Favoritos de la comunidad
             </p>
             <h2 className="text-2xl font-black uppercase tracking-tight text-foreground md:text-4xl">
-              Mas Vendidos
+              Productos Principales
             </h2>
           </div>
           <Link
@@ -29,8 +29,8 @@ export function BestsellersSection() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5 lg:gap-6">
-          {bestSellers.map((product) => (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+          {featured.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
