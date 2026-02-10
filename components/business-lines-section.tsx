@@ -7,7 +7,7 @@ const lines = [
     title: "Alforjas",
     description:
       "Bolsos impermeables de alto rendimiento para bikepacking. Disenados para resistir las rutas mas exigentes de Colombia.",
-    image: "/images/products/rolltop-lifestyle.jpg",
+    image: "/images/products/saddlebag-studio.jpg",
     href: "/alforjas",
     cta: "Ver Alforjas",
   },

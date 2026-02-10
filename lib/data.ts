@@ -59,16 +59,19 @@ export const products: Product[] = [
     description:
       "Bolso de sillin de 12 litros, 100% impermeable con cierre roll-top. Fabricado con telas de alto gramaje resistentes al arrastre y filtro UV. Ideal para bikepacking de larga distancia. Sistema de montaje universal compatible con cualquier sillin.",
     shortDescription: "Bolso de sillin impermeable 12L con cierre roll-top",
-    image: "/images/products/saddlebag-azul.jpg",
+    image: "/images/products/saddlebag-urban.jpg",
     images: [
+      "/images/products/saddlebag-urban.jpg",
+      "/images/products/saddlebag-studio.jpg",
       "/images/products/saddlebag-azul.jpg",
-      "/images/products/saddlebag-12l.jpg",
+      "/images/products/saddlebag-morado.jpg",
+      "/images/products/saddlebag-dimensiones.jpg",
       "/images/products/saddlebag-agarres.jpg",
     ],
     category: "alforjas",
     bikePart: "sillin",
     tags: ["impermeable", "roll-top", "sillin", "12L"],
-    colors: ["Negro", "Gris Oscuro"],
+    colors: ["Negro", "Azul", "Morado"],
     featured: true,
     bestSeller: true,
     specs: [
@@ -189,12 +192,12 @@ export const products: Product[] = [
     description:
       "Set completo de bikepacking que incluye SaddleBag 12L, FrontBag Roll Top 8L, Frame Bag 5L y Top Tube Bag. Todo lo que necesitas para tu aventura en un solo paquete con descuento.",
     shortDescription: "Set completo: SaddleBag + FrontBag + FrameBag + TopTube",
-    image: "/images/products/saddlebag-azul.jpg",
+    image: "/images/products/saddlebag-studio.jpg",
     images: [
-      "/images/products/saddlebag-azul.jpg",
+      "/images/products/saddlebag-studio.jpg",
       "/images/products/rolltop-lifestyle.jpg",
-      "/images/products/frame-bag.jpg",
       "/images/products/frontbag-lifestyle.jpg",
+      "/images/products/frame-bag.jpg",
     ],
     category: "kits",
     tags: ["kit", "completo", "descuento", "bikepacking"],
