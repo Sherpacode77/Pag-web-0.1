@@ -12,7 +12,7 @@ export function CategoriesSection() {
             className="group relative aspect-[4/3] overflow-hidden"
           >
             <Image
-              src="/images/category-setup.jpg"
+              src="/images/products/frontbag-lifestyle.jpg"
               alt="Setup completo de bikepacking"
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -38,7 +38,7 @@ export function CategoriesSection() {
             className="group relative aspect-[4/3] overflow-hidden"
           >
             <Image
-              src="/images/category-urban.jpg"
+              src="/images/products/hippack-lifestyle.jpg"
               alt="Accesorios para uso urbano en bicicleta"
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-105"

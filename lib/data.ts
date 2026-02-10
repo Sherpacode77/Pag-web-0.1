@@ -59,8 +59,12 @@ export const products: Product[] = [
     description:
       "Bolso de sillin de 12 litros, 100% impermeable con cierre roll-top. Fabricado con telas de alto gramaje resistentes al arrastre y filtro UV. Ideal para bikepacking de larga distancia. Sistema de montaje universal compatible con cualquier sillin.",
     shortDescription: "Bolso de sillin impermeable 12L con cierre roll-top",
-    image: "/images/products/saddlebag-12l.jpg",
-    images: ["/images/products/saddlebag-12l.jpg"],
+    image: "/images/products/saddlebag-azul.jpg",
+    images: [
+      "/images/products/saddlebag-azul.jpg",
+      "/images/products/saddlebag-12l.jpg",
+      "/images/products/saddlebag-agarres.jpg",
+    ],
     category: "alforjas",
     bikePart: "sillin",
     tags: ["impermeable", "roll-top", "sillin", "12L"],
@@ -83,8 +87,11 @@ export const products: Product[] = [
     description:
       "Bolso de manubrio compacto de 4 litros. Acceso rapido a tus esenciales durante la ruta. Tela impermeable de alto gramaje con proteccion UV. Montaje con correas ajustables.",
     shortDescription: "Bolso de manubrio compacto 4L acceso rapido",
-    image: "/images/products/frontbag-4l.jpg",
-    images: ["/images/products/frontbag-4l.jpg"],
+    image: "/images/products/frontbag-lifestyle.jpg",
+    images: [
+      "/images/products/frontbag-lifestyle.jpg",
+      "/images/products/frontbag-4l.jpg",
+    ],
     category: "alforjas",
     bikePart: "manubrio",
     tags: ["impermeable", "manubrio", "compacto", "4L"],
@@ -107,8 +114,11 @@ export const products: Product[] = [
     description:
       "Bolso de manubrio roll-top de 8 litros. Capacidad expandible y cierre hermetico. Perfecto para llevar ropa y suministros en rutas largas. Fabricado con telas resistentes al arrastre.",
     shortDescription: "Bolso manubrio roll-top impermeable 8L expandible",
-    image: "/images/products/frontbag-rolltop-8l.jpg",
-    images: ["/images/products/frontbag-rolltop-8l.jpg"],
+    image: "/images/products/rolltop-lifestyle.jpg",
+    images: [
+      "/images/products/rolltop-lifestyle.jpg",
+      "/images/products/frontbag-rolltop-8l.jpg",
+    ],
     category: "alforjas",
     bikePart: "manubrio",
     tags: ["impermeable", "roll-top", "manubrio", "8L"],
@@ -179,12 +189,12 @@ export const products: Product[] = [
     description:
       "Set completo de bikepacking que incluye SaddleBag 12L, FrontBag Roll Top 8L, Frame Bag 5L y Top Tube Bag. Todo lo que necesitas para tu aventura en un solo paquete con descuento.",
     shortDescription: "Set completo: SaddleBag + FrontBag + FrameBag + TopTube",
-    image: "/images/products/saddlebag-12l.jpg",
+    image: "/images/products/saddlebag-azul.jpg",
     images: [
-      "/images/products/saddlebag-12l.jpg",
-      "/images/products/frontbag-rolltop-8l.jpg",
+      "/images/products/saddlebag-azul.jpg",
+      "/images/products/rolltop-lifestyle.jpg",
       "/images/products/frame-bag.jpg",
-      "/images/products/top-tube-bag.jpg",
+      "/images/products/frontbag-lifestyle.jpg",
     ],
     category: "kits",
     tags: ["kit", "completo", "descuento", "bikepacking"],
@@ -251,8 +261,11 @@ export const products: Product[] = [
     description:
       "Canguro deportivo de 2 litros con diseno ergonomico para ciclismo. Compartimento principal con cierre impermeable. Bolsillo trasero para celular con acceso rapido.",
     shortDescription: "Canguro deportivo impermeable 2L ergonomico",
-    image: "/images/products/hip-pack.jpg",
-    images: ["/images/products/hip-pack.jpg"],
+    image: "/images/products/hippack-lifestyle.jpg",
+    images: [
+      "/images/products/hippack-lifestyle.jpg",
+      "/images/products/hip-pack.jpg",
+    ],
     category: "accesorios",
     tags: ["canguro", "ergonomico", "deportivo", "2L"],
     colors: ["Negro", "Negro/Naranja"],

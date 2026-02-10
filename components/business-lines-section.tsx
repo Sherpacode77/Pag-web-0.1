@@ -7,7 +7,7 @@ const lines = [
     title: "Alforjas",
     description:
       "Bolsos impermeables de alto rendimiento para bikepacking. Disenados para resistir las rutas mas exigentes de Colombia.",
-    image: "/images/category-setup.jpg",
+    image: "/images/products/rolltop-lifestyle.jpg",
     href: "/alforjas",
     cta: "Ver Alforjas",
   },
@@ -15,7 +15,7 @@ const lines = [
     title: "Accesorios",
     description:
       "Complementos esenciales para tu dia a dia en bicicleta. Funcionalidad urbana con resistencia de aventura.",
-    image: "/images/category-urban.jpg",
+    image: "/images/products/hippack-lifestyle.jpg",
     href: "/accesorios",
     cta: "Ver Accesorios",
   },
