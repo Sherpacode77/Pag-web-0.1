@@ -1,0 +1,339 @@
+const fs = require('fs');
+const path = require('path');
+
+// Leer productos desde data.ts (manualmente copiados aquí)
+const products = [
+  {
+    "id": "1",
+    "name": "SaddleBag 12L",
+    "slug": "saddlebag-12l",
+    "price": 180000,
+    "description": "Bolso de sillin de 12 litros, 100% impermeable con cierre roll-top. Fabricado con telas de alto gramaje resistentes al arrastre y filtro UV. Ideal para bikepacking de larga distancia. Sistema de montaje universal compatible con cualquier sillin.",
+    "shortDescription": "Bolso de sillin impermeable 12L con cierre roll-top",
+    "image": "/images/products/saddlebag-urban.jpg",
+    "images": [
+      "/images/products/saddlebag-urban.jpg",
+      "/images/products/saddlebag-studio.jpg",
+      "/images/products/saddlebag-azul.jpg",
+      "/images/products/saddlebag-morado.jpg",
+      "/images/products/saddlebag-dimensiones.jpg",
+      "/images/products/saddlebag-agarres.jpg"
+    ],
+    "category": "alforjas",
+    "bikePart": "sillin",
+    "tags": ["impermeable", "roll-top", "sillin", "12L"],
+    "colors": ["Negro", "Azul", "Morado"],
+    "featured": true,
+    "bestSeller": true,
+    "specs": [
+      { "label": "Capacidad", "value": "12 Litros" },
+      { "label": "Material", "value": "Nylon 420D con recubrimiento TPU" },
+      { "label": "Impermeabilidad", "value": "100% IPX6" },
+      { "label": "Peso", "value": "320g" },
+      { "label": "Cierre", "value": "Roll-top con hebilla" }
+    ]
+  },
+  {
+    "id": "2",
+    "name": "FrontBag 4L",
+    "slug": "frontbag-4l",
+    "price": 75000,
+    "description": "Bolso de manubrio compacto de 4 litros. Acceso rapido a tus esenciales durante la ruta. Tela impermeable de alto gramaje con proteccion UV. Montaje con correas ajustables.",
+    "shortDescription": "Bolso de manubrio compacto 4L acceso rapido",
+    "image": "/images/products/fb1.jpg",
+    "images": [
+      "/images/products/fb1.jpg",
+      "/images/products/fb2.jpg",
+      "/images/products/fb3.jpg",
+      "/images/products/fb4.jpg"
+    ],
+    "category": "alforjas",
+    "bikePart": "manubrio",
+    "tags": ["impermeable", "manubrio", "compacto", "4L"],
+    "colors": ["Negro"],
+    "featured": true,
+    "bestSeller": true,
+    "specs": [
+      { "label": "Capacidad", "value": "4 Litros" },
+      { "label": "Material", "value": "Nylon 420D con recubrimiento TPU" },
+      { "label": "Impermeabilidad", "value": "100% IPX6" },
+      { "label": "Peso", "value": "180g" },
+      { "label": "Montaje", "value": "Correas ajustables universales" }
+    ]
+  },
+  {
+    "id": "3",
+    "name": "FrontBag Roll Top 8L",
+    "slug": "frontbag-rolltop-8l",
+    "price": 95000,
+    "description": "Bolso de manubrio roll-top de 8 litros. Capacidad expandible y cierre hermetico. Perfecto para llevar ropa y suministros en rutas largas. Fabricado con telas resistentes al arrastre.",
+    "shortDescription": "Bolso manubrio roll-top impermeable 8L expandible",
+    "image": "/images/products/fbl1.jpg",
+    "images": [
+      "/images/products/fbl1.jpg",
+      "/images/products/fbl2.jpg",
+      "/images/products/fbl3.jpg",
+      "/images/products/fbl4.jpg",
+      "/images/products/fbl5.jpg",
+      "/images/products/fbl6.jpg",
+      "/images/products/fbl7.jpg",
+      "/images/products/fbl8.jpg"
+    ],
+    "category": "alforjas",
+    "bikePart": "manubrio",
+    "tags": ["impermeable", "roll-top", "manubrio", "8L"],
+    "colors": ["Negro", "Verde Oliva"],
+    "featured": true,
+    "bestSeller": true,
+    "specs": [
+      { "label": "Capacidad", "value": "8 Litros (expandible)" },
+      { "label": "Material", "value": "Nylon 420D con recubrimiento TPU" },
+      { "label": "Impermeabilidad", "value": "100% IPX6" },
+      { "label": "Peso", "value": "250g" },
+      { "label": "Cierre", "value": "Roll-top hermetico" }
+    ]
+  },
+  {
+    "id": "4",
+    "name": "Camiseta Oversize CERO.UNO",
+    "slug": "camiseta-oversize",
+    "price": 65000,
+    "description": "Camiseta oversize CERO.UNO en algodon premium. Corte relajado ideal para uso urbano y casual despues de la ruta. Estampado con logo de la marca.",
+    "shortDescription": "Camiseta oversize algodon premium con logo",
+    "image": "/images/products/COZ6.jpeg",
+    "images": [
+      "/images/products/COZ1.png",
+      "/images/products/COZ2.png",
+      "/images/products/COZ3.png",
+      "/images/products/COZ4.png",
+      "/images/products/COZ5.png"
+    ],
+    "category": "ropa",
+    "tags": ["camiseta", "oversize", "urbano", "algodon"],
+    "colors": ["Negro", "Blanco", "Gris"],
+    "featured": true,
+    "bestSeller": true,
+    "specs": [
+      { "label": "Material", "value": "Algodon 100% peinado 180g" },
+      { "label": "Corte", "value": "Oversize / Relaxed fit" },
+      { "label": "Tallas", "value": "S - M - L - XL" },
+      { "label": "Color", "value": "Negro" }
+    ]
+  },
+  {
+    "id": "5",
+    "name": "Porta Herramientas",
+    "slug": "porta-herramientas",
+    "price": 45000,
+    "description": "Bolso porta herramientas compacto para cuadro de bicicleta. Mantiene tus herramientas organizadas y accesibles. Material impermeable de alta resistencia.",
+    "shortDescription": "Bolso porta herramientas compacto para cuadro",
+    "image": "/images/products/ph1.jpeg",
+    "images": [
+      "/images/products/ph1.jpeg",
+      "/images/products/ph2.jpeg",
+      "/images/products/ph3.jpeg",
+      "/images/products/ph4.jpg"
+    ],
+    "category": "accesorios",
+    "tags": ["herramientas", "cuadro", "compacto"],
+    "colors": ["Negro"],
+    "featured": true,
+    "bestSeller": true,
+    "specs": [
+      { "label": "Capacidad", "value": "0.8 Litros" },
+      { "label": "Material", "value": "Nylon 420D impermeable" },
+      { "label": "Montaje", "value": "Velcro de alta resistencia" },
+      { "label": "Peso", "value": "85g" }
+    ]
+  },
+  {
+    "id": "6",
+    "name": "Frame Bag 5L",
+    "slug": "frame-bag-5l",
+    "price": 120000,
+    "description": "Bolso de cuadro triangular de 5 litros. Aprovecha el espacio dentro del triangulo del cuadro. 100% impermeable, ideal para distribuir peso en rutas largas.",
+    "shortDescription": "Bolso de cuadro triangular impermeable 5L",
+    "image": "/images/products/frame-bag.jpg",
+    "images": ["/images/products/frame-bag.jpg"],
+    "category": "alforjas",
+    "bikePart": "marco",
+    "tags": ["impermeable", "cuadro", "triangular", "5L"],
+    "colors": ["Negro"],
+    "featured": true,
+    "bestSeller": false,
+    "specs": [
+      { "label": "Capacidad", "value": "5 Litros" },
+      { "label": "Material", "value": "Nylon 420D con recubrimiento TPU" },
+      { "label": "Impermeabilidad", "value": "100% IPX6" },
+      { "label": "Peso", "value": "210g" },
+      { "label": "Compatibilidad", "value": "Cuadros talla 52-58cm" }
+    ]
+  },
+  {
+    "id": "7",
+    "name": "Top Tube Bag",
+    "slug": "top-tube-bag",
+    "price": 55000,
+    "description": "Bolso de tubo superior aerodinamico. Acceso rapido a snacks, telefono y esenciales sin parar. Cierre con cremallera resistente al agua.",
+    "shortDescription": "Bolso de tubo superior aerodinamico acceso rapido",
+    "image": "/images/products/top-tube-bag.jpg",
+    "images": ["/images/products/top-tube-bag.jpg"],
+    "category": "alforjas",
+    "bikePart": "tubo-superior",
+    "tags": ["tubo-superior", "aerodinamico", "acceso-rapido"],
+    "colors": ["Negro"],
+    "featured": false,
+    "bestSeller": false,
+    "specs": [
+      { "label": "Capacidad", "value": "1 Litro" },
+      { "label": "Material", "value": "Nylon 420D resistente al agua" },
+      { "label": "Peso", "value": "95g" },
+      { "label": "Cierre", "value": "Cremallera YKK resistente al agua" }
+    ]
+  },
+  {
+    "id": "8",
+    "name": "Kit Completo Bikepacking",
+    "slug": "kit-completo-bikepacking",
+    "price": 420000,
+    "originalPrice": 515000,
+    "description": "Set completo de bikepacking que incluye SaddleBag 12L, FrontBag Roll Top 8L, Frame Bag 5L y Top Tube Bag. Todo lo que necesitas para tu aventura en un solo paquete con descuento.",
+    "shortDescription": "Set completo: SaddleBag + FrontBag + FrameBag + TopTube",
+    "image": "/images/products/saddlebag-studio.jpg",
+    "images": [
+      "/images/products/saddlebag-studio.jpg",
+      "/images/products/rolltop-lifestyle.jpg",
+      "/images/products/frontbag-lifestyle.jpg",
+      "/images/products/frame-bag.jpg"
+    ],
+    "category": "kits",
+    "tags": ["kit", "completo", "descuento", "bikepacking"],
+    "colors": ["Negro"],
+    "featured": true,
+    "bestSeller": true,
+    "specs": [
+      { "label": "Incluye", "value": "4 bolsos" },
+      { "label": "Capacidad Total", "value": "26 Litros" },
+      { "label": "Ahorro", "value": "$95.000 COP" }
+    ]
+  },
+  {
+    "id": "9",
+    "name": "Messenger Bag 15L",
+    "slug": "messenger-bag-15l",
+    "price": 135000,
+    "description": "Bolso tipo mensajero de 15 litros para uso urbano. Correa ajustable con sistema antideslizante. Interior con compartimento para laptop hasta 14 pulgadas. 100% impermeable.",
+    "shortDescription": "Bolso mensajero urbano impermeable 15L con portaPC",
+    "image": "/images/products/messenger-bag.jpg",
+    "images": ["/images/products/messenger-bag.jpg"],
+    "category": "accesorios",
+    "tags": ["urbano", "mensajero", "laptop", "15L"],
+    "colors": ["Negro", "Gris Carbon"],
+    "featured": true,
+    "bestSeller": false,
+    "specs": [
+      { "label": "Capacidad", "value": "15 Litros" },
+      { "label": "Material", "value": "Nylon 1000D con TPU" },
+      { "label": "Laptop", "value": "Hasta 14 pulgadas" },
+      { "label": "Peso", "value": "450g" },
+      { "label": "Cierre", "value": "Hebilla magnetica" }
+    ]
+  },
+  {
+    "id": "10",
+    "name": "Hip Pack 2L",
+    "slug": "hip-pack-2l",
+    "price": 68000,
+    "description": "Canguro deportivo de 2 litros con diseno ergonomico para ciclismo. Compartimento principal con cierre impermeable. Bolsillo trasero para celular con acceso rapido.",
+    "shortDescription": "Canguro deportivo impermeable 2L ergonomico",
+    "image": "/images/products/hippack-lifestyle.jpg",
+    "images": [
+      "/images/products/hippack-lifestyle.jpg",
+      "/images/products/hip-pack.jpg"
+    ],
+    "category": "accesorios",
+    "tags": ["canguro", "ergonomico", "deportivo", "2L"],
+    "colors": ["Negro", "Negro/Naranja"],
+    "featured": false,
+    "bestSeller": false,
+    "specs": [
+      { "label": "Capacidad", "value": "2 Litros" },
+      { "label": "Material", "value": "Nylon 420D impermeable" },
+      { "label": "Peso", "value": "150g" },
+      { "label": "Cinturon", "value": "Ajustable 60-120cm" }
+    ]
+  },
+  {
+    "id": "11",
+    "name": "Porta Botellas Stem",
+    "slug": "porta-botellas-stem",
+    "price": 38000,
+    "description": "Porta botellas con bolso auxiliar para stem. Permite llevar hidratacion adicional sin perder aerodinamica. Compatible con la mayoria de stems y potencias del mercado.",
+    "shortDescription": "Porta botellas con bolso para stem de bicicleta",
+    "image": "/images/products/portabotellas.jpg",
+    "images": ["/images/products/portabotellas.jpg"],
+    "category": "accesorios",
+    "tags": ["hidratacion", "stem", "botellas"],
+    "colors": ["Negro"],
+    "featured": false,
+    "bestSeller": false,
+    "specs": [
+      { "label": "Compatibilidad", "value": "Botellas hasta 750ml" },
+      { "label": "Material", "value": "Nylon reforzado" },
+      { "label": "Peso", "value": "65g" },
+      { "label": "Montaje", "value": "Correas de velcro" }
+    ]
+  },
+  {
+    "id": "12",
+    "name": "Phone Mount Impermeable",
+    "slug": "phone-mount-impermeable",
+    "price": 52000,
+    "description": "Soporte para celular 100% impermeable con touchscreen compatible. Montaje en manubrio con sistema de giro de 360 grados. Compatible con celulares de hasta 6.7 pulgadas.",
+    "shortDescription": "Soporte celular impermeable touchscreen para manubrio",
+    "image": "/images/products/phone-mount.jpg",
+    "images": ["/images/products/phone-mount.jpg"],
+    "category": "accesorios",
+    "tags": ["celular", "soporte", "manubrio", "touchscreen"],
+    "colors": ["Negro"],
+    "featured": true,
+    "bestSeller": false,
+    "specs": [
+      { "label": "Compatibilidad", "value": "Hasta 6.7 pulgadas" },
+      { "label": "Material", "value": "TPU + ABS reforzado" },
+      { "label": "Rotacion", "value": "360 grados" },
+      { "label": "Impermeabilidad", "value": "IPX6" }
+    ]
+  },
+  {
+    "id": "13",
+    "name": "Cycling Cap CERO.UNO",
+    "slug": "cycling-cap",
+    "price": 35000,
+    "description": "Gorra de ciclismo clasica con logo bordado CERO.UNO. Tejido transpirable de secado rapido. Visera flexible que se adapta al casco. Ideal para proteccion solar.",
+    "shortDescription": "Gorra de ciclismo clasica con logo bordado",
+    "image": "/images/products/cycling-cap.jpg",
+    "images": ["/images/products/cycling-cap.jpg"],
+    "category": "ropa",
+    "tags": ["gorra", "ciclismo", "transpirable"],
+    "colors": ["Negro", "Negro/Naranja"],
+    "featured": false,
+    "bestSeller": false,
+    "specs": [
+      { "label": "Material", "value": "Poliester transpirable" },
+      { "label": "Talla", "value": "Unica (ajustable)" },
+      { "label": "Secado", "value": "Rapido" },
+      { "label": "Proteccion", "value": "UV 50+" }
+    ]
+  }
+];
+
+const PRODUCTS_FILE = path.join(__dirname, '..', 'lib', 'products.json');
+
+try {
+  console.log('Inicializando products.json con datos existentes...');
+  fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2));
+  console.log(`✅ Éxito: ${products.length} productos guardados en lib/products.json`);
+} catch (error) {
+  console.error('❌ Error inicializando productos:', error);
+}

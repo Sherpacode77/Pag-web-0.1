@@ -6,7 +6,8 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "init-products": "node -e \"require('fs').writeFileSync('lib/products.json', JSON.stringify(require('./lib/data.ts').products || [], null, 2))\""
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

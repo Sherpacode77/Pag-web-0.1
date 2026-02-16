@@ -125,21 +125,21 @@ export default function NosotrosPage() {
             </h2>
             <div className="flex flex-wrap items-center justify-center gap-10">
               <Image
-                src="/images/100colombiano.png"
+                src="/images/100colombiano1.png"
                 alt="100% Hecho en Colombia"
                 width={140}
                 height={140}
                 className="h-28 w-auto md:h-36"
               />
               <Image
-                src="/images/impermeable.png"
+                src="/images/impermeable1.png"
                 alt="100% Impermeable"
                 width={140}
                 height={140}
                 className="h-28 w-auto md:h-36"
               />
               <Image
-                src="/images/altogramaje.png"
+                src="/images/altogramaje1.png"
                 alt="Alto Gramaje con Filtro UV"
                 width={140}
                 height={140}

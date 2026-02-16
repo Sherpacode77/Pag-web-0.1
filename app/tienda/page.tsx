@@ -8,9 +8,11 @@ import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
-import { products, categories } from "@/lib/data"
+import { useProducts } from "@/hooks/use-products"
+import { categories } from "@/lib/data"
 
 function StoreContent() {
+  const { products, loading } = useProducts()
   const searchParams = useSearchParams()
   const initialCategory = searchParams.get("category") || "all"
   const [activeCategory, setActiveCategory] = useState(initialCategory)
@@ -108,7 +110,11 @@ function StoreContent() {
 
         {/* Products grid */}
         <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
-          {filteredProducts.length === 0 ? (
+          {loading ? (
+            <div className="py-20 text-center">
+              <p className="text-muted-foreground">Cargando productos...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="py-20 text-center">
               <p className="text-muted-foreground">
                 No hay productos en esta categoria por el momento.

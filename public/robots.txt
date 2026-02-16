@@ -1,0 +1,43 @@
+# robots.txt para CERO.UNO
+# https://www.cero.uno
+
+# Permitir a todos los bots rastrear el sitio público
+User-agent: *
+Allow: /
+
+# Bloquear panel de administración
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /api/auth
+
+# Bloquear archivos internos
+Disallow: /_next/
+Disallow: /api/
+
+# Permitir explícitamente páginas importantes
+Allow: /tienda
+Allow: /blog
+Allow: /nosotros
+Allow: /contacto
+
+# Sitemap (actualizar con tu dominio real en producción)
+Sitemap: https://www.cero.uno/sitemap.xml
+
+# Configuración específica para Google
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+
+# Configuración para Google Images (importante para e-commerce)
+User-agent: Googlebot-Image
+Allow: /images/products/
+Disallow: /images/blog/
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+
+# Crawl-delay para bots agresivos (evita sobrecarga)
+User-agent: *
+Crawl-delay: 1

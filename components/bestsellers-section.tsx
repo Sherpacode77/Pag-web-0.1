@@ -2,11 +2,24 @@
 
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
-import { products } from "@/lib/data"
+import { useProducts } from "@/hooks/use-products"
 import { ProductCard } from "./product-card"
 
 export function BestsellersSection() {
+  const { products, loading } = useProducts()
   const featured = products.filter((p) => p.featured || p.bestSeller).slice(0, 8)
+
+  if (loading) {
+    return (
+      <section id="bestsellers" className="py-16 lg:py-24">
+        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Cargando productos...</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section id="bestsellers" className="py-16 lg:py-24">

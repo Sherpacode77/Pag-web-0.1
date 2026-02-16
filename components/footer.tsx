@@ -218,7 +218,7 @@ export function Footer() {
           </p>
           <div className="flex items-center gap-2">
             <Image
-              src="/images/100colombiano.png"
+              src="/images/100colombiano1.png"
               alt="Hecho en Colombia"
               width={32}
               height={32}

@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -18,13 +18,81 @@ import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
-import { products, formatPrice } from "@/lib/data"
+import { VariantSelector } from "@/components/variant-selector"
+import { useProducts } from "@/hooks/use-products"
+import { formatPrice } from "@/lib/data"
+import type { Product } from "@/lib/data"
+
+interface ProductVariant {
+  color: "negro" | "rojo" | "naranja" | "verde" | "azul"
+  colorName: string
+  image: string
+  inStock: boolean
+}
 
 function ProductDetailContent({ slug }: { slug: string }) {
+  const { products, loading } = useProducts()
   const product = products.find((p) => p.slug === slug)
   const { addItem } = useCart()
   const [quantity, setQuantity] = useState(1)
   const [activeImage, setActiveImage] = useState(0)
+  const [activeMediaType, setActiveMediaType] = useState<"image" | "video">("image")
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0)
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null
+  )
+
+  // Establecer variante por defecto si existe
+  // Priorizar negro si está disponible
+  useEffect(() => {
+    if (product?.hasVariants && product.variants && product.variants.length > 0) {
+      // Buscar negro primero
+      const negroVariant = product.variants.find((v) => v.color === "negro" && v.inStock)
+      if (negroVariant) {
+        setSelectedVariant(negroVariant)
+      } else {
+        // Si no hay negro, buscar la primera disponible
+        const firstAvailable = product.variants.find((v) => v.inStock)
+        if (firstAvailable) {
+          setSelectedVariant(firstAvailable)
+        }
+      }
+    }
+  }, [product])
+
+  // Obtener imágenes según variante seleccionada
+  // Si es negro, usar todas las imágenes principales del producto
+  // Si es otro color, usar solo la imagen específica de esa variante
+  const displayImages = selectedVariant
+    ? selectedVariant.color === "negro"
+      ? product?.images || []
+      : [selectedVariant.image]
+    : product?.images || []
+  
+  // Mostrar videos solo si es variante negro o si no hay variantes
+  const shouldShowVideos = !selectedVariant || selectedVariant.color === "negro"
+  const displayVideos = shouldShowVideos ? (product?.videos || []) : []
+  
+  const currentImage = displayImages[activeImage] || displayImages[0] || product?.image || ""
+  const currentVideo = displayVideos[activeVideoIndex] || ""
+
+  // Resetear a imagen cuando cambie la variante y no haya videos
+  useEffect(() => {
+    if (displayVideos.length === 0 && activeMediaType === "video") {
+      setActiveMediaType("image")
+      setActiveImage(0)
+    }
+  }, [selectedVariant, displayVideos.length, activeMediaType])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Cargando producto...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!product) {
     return (
@@ -82,32 +150,48 @@ function ProductDetailContent({ slug }: { slug: string }) {
         {/* Product */}
         <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-16">
-            {/* Images */}
+            {/* Images & Videos */}
             <div className="flex flex-col gap-4">
               <div className="relative aspect-square overflow-hidden bg-secondary">
-                <Image
-                  src={product.images[activeImage] || product.image}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  priority
-                />
+                {activeMediaType === "image" ? (
+                  <Image
+                    src={displayImages[activeImage] || currentImage || "/placeholder.svg"}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    priority
+                  />
+                ) : (
+                  <video
+                    key={currentVideo}
+                    src={currentVideo}
+                    className="w-full h-full object-cover"
+                    controls
+                    autoPlay
+                    loop
+                    playsInline
+                  />
+                )}
                 {product.originalPrice && (
                   <span className="absolute top-4 left-4 bg-primary text-primary-foreground px-3 py-1 text-xs font-bold uppercase tracking-wider">
                     Oferta
                   </span>
                 )}
               </div>
-              {product.images.length > 1 && (
-                <div className="flex gap-2">
-                  {product.images.map((img, idx) => (
+              {(displayImages.length > 1 || displayVideos.length > 0) && (
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {/* Thumbnails de imágenes */}
+                  {displayImages.map((img, idx) => (
                     <button
-                      key={img}
+                      key={`img-${img}`}
                       type="button"
-                      onClick={() => setActiveImage(idx)}
-                      className={`relative h-20 w-20 overflow-hidden border-2 transition-colors ${
-                        activeImage === idx
+                      onClick={() => {
+                        setActiveImage(idx)
+                        setActiveMediaType("image")
+                      }}
+                      className={`relative h-20 w-20 flex-shrink-0 overflow-hidden border-2 transition-colors ${
+                        activeMediaType === "image" && activeImage === idx
                           ? "border-primary"
                           : "border-border hover:border-muted-foreground"
                       }`}
@@ -119,6 +203,36 @@ function ProductDetailContent({ slug }: { slug: string }) {
                         className="object-cover"
                         sizes="80px"
                       />
+                    </button>
+                  ))}
+                  {/* Thumbnails de videos */}
+                  {displayVideos.map((video, idx) => (
+                    <button
+                      key={`video-${video}`}
+                      type="button"
+                      onClick={() => {
+                        setActiveVideoIndex(idx)
+                        setActiveMediaType("video")
+                      }}
+                      className={`relative h-20 w-20 flex-shrink-0 overflow-hidden border-2 transition-colors ${
+                        activeMediaType === "video" && activeVideoIndex === idx
+                          ? "border-primary"
+                          : "border-border hover:border-muted-foreground"
+                      }`}
+                    >
+                      <video
+                        src={video}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <div className="bg-white/90 rounded-full p-1.5">
+                          <svg className="h-4 w-4 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -144,6 +258,18 @@ function ProductDetailContent({ slug }: { slug: string }) {
                   </span>
                 )}
               </div>
+
+              {/* Selector de Variantes */}
+              {product.hasVariants && product.variants && (
+                <VariantSelector
+                  variants={product.variants}
+                  selectedVariant={selectedVariant}
+                  onSelect={(variant) => {
+                    setSelectedVariant(variant)
+                    setActiveImage(0) // Reset a la primera imagen
+                  }}
+                />
+              )}
 
               <p className="mt-6 text-sm text-muted-foreground leading-relaxed">
                 {product.description}

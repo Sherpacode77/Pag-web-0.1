@@ -6,7 +6,7 @@ import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
-import { products, categories } from "@/lib/data"
+import { useProducts } from "@/hooks/use-products"
 
 const accCategories = [
   { id: "all", label: "Todos" },
@@ -16,6 +16,7 @@ const accCategories = [
 ]
 
 export default function AccesoriosPage() {
+  const { products, loading } = useProducts()
   const [active, setActive] = useState("all")
 
   const nonAlforjas = products.filter((p) => p.category !== "alforjas")
@@ -71,7 +72,11 @@ export default function AccesoriosPage() {
         {/* Products grid */}
         <section className="py-16">
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div className="py-20 text-center">
+                <p className="text-muted-foreground">Cargando productos...</p>
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="py-20 text-center">
                 <p className="text-muted-foreground">
                   No hay productos en esta categoria.

@@ -1,3 +1,10 @@
+export interface ProductVariant {
+  color: "negro" | "rojo" | "naranja" | "verde" | "azul"
+  colorName: string
+  image: string
+  inStock: boolean
+}
+
 export interface Product {
   id: string
   name: string
@@ -8,10 +15,13 @@ export interface Product {
   shortDescription: string
   image: string
   images: string[]
+  videos?: string[]
   category: "alforjas" | "accesorios" | "ropa" | "kits"
   bikePart?: "manubrio" | "sillin" | "marco" | "tubo-superior"
   tags: string[]
   colors?: string[]
+  hasVariants?: boolean
+  variants?: ProductVariant[]
   featured: boolean
   bestSeller: boolean
   specs: { label: string; value: string }[]
@@ -90,10 +100,12 @@ export const products: Product[] = [
     description:
       "Bolso de manubrio compacto de 4 litros. Acceso rapido a tus esenciales durante la ruta. Tela impermeable de alto gramaje con proteccion UV. Montaje con correas ajustables.",
     shortDescription: "Bolso de manubrio compacto 4L acceso rapido",
-    image: "/images/products/frontbag-lifestyle.jpg",
+    image: "/images/products/fb1.jpg",
     images: [
-      "/images/products/frontbag-lifestyle.jpg",
-      "/images/products/frontbag-4l.jpg",
+      "/images/products/fb1.jpg",
+      "/images/products/fb2.jpg",
+      "/images/products/fb3.jpg",
+      "/images/products/fb4.jpg",
     ],
     category: "alforjas",
     bikePart: "manubrio",
@@ -117,10 +129,16 @@ export const products: Product[] = [
     description:
       "Bolso de manubrio roll-top de 8 litros. Capacidad expandible y cierre hermetico. Perfecto para llevar ropa y suministros en rutas largas. Fabricado con telas resistentes al arrastre.",
     shortDescription: "Bolso manubrio roll-top impermeable 8L expandible",
-    image: "/images/products/rolltop-lifestyle.jpg",
+    image: "/images/products/fbl1.jpg",
     images: [
-      "/images/products/rolltop-lifestyle.jpg",
-      "/images/products/frontbag-rolltop-8l.jpg",
+      "/images/products/fbl1.jpg",
+      "/images/products/fbl2.jpg",
+      "/images/products/fbl3.jpg",
+      "/images/products/fbl4.jpg",
+      "/images/products/fbl5.jpg",
+      "/images/products/fbl6.jpg",
+      "/images/products/fbl7.jpg",
+      "/images/products/fbl8.jpg",
     ],
     category: "alforjas",
     bikePart: "manubrio",
@@ -219,8 +237,13 @@ export const products: Product[] = [
     description:
       "Bolso porta herramientas compacto para cuadro de bicicleta. Mantiene tus herramientas organizadas y accesibles. Material impermeable de alta resistencia.",
     shortDescription: "Bolso porta herramientas compacto para cuadro",
-    image: "/images/products/porta-herramientas.jpg",
-    images: ["/images/products/porta-herramientas.jpg"],
+    image: "/images/products/ph1.jpeg",
+    images: [
+      "/images/products/ph1.jpeg",
+      "/images/products/ph2.jpeg",
+      "/images/products/ph3.jpeg",
+      "/images/products/ph4.jpg",
+    ],
     category: "accesorios",
     tags: ["herramientas", "cuadro", "compacto"],
     colors: ["Negro"],
@@ -334,8 +357,14 @@ export const products: Product[] = [
     description:
       "Camiseta oversize CERO.UNO en algodon premium. Corte relajado ideal para uso urbano y casual despues de la ruta. Estampado con logo de la marca.",
     shortDescription: "Camiseta oversize algodon premium con logo",
-    image: "/images/products/camiseta-oversize.jpg",
-    images: ["/images/products/camiseta-oversize.jpg"],
+    image: "/images/products/COZ6.jpeg",
+    images: [
+      "/images/products/COZ1.png",
+      "/images/products/COZ2.png",
+      "/images/products/COZ3.png",
+      "/images/products/COZ4.png",
+      "/images/products/COZ5.png",
+    ],
     category: "ropa",
     tags: ["camiseta", "oversize", "urbano", "algodon"],
     colors: ["Negro", "Blanco", "Gris"],
