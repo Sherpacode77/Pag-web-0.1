@@ -1,7 +1,12 @@
 {
-  "name": "my-project",
-  "version": "0.1.0",
+  "name": "cero-uno-ecommerce",
+  "version": "1.0.0",
+  "description": "CERO.UNO - E-commerce de bicicletas y accesorios",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
