@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
+import { ensureAdminSession } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import fs from "fs"
 
+export const runtime = "nodejs"
+
 export async function POST(request: NextRequest) {
   try {
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
+
     const formData = await request.formData()
     const file = formData.get("file") as File
     
@@ -39,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // Crear nombre único para evitar conflictos
     const timestamp = Date.now()
-    const originalName = file.name.replace(/\s+/g, "-").toLowerCase()
+    const originalName = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, "_").toLowerCase()
     const fileName = `${timestamp}-${originalName}`
 
     // Ruta donde se guardará (public/images/products/)

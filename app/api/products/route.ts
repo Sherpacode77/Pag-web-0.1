@@ -1,9 +1,62 @@
 import { NextRequest, NextResponse } from "next/server"
 import { products } from "@/lib/data"
+import { ensureAdminSession } from "@/lib/auth"
 import fs from "fs"
 import path from "path"
+import { z } from "zod"
+
+export const runtime = "nodejs"
 
 const PRODUCTS_FILE = path.join(process.cwd(), "lib", "products.json")
+
+const categorySchema = z.enum(["alforjas", "accesorios", "ropa", "kits"])
+const bikePartSchema = z.enum(["manubrio", "sillin", "marco", "tubo-superior"])
+const variantColorSchema = z.enum(["negro", "rojo", "naranja", "verde", "azul"])
+
+const baseProductSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  slug: z.string().trim().min(2).max(160).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  price: z.number().finite().nonnegative(),
+  originalPrice: z.number().finite().nonnegative().optional(),
+  description: z.string().trim().min(10).max(5000),
+  shortDescription: z.string().trim().min(5).max(300),
+  image: z.string().trim().startsWith("/"),
+  images: z.array(z.string().trim().startsWith("/")).max(20).optional().default([]),
+  videos: z.array(z.string().trim().startsWith("/")).max(10).optional().default([]),
+  category: categorySchema,
+  bikePart: bikePartSchema.optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional().default([]),
+  colors: z.array(z.string().trim().min(1).max(40)).max(15).optional().default([]),
+  hasVariants: z.boolean().optional().default(false),
+  variants: z
+    .array(
+      z.object({
+        color: variantColorSchema,
+        colorName: z.string().trim().min(1).max(30),
+        image: z.string().trim().startsWith("/"),
+        inStock: z.boolean(),
+      })
+    )
+    .max(10)
+    .optional()
+    .default([]),
+  featured: z.boolean().optional().default(false),
+  bestSeller: z.boolean().optional().default(false),
+  specs: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1).max(80),
+        value: z.string().trim().min(1).max(250),
+      })
+    )
+    .max(30)
+    .optional()
+    .default([]),
+})
+
+const updateProductSchema = baseProductSchema.partial().extend({
+  id: z.string().trim().min(1),
+})
 
 // Inicializar archivo con productos existentes si no existe
 function initializeProducts() {
@@ -55,17 +108,34 @@ export async function GET() {
 // POST - Crear nuevo producto
 export async function POST(request: NextRequest) {
   try {
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
+
     const body = await request.json()
+    const parsed = baseProductSchema.safeParse(body)
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Datos de producto inválidos", details: parsed.error.flatten() },
+        { status: 400 }
+      )
+    }
+
     const productsData = readProducts()
     
     // Generar nuevo ID
-    const newId = String(Math.max(...productsData.map((p: any) => parseInt(p.id))) + 1)
+    const maxId = productsData.reduce((max: number, product: any) => {
+      const numericId = Number.parseInt(product.id, 10)
+      return Number.isFinite(numericId) ? Math.max(max, numericId) : max
+    }, 0)
+
+    const newId = String(maxId + 1)
     
     const newProduct = {
-      ...body,
+      ...parsed.data,
       id: newId,
-      featured: body.featured || false,
-      bestSeller: body.bestSeller || false,
     }
     
     productsData.push(newProduct)
@@ -89,8 +159,22 @@ export async function POST(request: NextRequest) {
 // PUT - Actualizar producto existente
 export async function PUT(request: NextRequest) {
   try {
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
+
     const body = await request.json()
-    const { id, ...updateData } = body
+    const parsed = updateProductSchema.safeParse(body)
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Datos de actualización inválidos", details: parsed.error.flatten() },
+        { status: 400 }
+      )
+    }
+
+    const { id, ...updateData } = parsed.data
     
     if (!id) {
       return NextResponse.json(
@@ -130,6 +214,11 @@ export async function PUT(request: NextRequest) {
 // DELETE - Eliminar producto
 export async function DELETE(request: NextRequest) {
   try {
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
     

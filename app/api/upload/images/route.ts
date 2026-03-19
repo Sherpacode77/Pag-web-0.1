@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server"
+import { NextRequest } from "next/server"
+import { ensureAdminSession } from "@/lib/auth"
 import fs from "fs"
 import path from "path"
 
+export const runtime = "nodejs"
+
 // GET - Listar todas las imágenes disponibles
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
+
     const imagesDir = path.join(process.cwd(), "public", "images", "products")
     
     // Verificar si el directorio existe
@@ -44,8 +53,13 @@ export async function GET() {
 }
 
 // DELETE - Eliminar una imagen
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
+
     const { searchParams } = new URL(request.url)
     const imagePath = searchParams.get("path")
     
@@ -56,8 +70,22 @@ export async function DELETE(request: Request) {
       )
     }
 
+    if (!imagePath.startsWith("/images/products/")) {
+      return NextResponse.json(
+        { error: "Ruta inválida" },
+        { status: 400 }
+      )
+    }
+
     // Construir ruta física del archivo
-    const fileName = imagePath.replace("/images/products/", "")
+    const fileName = path.basename(imagePath)
+    if (!/^[a-zA-Z0-9._-]+$/.test(fileName)) {
+      return NextResponse.json(
+        { error: "Nombre de archivo inválido" },
+        { status: 400 }
+      )
+    }
+
     const filePath = path.join(
       process.cwd(),
       "public",

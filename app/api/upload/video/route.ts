@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
+import { ensureAdminSession } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import { existsSync } from "fs"
 import path from "path"
 
+export const runtime = "nodejs"
+
 export async function POST(request: NextRequest) {
   try {
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
+
     const formData = await request.formData()
     const file = formData.get("file") as File
 
@@ -40,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Generar nombre único
     const timestamp = Date.now()
-    const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
+    const originalName = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, "_")
     const fileName = `${timestamp}-${originalName}`
     const filePath = path.join(uploadDir, fileName)
 
@@ -67,8 +75,13 @@ export async function POST(request: NextRequest) {
 }
 
 // GET - Listar videos disponibles
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
+
     const { readdir } = await import("fs/promises")
     const uploadDir = path.join(process.cwd(), "public", "videos", "products")
 
@@ -97,14 +110,24 @@ export async function GET() {
 // DELETE - Eliminar video
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const filename = searchParams.get("filename")
+    const unauthorized = ensureAdminSession(request)
+    if (unauthorized) {
+      return unauthorized
+    }
 
-    if (!filename) {
+    const { searchParams } = new URL(request.url)
+    const filenameParam = searchParams.get("filename")
+
+    if (!filenameParam) {
       return NextResponse.json(
         { error: "Filename is required" },
         { status: 400 }
       )
+    }
+
+    const filename = path.basename(filenameParam)
+    if (!/^[a-zA-Z0-9._-]+$/.test(filename)) {
+      return NextResponse.json({ error: "Filename inválido" }, { status: 400 })
     }
 
     const { unlink } = await import("fs/promises")

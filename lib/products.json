@@ -10,6 +10,8 @@
     "images": [
       "/images/products/saddlebag-urban.jpg",
       "/images/products/saddlebag-studio.jpg",
+      "/images/products/saddlebag-azul.jpg",
+      "/images/products/saddlebag-morado.jpg",
       "/images/products/saddlebag-dimensiones.jpg",
       "/images/products/saddlebag-agarres.jpg"
     ],
@@ -49,43 +51,6 @@
         "label": "Cierre",
         "value": "Roll-top con hebilla"
       }
-    ],
-    "originalPrice": 220000,
-    "hasVariants": true,
-    "variants": [
-      {
-        "color": "negro",
-        "colorName": "Negro",
-        "image": "/images/products/saddlebag-urban.jpg",
-        "inStock": true
-      },
-      {
-        "color": "rojo",
-        "colorName": "Rojo",
-        "image": "/images/products/1770946860031-rojo.png",
-        "inStock": true
-      },
-      {
-        "color": "naranja",
-        "colorName": "Naranja",
-        "image": "/images/products/1770946873397-cordadarecurso-2-(2).png",
-        "inStock": true
-      },
-      {
-        "color": "verde",
-        "colorName": "Verde",
-        "image": "/images/products/1770946885429-cordadarecurso-6-(2).png",
-        "inStock": true
-      },
-      {
-        "color": "azul",
-        "colorName": "Azul",
-        "image": "/images/products/1770946893292-cordadarecurso-1-(3).png",
-        "inStock": true
-      }
-    ],
-    "videos": [
-      "/videos/products/1770946917770-videosbzip35mb.mp4"
     ]
   },
   {

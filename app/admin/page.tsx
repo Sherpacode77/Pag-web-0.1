@@ -14,11 +14,23 @@ export default function AdminLoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Verificar si ya está autenticado
-    const token = localStorage.getItem("adminToken")
-    if (token) {
-      router.push("/admin/dashboard")
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        })
+
+        if (response.ok) {
+          router.push("/admin/dashboard")
+        }
+      } catch {
+        // Sin sesión activa, permanecer en login
+      }
     }
+
+    checkSession()
   }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -30,14 +42,13 @@ export default function AdminLoginPage() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ username, password }),
       })
 
       const data = await response.json()
 
       if (response.ok && data.success) {
-        localStorage.setItem("adminToken", data.token)
-        localStorage.setItem("adminUser", JSON.stringify(data.user))
         router.push("/admin/dashboard")
       } else {
         setError(data.error || "Error de autenticación")
@@ -143,15 +154,6 @@ export default function AdminLoginPage() {
               {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </button>
           </form>
-
-          {/* Info */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-muted-foreground">
-              Credenciales por defecto:
-              <br />
-              <span className="font-mono">admin / cerouno2026</span>
-            </p>
-          </div>
         </div>
 
         {/* Footer */}

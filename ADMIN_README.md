@@ -18,9 +18,16 @@ Esto creará el archivo `lib/products.json` con todos tus productos actuales.
 
 Ve a: **http://localhost:3000/admin**
 
-**Credenciales por defecto:**
+**Credenciales por defecto (solo desarrollo):**
 - Usuario: `admin`
 - Contraseña: `cerouno2026`
+
+**Producción (obligatorio):** configura variables de entorno en el hosting:
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `ADMIN_SESSION_SECRET` (mínimo 32 caracteres)
+
+La autenticación de admin ahora usa cookie de sesión `httpOnly` firmada en servidor (no se guarda token en `localStorage`).
 
 ### 3. Gestionar productos
 

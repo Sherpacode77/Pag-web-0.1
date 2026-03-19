@@ -63,17 +63,42 @@ export default function AdminDashboard() {
   const router = useRouter()
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken")
-    if (!token) {
-      router.push("/admin")
-      return
+    async function bootstrap() {
+      const isAuthenticated = await validateSession()
+      if (!isAuthenticated) {
+        router.push("/admin")
+        return
+      }
+
+      await fetchProducts()
     }
-    fetchProducts()
+
+    bootstrap()
   }, [router])
+
+  async function validateSession() {
+    try {
+      const response = await fetch("/api/auth/session", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      })
+
+      return response.ok
+    } catch {
+      return false
+    }
+  }
 
   async function fetchProducts() {
     try {
       const response = await fetch("/api/products")
+
+      if (response.status === 401) {
+        router.push("/admin")
+        return
+      }
+
       const data = await response.json()
       setProducts(data)
     } catch (error) {
@@ -83,9 +108,16 @@ export default function AdminDashboard() {
     }
   }
 
-  function handleLogout() {
-    localStorage.removeItem("adminToken")
-    localStorage.removeItem("adminUser")
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      })
+    } catch (error) {
+      console.error("Error during logout:", error)
+    }
+
     router.push("/admin")
   }
 

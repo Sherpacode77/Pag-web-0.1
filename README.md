@@ -76,6 +76,8 @@ Usuario: admin
 Contraseña: cerouno2026
 ```
 
+> En producción debes configurar `ADMIN_USERNAME`, `ADMIN_PASSWORD` y `ADMIN_SESSION_SECRET` en variables de entorno.
+
 ---
 
 ## 🛠️ Tecnologías
