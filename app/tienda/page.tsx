@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
 import { SlidersHorizontal } from "lucide-react"
-import { CartProvider } from "@/lib/cart-context"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
@@ -41,7 +40,7 @@ function StoreContent() {
     }
 
     return filtered
-  }, [activeCategory, sortBy])
+  }, [activeCategory, sortBy, products])
 
   return (
     <>
@@ -136,8 +135,6 @@ function StoreContent() {
 
 export default function TiendaPage() {
   return (
-    <CartProvider>
-      <StoreContent />
-    </CartProvider>
+    <StoreContent />
   )
 }

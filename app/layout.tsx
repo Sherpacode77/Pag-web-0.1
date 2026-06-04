@@ -3,6 +3,10 @@ import type { Metadata, Viewport } from "next"
 import { Inter, Geist_Mono } from "next/font/google"
 import { WhatsAppButton } from "@/components/whatsapp-button"
 import { OrganizationSchema } from "@/components/product-schema"
+import { AnalyticsManager } from "@/components/analytics-manager"
+import { assetOrigin } from "@/lib/assets"
+import { Toaster } from "@/components/ui/sonner"
+import { CartProvider } from "@/lib/cart-context"
 
 import "./globals.css"
 
@@ -97,17 +101,29 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const mediaOrigin = assetOrigin()
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        {mediaOrigin && (
+          <>
+            <link rel="preconnect" href={mediaOrigin} crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href={mediaOrigin} />
+          </>
+        )}
         <OrganizationSchema />
       </head>
       <body
         className={`${inter.variable} ${geistMono.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
-        {children}
+        <AnalyticsManager />
+        <CartProvider>
+          {children}
+        </CartProvider>
         <WhatsAppButton />
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   )

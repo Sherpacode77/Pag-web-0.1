@@ -3,6 +3,7 @@
 import { useState, useRef } from "react"
 import Image from "next/image"
 import { Upload, X, Loader2, ImagePlus } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 interface MultiImageUploadProps {
   value: string[]
@@ -141,7 +142,7 @@ export function MultiImageUpload({
               className="relative aspect-square rounded-lg overflow-hidden border-2 border-border bg-secondary group"
             >
               <Image
-                src={imagePath || "/placeholder.svg"}
+                src={assetUrl(imagePath || "/placeholder.svg")}
                 alt={`Imagen ${index + 1}`}
                 fill
                 className="object-cover"

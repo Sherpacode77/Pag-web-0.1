@@ -9,10 +9,20 @@
   },
   "scripts": {
     "dev": "next dev --turbo",
+    "prebuild": "chmod -R 755 . 2>/dev/null || true",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "init-products": "node -e \"require('fs').writeFileSync('lib/products.json', JSON.stringify(require('./lib/data.ts').products || [], null, 2))\""
+    "init-products": "node -e \"require('fs').writeFileSync('lib/products.json', JSON.stringify(require('./lib/data.ts').products || [], null, 2))\"",
+    "db:init": "node scripts/init-database.js",
+    "db:init:schema": "node scripts/init-database.js --schema-only",
+    "db:seed": "node scripts/seed-test-data.js",
+    "db:seed:clean": "node scripts/seed-test-data.js --clean",
+    "db:migrate:assets": "node scripts/migrate-local-assets-to-db.js",
+    "db:migrate:products": "node scripts/migrate-products-to-db.js",
+    "assets:audit": "node scripts/audit-assets.js",
+    "assets:prune": "node scripts/audit-assets.js --delete-unused",
+    "size:report": "node scripts/project-size-report.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -51,6 +61,8 @@
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.544.0",
+    "mercadopago": "^2.12.0",
+    "mysql2": "^3.14.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "react": "19.2.3",

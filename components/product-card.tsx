@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ShoppingBag } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { formatPrice, type Product } from "@/lib/data"
+import { assetUrl } from "@/lib/assets"
 
 export function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart()
@@ -16,7 +17,7 @@ export function ProductCard({ product }: { product: Product }) {
         className="relative aspect-square overflow-hidden bg-secondary"
       >
         <Image
-          src={product.image || "/placeholder.svg"}
+          src={assetUrl(product.image || "/placeholder.svg")}
           alt={product.name}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"

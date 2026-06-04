@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { NextRequest } from "next/server"
 import { ensureAdminSession } from "@/lib/auth"
+import { deleteAssetByPath, isDbAssetStorageEnabled } from "@/lib/db-assets"
 import fs from "fs"
 import path from "path"
 
@@ -15,16 +16,13 @@ export async function GET(request: NextRequest) {
     }
 
     const imagesDir = path.join(process.cwd(), "public", "images", "products")
-    
-    // Verificar si el directorio existe
+
     if (!fs.existsSync(imagesDir)) {
       return NextResponse.json({ images: [] })
     }
 
-    // Leer archivos del directorio
     const files = fs.readdirSync(imagesDir)
-    
-    // Filtrar solo imágenes y obtener información
+
     const images = files
       .filter((file) => {
         const ext = path.extname(file).toLowerCase()
@@ -62,7 +60,7 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const imagePath = searchParams.get("path")
-    
+
     if (!imagePath) {
       return NextResponse.json(
         { error: "Ruta de imagen requerida" },
@@ -77,7 +75,6 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Construir ruta física del archivo
     const fileName = path.basename(imagePath)
     if (!/^[a-zA-Z0-9._-]+$/.test(fileName)) {
       return NextResponse.json(
@@ -86,15 +83,8 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const filePath = path.join(
-      process.cwd(),
-      "public",
-      "images",
-      "products",
-      fileName
-    )
+    const filePath = path.join(process.cwd(), "public", "images", "products", fileName)
 
-    // Verificar si existe
     if (!fs.existsSync(filePath)) {
       return NextResponse.json(
         { error: "Imagen no encontrada" },
@@ -102,8 +92,11 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Eliminar archivo
     fs.unlinkSync(filePath)
+
+    if (isDbAssetStorageEnabled()) {
+      await deleteAssetByPath(imagePath)
+    }
 
     return NextResponse.json({ success: true, deleted: imagePath })
   } catch (error) {

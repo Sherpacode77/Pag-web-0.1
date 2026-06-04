@@ -4,7 +4,6 @@ import React from "react"
 
 import { useState } from "react"
 import Image from "next/image"
-import { CartProvider } from "@/lib/cart-context"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
@@ -21,6 +20,7 @@ import {
   Users,
   Send,
 } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 export default function TravelPage() {
   const [formData, setFormData] = useState({
@@ -48,14 +48,14 @@ export default function TravelPage() {
   }
 
   return (
-    <CartProvider>
+    <>
       <Navbar />
       <CartSidebar />
       <main>
         {/* Hero */}
         <section className="relative h-[60vh] min-h-[400px] overflow-hidden">
           <Image
-            src="/images/travel-hero.jpg"
+            src={assetUrl("/images/travel-hero.jpg")}
             alt="CERO.UNO Travel - Logistica ciclista"
             fill
             className="object-cover"
@@ -336,6 +336,6 @@ export default function TravelPage() {
         </section>
       </main>
       <Footer />
-    </CartProvider>
+    </>
   )
 }

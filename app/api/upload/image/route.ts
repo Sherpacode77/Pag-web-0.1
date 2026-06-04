@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ensureAdminSession } from "@/lib/auth"
+import { isDbAssetStorageEnabled, saveAssetInDb } from "@/lib/db-assets"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import fs from "fs"
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get("file") as File
-    
+
     if (!file) {
       return NextResponse.json(
         { error: "No se recibió ningún archivo" },
@@ -23,7 +24,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar tipo de archivo
     const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar tamaño (máximo 5MB)
     const maxSize = 5 * 1024 * 1024 // 5MB
     if (file.size > maxSize) {
       return NextResponse.json(
@@ -41,35 +40,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Leer archivo como buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Crear nombre único para evitar conflictos
     const timestamp = Date.now()
     const originalName = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, "_").toLowerCase()
     const fileName = `${timestamp}-${originalName}`
+    const relativePath = `/images/products/${fileName}`
 
-    // Ruta donde se guardará (public/images/products/)
     const uploadDir = path.join(process.cwd(), "public", "images", "products")
-    
-    // Crear directorio si no existe
     if (!fs.existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true })
     }
 
     const filePath = path.join(uploadDir, fileName)
-
-    // Guardar archivo
     await writeFile(filePath, buffer)
 
-    // Retornar ruta relativa para usar en la base de datos
-    const relativePath = `/images/products/${fileName}`
+    if (isDbAssetStorageEnabled()) {
+      await saveAssetInDb({
+        assetPath: relativePath,
+        fileName,
+        contentType: file.type,
+        kind: "image",
+        sizeBytes: file.size,
+      })
+    }
 
     return NextResponse.json({
       success: true,
       path: relativePath,
-      fileName: fileName,
+      fileName,
       size: file.size,
       type: file.type,
     })

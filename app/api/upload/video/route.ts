@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ensureAdminSession } from "@/lib/auth"
-import { writeFile, mkdir } from "fs/promises"
+import { isDbAssetStorageEnabled, saveAssetInDb } from "@/lib/db-assets"
+import { writeFile, mkdir, readdir, unlink } from "fs/promises"
 import { existsSync } from "fs"
 import path from "path"
 
@@ -23,7 +24,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar que sea un video MP4
     if (file.type !== "video/mp4") {
       return NextResponse.json(
         { error: "Solo se permiten archivos MP4" },
@@ -31,34 +31,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar tamaño (50MB máximo)
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    // 500MB max — filesystem can handle it, MariaDB cannot
+    const maxSize = 500 * 1024 * 1024
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "El video debe ser menor a 50MB" },
+        { error: "El video debe ser menor a 500MB" },
         { status: 400 }
       )
     }
 
-    // Crear directorio si no existe
     const uploadDir = path.join(process.cwd(), "public", "videos", "products")
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true })
     }
 
-    // Generar nombre único
     const timestamp = Date.now()
     const originalName = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, "_")
     const fileName = `${timestamp}-${originalName}`
-    const filePath = path.join(uploadDir, fileName)
+    const relativePath = `/videos/products/${fileName}`
 
-    // Convertir File a Buffer y guardar
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
+
+    const filePath = path.join(uploadDir, fileName)
     await writeFile(filePath, buffer)
 
-    // Retornar ruta relativa para usar en el frontend
-    const relativePath = `/videos/products/${fileName}`
+    if (isDbAssetStorageEnabled()) {
+      await saveAssetInDb({
+        assetPath: relativePath,
+        fileName,
+        contentType: file.type,
+        kind: "video",
+        sizeBytes: file.size,
+      })
+    }
 
     return NextResponse.json({
       success: true,
@@ -82,22 +88,21 @@ export async function GET(request: NextRequest) {
       return unauthorized
     }
 
-    const { readdir } = await import("fs/promises")
     const uploadDir = path.join(process.cwd(), "public", "videos", "products")
 
     if (!existsSync(uploadDir)) {
-      return NextResponse.json([])
+      return NextResponse.json({ videos: [] })
     }
 
     const files = await readdir(uploadDir)
     const videoFiles = files
-      .filter((file) => file.endsWith(".mp4"))
+      .filter((file) => file.endsWith(".mp4") || file.endsWith(".webm") || file.endsWith(".mov"))
       .map((file) => ({
         name: file,
         path: `/videos/products/${file}`,
       }))
 
-    return NextResponse.json(videoFiles)
+    return NextResponse.json({ videos: videoFiles })
   } catch (error) {
     console.error("Error listing videos:", error)
     return NextResponse.json(
@@ -130,14 +135,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Filename inválido" }, { status: 400 })
     }
 
-    const { unlink } = await import("fs/promises")
-    const filePath = path.join(
-      process.cwd(),
-      "public",
-      "videos",
-      "products",
-      filename
-    )
+    const filePath = path.join(process.cwd(), "public", "videos", "products", filename)
 
     if (!existsSync(filePath)) {
       return NextResponse.json(
@@ -147,6 +145,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     await unlink(filePath)
+
+    if (isDbAssetStorageEnabled()) {
+      const { deleteAssetByPath } = await import("@/lib/db-assets")
+      await deleteAssetByPath(`/videos/products/${filename}`)
+    }
 
     return NextResponse.json({
       success: true,

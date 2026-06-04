@@ -1,0 +1,7 @@
+-- Archivo de compatibilidad — redirige al nuevo esquema MariaDB
+-- El esquema completo y actualizado está en: scripts/sql/init-schema.sql
+--
+-- Para inicializar la base de datos usa el script:
+--   node scripts/init-database.js
+-- O directamente el SQL completo:
+--   scripts/sql/init-schema.sql

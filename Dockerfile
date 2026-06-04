@@ -31,7 +31,6 @@ COPY --from=builder /app/package.json ./package.json
 
 # Copiar otros archivos necesarios en runtime
 COPY lib ./lib
-COPY scripts ./scripts
 COPY next.config.mjs ./next.config.mjs
 COPY tsconfig.json ./tsconfig.json
 COPY tailwind.config.ts ./tailwind.config.ts

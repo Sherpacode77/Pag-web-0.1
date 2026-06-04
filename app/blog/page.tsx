@@ -1,14 +1,24 @@
-"use client"
-
+import type { Metadata } from "next"
 import Image from "next/image"
+
+export const metadata: Metadata = {
+  title: "Journal & Rutas — Blog de Bikepacking CERO.UNO",
+  description:
+    "Historias, rutas y consejos para ciclistas de aventura. Aprende sobre bikepacking, mantenimiento y explora los mejores caminos de Colombia en bicicleta.",
+  openGraph: {
+    title: "Journal & Rutas | CERO.UNO Blog",
+    description:
+      "Rutas, historias y consejos de bikepacking en Colombia y el mundo.",
+  },
+}
 import Link from "next/link"
 import { Clock, ArrowRight } from "lucide-react"
-import { CartProvider } from "@/lib/cart-context"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { NewsletterSection } from "@/components/newsletter-section"
 import { blogPosts } from "@/lib/data"
+import { assetUrl } from "@/lib/assets"
 
 function BlogContent() {
   const featured = blogPosts[0]
@@ -43,7 +53,7 @@ function BlogContent() {
           >
             <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
               <Image
-                src={featured.image || "/placeholder.svg"}
+                src={assetUrl(featured.image || "/placeholder.svg")}
                 alt={featured.title}
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -101,7 +111,7 @@ function BlogContent() {
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
                     <Image
-                      src={post.image || "/placeholder.svg"}
+                      src={assetUrl(post.image || "/placeholder.svg")}
                       alt={post.title}
                       fill
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -144,8 +154,6 @@ function BlogContent() {
 
 export default function BlogPage() {
   return (
-    <CartProvider>
-      <BlogContent />
-    </CartProvider>
+    <BlogContent />
   )
 }

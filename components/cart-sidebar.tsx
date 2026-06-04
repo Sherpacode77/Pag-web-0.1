@@ -1,13 +1,93 @@
 "use client"
 
+import { useState } from "react"
 import Image from "next/image"
 import { X, Minus, Plus, ShoppingBag } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { formatPrice } from "@/lib/data"
+import { trackBeginCheckout, sendFacebookServerEvent } from "@/lib/tracking-client"
+import { assetUrl } from "@/lib/assets"
 
 export function CartSidebar() {
   const { items, removeItem, updateQuantity, totalPrice, isOpen, setIsOpen } =
     useCart()
+  const [isCheckingOut, setIsCheckingOut] = useState(false)
+
+  const handleCheckout = async () => {
+    if (items.length === 0 || isCheckingOut) return
+
+    try {
+      setIsCheckingOut(true)
+
+      const cartItems = items.map((item) => ({
+        id: item.product.id,
+        title: item.product.name,
+        unit_price: item.product.price,
+        quantity: item.quantity,
+        picture_url: item.product.image,
+        category_id: item.product.category,
+      }))
+
+      trackBeginCheckout(
+        items.map((item) => ({
+          id: item.product.id,
+          name: item.product.name,
+          category: item.product.category,
+          price: item.product.price,
+          quantity: item.quantity,
+        }))
+      )
+
+      void sendFacebookServerEvent({
+        eventName: "InitiateCheckout",
+        eventId: `checkout-${Date.now()}`,
+        customData: {
+          currency: "COP",
+          value: totalPrice,
+          content_type: "product",
+          contents: items.map((item) => ({
+            id: item.product.id,
+            quantity: item.quantity,
+            item_price: item.product.price,
+          })),
+        },
+      })
+
+      const response = await fetch("/api/payments/mercadopago/preference", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          items: cartItems,
+          externalReference: `cart-${Date.now()}`,
+        }),
+      })
+
+      const result = (await response.json()) as {
+        init_point?: string
+        sandbox_init_point?: string
+        error?: string
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || "No se pudo iniciar el checkout")
+      }
+
+      const checkoutUrl = result.init_point || result.sandbox_init_point
+      if (!checkoutUrl) {
+        throw new Error("Mercado Pago no devolvio una URL de pago")
+      }
+
+      window.location.href = checkoutUrl
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Error iniciando checkout"
+      alert(message)
+    } finally {
+      setIsCheckingOut(false)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -59,7 +139,7 @@ export function CartSidebar() {
                   >
                     <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden bg-secondary">
                       <Image
-                        src={item.product.image || "/placeholder.svg"}
+                        src={assetUrl(item.product.image || "/placeholder.svg")}
                         alt={item.product.name}
                         fill
                         className="object-cover"
@@ -131,9 +211,11 @@ export function CartSidebar() {
               </div>
               <button
                 type="button"
+                onClick={handleCheckout}
+                disabled={isCheckingOut}
                 className="w-full bg-primary text-primary-foreground py-3 text-sm font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors"
               >
-                Finalizar Compra
+                {isCheckingOut ? "Conectando..." : "Finalizar Compra"}
               </button>
               <p className="mt-2 text-center text-xs text-muted-foreground">
                 Envio gratis en compras superiores a $200.000 COP

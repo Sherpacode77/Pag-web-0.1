@@ -3,13 +3,13 @@
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { CartProvider } from "@/lib/cart-context"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { useProducts } from "@/hooks/use-products"
 import { bikePartFilters } from "@/lib/data"
+import { assetUrl } from "@/lib/assets"
 
 const bikeParts = [
   {
@@ -49,7 +49,7 @@ export default function AlforjasPage() {
       : alforjas.filter((p) => p.bikePart === activePart)
 
   return (
-    <CartProvider>
+    <>
       <Navbar />
       <CartSidebar />
       <main>
@@ -71,21 +71,21 @@ export default function AlforjasPage() {
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Image
-                    src="/images/impermeable1.png"
+                    src={assetUrl("/images/impermeable1.png")}
                     alt="100% Impermeable"
                     width={64}
                     height={64}
                     className="h-14 w-auto"
                   />
                   <Image
-                    src="/images/altogramaje1.png"
+                    src={assetUrl("/images/altogramaje1.png")}
                     alt="Alto Gramaje con Filtro UV"
                     width={64}
                     height={64}
                     className="h-14 w-auto"
                   />
                   <Image
-                    src="/images/100colombiano1.png"
+                    src={assetUrl("/images/100colombiano1.png")}
                     alt="100% Hecho en Colombia"
                     width={64}
                     height={64}
@@ -97,7 +97,7 @@ export default function AlforjasPage() {
               {/* Interactive bike diagram */}
               <div className="relative mx-auto aspect-square w-full max-w-md">
                 <Image
-                  src="/images/category-setup.jpg"
+                  src={assetUrl("/images/category-setup.jpg")}
                   alt="Bicicleta de bikepacking completamente equipada"
                   fill
                   className="rounded-sm object-cover opacity-40"
@@ -192,6 +192,6 @@ export default function AlforjasPage() {
         </section>
       </main>
       <Footer />
-    </CartProvider>
+    </>
   )
 }

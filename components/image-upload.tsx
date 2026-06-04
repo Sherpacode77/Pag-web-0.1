@@ -3,6 +3,7 @@
 import { useState, useRef } from "react"
 import Image from "next/image"
 import { Upload, X, Check, Loader2, Image as ImageIcon } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 interface ImageUploadProps {
   value: string
@@ -114,7 +115,7 @@ export function ImageUpload({ value, onChange, label = "Imagen" }: ImageUploadPr
       {value && !uploading && (
         <div className="relative w-full h-48 rounded-lg overflow-hidden border border-border bg-secondary">
           <Image
-            src={value || "/placeholder.svg"}
+            src={assetUrl(value || "/placeholder.svg")}
             alt="Preview"
             fill
             className="object-contain"

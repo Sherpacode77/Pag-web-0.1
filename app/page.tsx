@@ -1,6 +1,4 @@
-"use client"
-
-import { CartProvider } from "@/lib/cart-context"
+import type { Metadata } from "next"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { HeroSection } from "@/components/hero-section"
@@ -11,9 +9,21 @@ import { ReviewsSection } from "@/components/reviews-section"
 import { BlogSection } from "@/components/blog-section"
 import { Footer } from "@/components/footer"
 
+export const metadata: Metadata = {
+  title: "CERO.UNO | Bolsos de Bikepacking y Ciclismo de Aventura",
+  description:
+    "Equipo impermeable de alto rendimiento para bikepacking y ciclismo urbano. Alforjas, bolsos de manubrio y accesorios. Hecho 100% en Colombia con telas resistentes y filtro UV.",
+  openGraph: {
+    title: "CERO.UNO | Bolsos de Bikepacking Colombia",
+    description:
+      "Equipate para tu próxima aventura. Alforjas impermeables, bolsos de manubrio y accesorios de ciclismo. 100% Colombia.",
+    images: [{ url: "/images/og-image.jpg", width: 1200, height: 630 }],
+  },
+}
+
 export default function HomePage() {
   return (
-    <CartProvider>
+    <>
       <Navbar />
       <CartSidebar />
       <main>
@@ -25,6 +35,6 @@ export default function HomePage() {
         <BlogSection />
       </main>
       <Footer />
-    </CartProvider>
+    </>
   )
 }

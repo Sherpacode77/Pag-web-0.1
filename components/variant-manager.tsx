@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { ImageUpload } from "./image-upload"
 import { Check } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 interface ProductVariant {
   color: "negro" | "rojo" | "naranja" | "verde" | "azul"
@@ -164,7 +165,7 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
                       <div className="mt-2 flex gap-2">
                         {productImages.slice(0, 3).map((img, idx) => (
                           <div key={img} className="relative h-14 w-14 rounded border border-border overflow-hidden">
-                            <Image src={img || "/placeholder.svg"} alt={`Imagen ${idx + 1}`} fill className="object-cover" />
+                            <Image src={assetUrl(img || "/placeholder.svg")} alt={`Imagen ${idx + 1}`} fill className="object-cover" />
                           </div>
                         ))}
                         {productImages.length > 3 && (

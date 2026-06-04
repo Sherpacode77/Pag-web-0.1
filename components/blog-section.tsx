@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { blogPosts } from "@/lib/data"
+import { assetUrl } from "@/lib/assets"
 
 export function BlogSection() {
   return (
@@ -36,7 +37,7 @@ export function BlogSection() {
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
                 <Image
-                  src={post.image || "/placeholder.svg"}
+                  src={assetUrl(post.image || "/placeholder.svg")}
                   alt={post.title}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-105"

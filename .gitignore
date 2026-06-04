@@ -85,3 +85,11 @@ temp/
 # Lock files (keep pnpm-lock.yaml, ignore others)
 package-lock.json
 yarn.lock
+
+# Uploaded product media — live on the server filesystem, not in git.
+# Static brand assets (logos, hero images, etc.) stay tracked in public/.
+public/images/products/
+public/videos/products/
+
+# Script de deploy con credenciales SSH/BD hardcodeadas — nunca commitear
+scripts/hostinger-deploy-db.js

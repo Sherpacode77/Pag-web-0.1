@@ -6,6 +6,7 @@ import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { MapPin, Phone } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 export function Footer() {
   const [email, setEmail] = useState("")
@@ -24,7 +25,7 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Image
-              src="/images/marca-alta-blancorecurso-207.png"
+              src={assetUrl("/images/marca-alta-blancorecurso-207.png")}
               alt="CERO.UNO"
               width={140}
               height={35}
@@ -218,7 +219,7 @@ export function Footer() {
           </p>
           <div className="flex items-center gap-2">
             <Image
-              src="/images/100colombiano1.png"
+              src={assetUrl("/images/100colombiano1.png")}
               alt="Hecho en Colombia"
               width={32}
               height={32}

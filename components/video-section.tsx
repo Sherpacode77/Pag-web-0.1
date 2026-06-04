@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Play } from "lucide-react"
 import Image from "next/image"
+import { assetUrl } from "@/lib/assets"
 
 export function VideoSection() {
   const [playing, setPlaying] = useState(false)
@@ -23,7 +24,7 @@ export function VideoSection() {
           {!playing ? (
             <>
               <Image
-                src="/images/hero-bikepacking.jpg"
+                src={assetUrl("/images/hero-bikepacking.jpg")}
                 alt="Video preview - CERO.UNO equipo de bikepacking en accion"
                 fill
                 className="object-cover"

@@ -1,12 +1,22 @@
-"use client"
-
+import type { Metadata } from "next"
 import Image from "next/image"
-import { CartProvider } from "@/lib/cart-context"
+
+export const metadata: Metadata = {
+  title: "Nosotros — La Historia de CERO.UNO",
+  description:
+    "Somos un equipo de ciclistas colombianos que fabrica bolsos de bikepacking impermeables de alto rendimiento. Conoce nuestra historia, valores y proceso de fabricación.",
+  openGraph: {
+    title: "Nosotros | CERO.UNO",
+    description:
+      "Fabricamos equipo de bikepacking impermeable en Colombia desde 2021. Conoce nuestra historia y nuestro proceso.",
+  },
+}
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { cyclingEvents } from "@/lib/data"
 import { MapPin, Calendar, Route, Mountain, Award, Users } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 const timeline = [
   {
@@ -43,14 +53,14 @@ const timeline = [
 
 export default function NosotrosPage() {
   return (
-    <CartProvider>
+    <>
       <Navbar />
       <CartSidebar />
       <main>
         {/* Hero */}
         <section className="relative h-[60vh] min-h-[400px] overflow-hidden">
           <Image
-            src="/images/about-workshop.jpg"
+            src={assetUrl("/images/about-workshop.jpg")}
             alt="Taller CERO.UNO Colombia"
             fill
             className="object-cover"
@@ -125,21 +135,21 @@ export default function NosotrosPage() {
             </h2>
             <div className="flex flex-wrap items-center justify-center gap-10">
               <Image
-                src="/images/100colombiano1.png"
+                src={assetUrl("/images/100colombiano1.png")}
                 alt="100% Hecho en Colombia"
                 width={140}
                 height={140}
                 className="h-28 w-auto md:h-36"
               />
               <Image
-                src="/images/impermeable1.png"
+                src={assetUrl("/images/impermeable1.png")}
                 alt="100% Impermeable"
                 width={140}
                 height={140}
                 className="h-28 w-auto md:h-36"
               />
               <Image
-                src="/images/altogramaje1.png"
+                src={assetUrl("/images/altogramaje1.png")}
                 alt="Alto Gramaje con Filtro UV"
                 width={140}
                 height={140}
@@ -233,6 +243,6 @@ export default function NosotrosPage() {
         </section>
       </main>
       <Footer />
-    </CartProvider>
+    </>
   )
 }

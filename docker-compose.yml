@@ -8,23 +8,44 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Node environment
       NODE_ENV: production
-      
-      # Admin credentials (CHANGE THESE IN PRODUCTION!)
+
+      # Admin credentials
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-this-password}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-please-replace-with-a-long-random-secret-at-least-32-characters}
-    
+
+      # Base de datos MySQL/MariaDB
+      DATABASE_URL: ${DATABASE_URL}
+      DB_SSL: ${DB_SSL:-false}
+      DB_SSL_REJECT_UNAUTHORIZED: ${DB_SSL_REJECT_UNAUTHORIZED:-false}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      DB_CONNECTION_TIMEOUT_MS: ${DB_CONNECTION_TIMEOUT_MS:-10000}
+      DB_PRODUCTS_ENABLED: ${DB_PRODUCTS_ENABLED:-true}
+      DB_ASSET_STORAGE_ENABLED: ${DB_ASSET_STORAGE_ENABLED:-false}
+
+      # URLs del sitio
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://cerounobikes.com}
+      SITE_URL: ${SITE_URL:-https://cerounobikes.com}
+
+      # MercadoPago
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
+
+      # Analytics (opcionales)
+      NEXT_PUBLIC_FACEBOOK_PIXEL_ID: ${NEXT_PUBLIC_FACEBOOK_PIXEL_ID}
+      FACEBOOK_PIXEL_ID: ${FACEBOOK_PIXEL_ID}
+      FACEBOOK_ACCESS_TOKEN: ${FACEBOOK_ACCESS_TOKEN}
+      NEXT_PUBLIC_GTM_ID: ${NEXT_PUBLIC_GTM_ID}
+      NEXT_PUBLIC_GA4_MEASUREMENT_ID: ${NEXT_PUBLIC_GA4_MEASUREMENT_ID}
+      NEXT_PUBLIC_GOOGLE_ADS_ID: ${NEXT_PUBLIC_GOOGLE_ADS_ID}
+
     volumes:
-      # Persistencia para products.json
-      - products_data:/app/lib
-      # Persistencia para uploads (imágenes y videos)
-      - uploads_data:/app/public/uploads
-    
+      # Persistencia para imágenes y videos subidos
+      - uploads_images:/app/public/images/products
+      - uploads_videos:/app/public/videos/products
+
     restart: unless-stopped
-    
-    # Limits
+
     deploy:
       resources:
         limits:
@@ -35,10 +56,7 @@ services:
           memory: 512M
 
 volumes:
-  # Volume para datos de productos
-  products_data:
+  uploads_images:
     driver: local
-  
-  # Volume para uploads
-  uploads_data:
+  uploads_videos:
     driver: local

@@ -1,34 +1,66 @@
-"use client"
-
-import { use } from "react"
+import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, Clock, Calendar } from "lucide-react"
-import { CartProvider } from "@/lib/cart-context"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { blogPosts } from "@/lib/data"
+import { assetUrl } from "@/lib/assets"
 
-function BlogPostContent({ slug }: { slug: string }) {
+export async function generateStaticParams() {
+  return blogPosts.map((post) => ({ slug: post.slug }))
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
   const post = blogPosts.find((p) => p.slug === slug)
 
   if (!post) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground">
-            Articulo no encontrado
-          </h1>
-          <Link
-            href="/blog"
-            className="mt-4 inline-block text-sm text-primary hover:underline"
-          >
-            Volver al Journal
-          </Link>
-        </div>
-      </div>
-    )
+    return { title: "Artículo no encontrado" }
+  }
+
+  const description = post.excerpt?.slice(0, 160) || post.title
+
+  return {
+    title: post.title,
+    description,
+    openGraph: {
+      title: `${post.title} | CERO.UNO Journal`,
+      description,
+      type: "article",
+      publishedTime: post.date,
+      images: post.image
+        ? [{ url: assetUrl(post.image), alt: post.title }]
+        : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${post.title} | CERO.UNO Journal`,
+      description,
+      images: post.image ? [assetUrl(post.image)] : [],
+    },
+    alternates: {
+      canonical: `/blog/${slug}`,
+    },
+  }
+}
+
+export default async function BlogPostPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const post = blogPosts.find((p) => p.slug === slug)
+
+  if (!post) {
+    notFound()
   }
 
   return (
@@ -80,7 +112,7 @@ function BlogPostContent({ slug }: { slug: string }) {
 
           <div className="relative mt-8 aspect-[21/9] overflow-hidden bg-secondary">
             <Image
-              src={post.image || "/placeholder.svg"}
+              src={assetUrl(post.image || "/placeholder.svg")}
               alt={post.title}
               fill
               className="object-cover"
@@ -143,18 +175,5 @@ function BlogPostContent({ slug }: { slug: string }) {
       </main>
       <Footer />
     </>
-  )
-}
-
-export default function BlogPostPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  const { slug } = use(params)
-  return (
-    <CartProvider>
-      <BlogPostContent slug={slug} />
-    </CartProvider>
   )
 }

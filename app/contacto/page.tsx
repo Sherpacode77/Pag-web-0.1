@@ -4,7 +4,6 @@ import React from "react"
 
 import { useState } from "react"
 import Image from "next/image"
-import { CartProvider } from "@/lib/cart-context"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
@@ -34,7 +33,7 @@ export default function ContactoPage() {
   }
 
   return (
-    <CartProvider>
+    <>
       <Navbar />
       <CartSidebar />
       <main>
@@ -313,6 +312,6 @@ export default function ContactoPage() {
         </section>
       </main>
       <Footer />
-    </CartProvider>
+    </>
   )
 }

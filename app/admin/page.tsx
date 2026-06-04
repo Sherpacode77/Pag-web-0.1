@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Lock, User, Eye, EyeOff } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState("")
@@ -66,7 +67,7 @@ export default function AdminLoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Image
-            src="/images/marca-alta-blancorecurso-207.png"
+            src={assetUrl("/images/marca-alta-blancorecurso-207.png")}
             alt="CERO.UNO Logo"
             width={200}
             height={50}

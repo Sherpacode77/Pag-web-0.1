@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { X, Trash2, Search, Check } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 interface ImageData {
   name: string
@@ -139,7 +140,7 @@ export function ImageGalleryModal({
                   }`}
                 >
                   <Image
-                    src={image.path || "/placeholder.svg"}
+                    src={assetUrl(image.path || "/placeholder.svg")}
                     alt={image.name}
                     fill
                     className="object-cover"

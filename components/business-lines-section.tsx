@@ -1,6 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 const lines = [
   {
@@ -51,7 +52,7 @@ export function BusinessLinesSection() {
             >
               <div className="relative aspect-[4/3] overflow-hidden">
                 <Image
-                  src={line.image || "/placeholder.svg"}
+                  src={assetUrl(line.image || "/placeholder.svg")}
                   alt={line.title}
                   fill
                   className="object-cover transition-transform duration-700 group-hover:scale-105"

@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import { products } from "@/lib/data"
 import { ensureAdminSession } from "@/lib/auth"
+import {
+  createProductInDb,
+  deleteProductInDb,
+  getNextProductIdFromDb,
+  getProductByIdFromDb,
+  getProductBySlugFromDb,
+  isDbProductsEnabled,
+  readProductsFromDb,
+  updateProductInDb,
+} from "@/lib/db-products"
 import fs from "fs"
 import path from "path"
 import { z } from "zod"
@@ -92,11 +103,58 @@ function writeProducts(productsData: any[]) {
   }
 }
 
-// GET - Obtener todos los productos
-export async function GET() {
+// GET - Obtener todos los productos o un producto por slug / id
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+    const slug = searchParams.get("slug")
+
+    if (isDbProductsEnabled()) {
+      if (id) {
+        const product = await getProductByIdFromDb(id)
+
+        if (!product) {
+          return NextResponse.json({ error: "Product not found" }, { status: 404 })
+        }
+
+        return NextResponse.json(product)
+      }
+
+      if (slug) {
+        const product = await getProductBySlugFromDb(slug)
+        if (!product) {
+          return NextResponse.json({ error: "Product not found" }, { status: 404 })
+        }
+
+        return NextResponse.json(product)
+      }
+
+      const productsData = await readProductsFromDb()
+      return NextResponse.json(productsData)
+    }
+
     const productsData = readProducts()
-    return NextResponse.json(productsData)
+
+    if (id) {
+      const product = productsData.find((item) => String(item.id) === id)
+      if (!product) {
+        return NextResponse.json({ error: "Product not found" }, { status: 404 })
+      }
+      return NextResponse.json(product)
+    }
+
+    if (slug) {
+      const product = productsData.find((item) => item.slug === slug)
+      if (!product) {
+        return NextResponse.json({ error: "Product not found" }, { status: 404 })
+      }
+      return NextResponse.json(product)
+    }
+
+    const response = NextResponse.json(productsData)
+    response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300")
+    return response
   } catch (error) {
     return NextResponse.json(
       { error: "Error fetching products" },
@@ -123,15 +181,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const productsData = readProducts()
-    
-    // Generar nuevo ID
-    const maxId = productsData.reduce((max: number, product: any) => {
-      const numericId = Number.parseInt(product.id, 10)
-      return Number.isFinite(numericId) ? Math.max(max, numericId) : max
-    }, 0)
-
-    const newId = String(maxId + 1)
+    const productsData = isDbProductsEnabled() ? await readProductsFromDb() : readProducts()
+    const newId = isDbProductsEnabled()
+      ? await getNextProductIdFromDb()
+      : String(
+          productsData.reduce((max: number, product: any) => {
+            const numericId = Number.parseInt(product.id, 10)
+            return Number.isFinite(numericId) ? Math.max(max, numericId) : max
+          }, 0) + 1
+        )
     
     const newProduct = {
       ...parsed.data,
@@ -139,8 +197,15 @@ export async function POST(request: NextRequest) {
     }
     
     productsData.push(newProduct)
-    
+
+    if (isDbProductsEnabled()) {
+      await createProductInDb(newProduct)
+      revalidatePath("/tienda")
+      return NextResponse.json(newProduct, { status: 201 })
+    }
+
     if (writeProducts(productsData)) {
+      revalidatePath("/tienda")
       return NextResponse.json(newProduct, { status: 201 })
     } else {
       return NextResponse.json(
@@ -183,7 +248,7 @@ export async function PUT(request: NextRequest) {
       )
     }
     
-    const productsData = readProducts()
+    const productsData = isDbProductsEnabled() ? await readProductsFromDb() : readProducts()
     const index = productsData.findIndex((p: any) => p.id === id)
     
     if (index === -1) {
@@ -194,8 +259,24 @@ export async function PUT(request: NextRequest) {
     }
     
     productsData[index] = { ...productsData[index], ...updateData }
-    
+
+    if (isDbProductsEnabled()) {
+      const updated = await updateProductInDb(id, updateData)
+      if (!updated) {
+        return NextResponse.json(
+          { error: "Product not found" },
+          { status: 404 }
+        )
+      }
+
+      revalidatePath(`/tienda/${updated.slug}`)
+      revalidatePath("/tienda")
+      return NextResponse.json(updated)
+    }
+
     if (writeProducts(productsData)) {
+      revalidatePath(`/tienda/${productsData[index].slug}`)
+      revalidatePath("/tienda")
       return NextResponse.json(productsData[index])
     } else {
       return NextResponse.json(
@@ -229,7 +310,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
     
-    const productsData = readProducts()
+    const productsData = isDbProductsEnabled() ? await readProductsFromDb() : readProducts()
     const filteredProducts = productsData.filter((p: any) => p.id !== id)
     
     if (filteredProducts.length === productsData.length) {
@@ -239,7 +320,21 @@ export async function DELETE(request: NextRequest) {
       )
     }
     
+    if (isDbProductsEnabled()) {
+      const deleted = await deleteProductInDb(id)
+      if (!deleted) {
+        return NextResponse.json(
+          { error: "Product not found" },
+          { status: 404 }
+        )
+      }
+
+      revalidatePath("/tienda")
+      return NextResponse.json({ success: true, id })
+    }
+
     if (writeProducts(filteredProducts)) {
+      revalidatePath("/tienda")
       return NextResponse.json({ success: true, id })
     } else {
       return NextResponse.json(

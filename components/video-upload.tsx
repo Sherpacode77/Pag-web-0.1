@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react"
 import { Upload, X, Loader2, Video, Play } from "lucide-react"
+import { assetUrl } from "@/lib/assets"
 
 interface VideoUploadProps {
   value: string[]
@@ -168,7 +169,7 @@ export function VideoUpload({
             >
               <div className="relative aspect-square">
                 <video
-                  src={videoPath}
+                  src={assetUrl(videoPath)}
                   className="w-full h-full object-cover"
                   muted
                   playsInline

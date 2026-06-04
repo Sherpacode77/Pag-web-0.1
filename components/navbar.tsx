@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { ShoppingBag, Menu, X, Search } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
+import { assetUrl } from "@/lib/assets"
 
 const navLinks = [
   { href: "/", label: "Inicio" },
@@ -57,7 +58,7 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Image
-              src="/images/marca-alta-blancorecurso-207.png"
+              src={assetUrl("/images/marca-alta-blancorecurso-207.png")}
               alt="CERO.UNO Logo"
               width={160}
               height={40}

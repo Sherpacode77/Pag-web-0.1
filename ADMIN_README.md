@@ -154,6 +154,22 @@ Usuario → Frontend → API Route → products.json
 2. Recarga la página que estás viendo
 3. Verifica la consola del navegador por errores
 
+### Uso de PostgreSQL / SQL
+
+Si quieres usar la base de datos SQL en lugar del JSON local, configura estas variables de entorno:
+
+- `DATABASE_URL` → conexión PostgreSQL
+- `DB_PRODUCTS_ENABLED=true`
+- `DB_SSL_REJECT_UNAUTHORIZED=true` o `false` según tu entorno
+
+Luego ejecuta:
+
+```bash
+npm run db:migrate:products
+```
+
+Con eso el catálogo se migra a `app_products` y la API de productos usará SQL.
+
 ## 🔮 Mejoras futuras recomendadas
 
 Para un sistema más robusto, considera:

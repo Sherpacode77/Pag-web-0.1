@@ -1,5 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
+import { assetUrl } from "@/lib/assets"
 
 export function HeroSection() {
   return (
@@ -10,9 +11,9 @@ export function HeroSection() {
         loop
         className="absolute inset-0 w-full h-full object-cover"
       >
-        <source src="/videos/video-home.mp4" type="video/mp4" />
+        <source src={assetUrl("/videos/video-home.mp4")} type="video/mp4" />
         <Image
-          src="/images/hero-bikepacking.jpg"
+          src={assetUrl("/images/hero-bikepacking.jpg")}
           alt="Ciclista de bikepacking en los Andes colombianos"
           fill
           className="object-cover"
@@ -54,7 +55,7 @@ export function HeroSection() {
         <div className="mx-auto max-w-7xl flex items-center justify-center gap-8 px-4 py-4 md:gap-16">
           <div className="flex items-center gap-3">
             <Image
-              src="/images/impermeable1.png"
+              src={assetUrl("/images/impermeable1.png")}
               alt="100% Impermeable"
               width={48}
               height={48}
@@ -66,7 +67,7 @@ export function HeroSection() {
           </div>
           <div className="flex items-center gap-3">
             <Image
-              src="/images/altogramaje1.png"
+              src={assetUrl("/images/altogramaje1.png")}
               alt="Alto Gramaje con filtro UV"
               width={48}
               height={48}
@@ -78,7 +79,7 @@ export function HeroSection() {
           </div>
           <div className="flex items-center gap-3">
             <Image
-              src="/images/100colombiano1.png"
+              src={assetUrl("/images/100colombiano1.png")}
               alt="100% Hecho en Colombia"
               width={48}
               height={48}

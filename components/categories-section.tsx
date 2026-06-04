@@ -1,5 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
+import { assetUrl } from "@/lib/assets"
 
 export function CategoriesSection() {
   return (
@@ -12,7 +13,7 @@ export function CategoriesSection() {
             className="group relative aspect-[4/3] overflow-hidden"
           >
             <Image
-              src="/images/products/saddlebag-urban.jpg"
+              src={assetUrl("/images/products/saddlebag-urban.jpg")}
               alt="Setup completo de bikepacking"
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -38,7 +39,7 @@ export function CategoriesSection() {
             className="group relative aspect-[4/3] overflow-hidden"
           >
             <Image
-              src="/images/products/hippack-lifestyle.jpg"
+              src={assetUrl("/images/products/hippack-lifestyle.jpg")}
               alt="Accesorios para uso urbano en bicicleta"
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-105"
