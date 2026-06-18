@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
-import { getAssetMetadataByPath, isDbAssetStorageEnabled } from "@/lib/db-assets"
 
 export const runtime = "nodejs"
 
@@ -19,20 +18,12 @@ export async function GET(
 
   const fileBuffer = fs.readFileSync(filePath)
 
-  let contentType = "video/mp4"
-  if (isDbAssetStorageEnabled()) {
-    const meta = await getAssetMetadataByPath(requestedPath)
-    if (meta?.content_type) contentType = meta.content_type
+  const ext = path.extname(requestedPath).toLowerCase()
+  const mimeMap: Record<string, string> = {
+    ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
+    ".avi": "video/x-msvideo", ".mkv": "video/x-matroska",
   }
-
-  if (contentType === "video/mp4") {
-    const ext = path.extname(requestedPath).toLowerCase()
-    const mimeMap: Record<string, string> = {
-      ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
-      ".avi": "video/x-msvideo", ".mkv": "video/x-matroska",
-    }
-    contentType = mimeMap[ext] ?? "video/mp4"
-  }
+  const contentType = mimeMap[ext] ?? "video/mp4"
 
   return new NextResponse(fileBuffer, {
     headers: {

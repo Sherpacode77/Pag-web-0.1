@@ -90,23 +90,6 @@ async function runSchemaSetup() {
 
   // 1. Sin dependencias FK
   await pool.execute(`
-    CREATE TABLE IF NOT EXISTS app_media_assets (
-      id               BIGINT AUTO_INCREMENT PRIMARY KEY,
-      asset_path       VARCHAR(600)  NOT NULL UNIQUE,
-      file_name        VARCHAR(255)  NOT NULL,
-      content_type     VARCHAR(100)  NOT NULL,
-      kind             ENUM('image','video','logo','infographic','schema') NOT NULL DEFAULT 'image',
-      alt_text         VARCHAR(500)  NULL,
-      size_bytes       BIGINT        NOT NULL,
-      duration_seconds INT           NULL,
-      thumbnail_path   VARCHAR(600)  NULL,
-      created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `)
-
-  // 2. Sin dependencias FK
-  await pool.execute(`
     CREATE TABLE IF NOT EXISTS app_products (
       id         VARCHAR(255) PRIMARY KEY,
       slug       VARCHAR(255) NOT NULL UNIQUE,
@@ -297,7 +280,6 @@ async function runSchemaSetup() {
   `)
 
   await createIndexSafe(pool, "CREATE INDEX idx_app_products_slug ON app_products(slug)")
-  await createIndexSafe(pool, "CREATE INDEX idx_app_media_assets_kind ON app_media_assets(kind)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_customers_email ON app_customers(email)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_customers_phone ON app_customers(phone)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_orders_number ON app_orders(order_number)")

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { NextRequest } from "next/server"
 import { ensureAdminSession } from "@/lib/auth"
-import { deleteAssetByPath, isDbAssetStorageEnabled } from "@/lib/db-assets"
 import fs from "fs"
 import path from "path"
 
@@ -93,10 +92,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     fs.unlinkSync(filePath)
-
-    if (isDbAssetStorageEnabled()) {
-      await deleteAssetByPath(imagePath)
-    }
 
     return NextResponse.json({ success: true, deleted: imagePath })
   } catch (error) {

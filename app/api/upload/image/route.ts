@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ensureAdminSession } from "@/lib/auth"
-import { isDbAssetStorageEnabled, saveAssetInDb } from "@/lib/db-assets"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import fs from "fs"
@@ -55,16 +54,6 @@ export async function POST(request: NextRequest) {
 
     const filePath = path.join(uploadDir, fileName)
     await writeFile(filePath, buffer)
-
-    if (isDbAssetStorageEnabled()) {
-      await saveAssetInDb({
-        assetPath: relativePath,
-        fileName,
-        contentType: file.type,
-        kind: "image",
-        sizeBytes: file.size,
-      })
-    }
 
     return NextResponse.json({
       success: true,

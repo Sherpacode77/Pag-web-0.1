@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { ensureAdminSession } from "@/lib/auth"
-import { isDbAssetStorageEnabled, saveAssetInDb } from "@/lib/db-assets"
 import { writeFile, mkdir, readdir, unlink } from "fs/promises"
 import { existsSync } from "fs"
 import path from "path"
@@ -55,16 +54,6 @@ export async function POST(request: NextRequest) {
 
     const filePath = path.join(uploadDir, fileName)
     await writeFile(filePath, buffer)
-
-    if (isDbAssetStorageEnabled()) {
-      await saveAssetInDb({
-        assetPath: relativePath,
-        fileName,
-        contentType: file.type,
-        kind: "video",
-        sizeBytes: file.size,
-      })
-    }
 
     return NextResponse.json({
       success: true,
@@ -145,11 +134,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     await unlink(filePath)
-
-    if (isDbAssetStorageEnabled()) {
-      const { deleteAssetByPath } = await import("@/lib/db-assets")
-      await deleteAssetByPath(`/videos/products/${filename}`)
-    }
 
     return NextResponse.json({
       success: true,
