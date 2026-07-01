@@ -10,7 +10,6 @@ type SessionPayload = {
 export const ADMIN_SESSION_COOKIE = "admin_session"
 const SESSION_DURATION_SECONDS = 60 * 60 * 8
 
-let warnedInsecureDevSecret = false
 
 function toBase64Url(value: string) {
   return Buffer.from(value)
@@ -44,16 +43,10 @@ function getSessionSecret() {
     return secret
   }
 
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("ADMIN_SESSION_SECRET must be configured in production with at least 32 characters")
-  }
-
-  if (!warnedInsecureDevSecret) {
-    console.warn("Using insecure development session secret. Configure ADMIN_SESSION_SECRET for production.")
-    warnedInsecureDevSecret = true
-  }
-
-  return "insecure-dev-session-secret-change-me"
+  throw new Error(
+    "ADMIN_SESSION_SECRET no está configurado o es menor de 32 caracteres. " +
+    "Añádelo a tu archivo .env.local (desarrollo) o a las variables de entorno del servidor (producción)."
+  )
 }
 
 function signPayload(payload: string) {
@@ -150,14 +143,10 @@ export function getAdminCredentials() {
     return { username, password }
   }
 
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("ADMIN_USERNAME and ADMIN_PASSWORD must be configured in production")
-  }
-
-  return {
-    username: "admin",
-    password: "cerouno2026",
-  }
+  throw new Error(
+    "ADMIN_USERNAME y ADMIN_PASSWORD no están configurados. " +
+    "Añádelos a tu archivo .env.local (desarrollo) o a las variables de entorno del servidor (producción)."
+  )
 }
 
 export function validateAdminCredentials(username: string, password: string) {
