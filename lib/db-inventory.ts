@@ -15,11 +15,27 @@ export type InventoryRow = {
   variant_color_name: string | null
   variant_size: string | null
   stock_quantity: number
+  ideal_quantity: number
   low_stock_threshold: number
   is_available: boolean
   cost_price: number | null
   notes: string | null
   updated_at: string
+}
+
+export type StockStatus = "urgent" | "warning" | "good"
+
+export function getStockStatus(row: Pick<InventoryRow, "stock_quantity" | "ideal_quantity" | "low_stock_threshold">): StockStatus {
+  const { stock_quantity, ideal_quantity, low_stock_threshold } = row
+  if (ideal_quantity > 0) {
+    const ratio = stock_quantity / ideal_quantity
+    if (ratio < 0.25) return "urgent"
+    if (ratio < 0.60) return "warning"
+    return "good"
+  }
+  // Sin inventario ideal definido, usa el umbral de alerta
+  if (stock_quantity <= low_stock_threshold) return "urgent"
+  return "good"
 }
 
 export type InventoryFilters = {
@@ -33,7 +49,7 @@ const SELECT_COLS = `
   JSON_UNQUOTE(JSON_EXTRACT(p.payload, '$.name')) AS product_name,
   p.slug AS product_slug,
   i.variant_color, i.variant_color_name, i.variant_size,
-  i.stock_quantity, i.low_stock_threshold,
+  i.stock_quantity, i.ideal_quantity, i.low_stock_threshold,
   CASE WHEN i.is_available = 1 THEN TRUE ELSE FALSE END AS is_available,
   i.cost_price, i.notes,
   DATE_FORMAT(i.updated_at, '%Y-%m-%dT%H:%i:%sZ') AS updated_at
@@ -94,6 +110,7 @@ export type CreateInventoryInput = {
   variant_color_name?: string | null
   variant_size?: string | null
   stock_quantity?: number
+  ideal_quantity?: number
   low_stock_threshold?: number
   is_available?: boolean
   cost_price?: number | null
@@ -107,9 +124,9 @@ export async function createInventorySkuFromDb(input: CreateInventoryInput): Pro
   await pool.execute(
     `INSERT INTO app_inventory
        (sku, product_id, variant_color, variant_color_name, variant_size,
-        stock_quantity, low_stock_threshold, is_available, cost_price, notes,
+        stock_quantity, ideal_quantity, low_stock_threshold, is_available, cost_price, notes,
         created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       input.sku,
       input.product_id,
@@ -117,6 +134,7 @@ export async function createInventorySkuFromDb(input: CreateInventoryInput): Pro
       input.variant_color_name ?? null,
       input.variant_size ?? null,
       input.stock_quantity ?? 0,
+      input.ideal_quantity ?? 0,
       input.low_stock_threshold ?? 3,
       input.is_available !== false ? 1 : 0,
       input.cost_price ?? null,
@@ -129,6 +147,7 @@ export async function createInventorySkuFromDb(input: CreateInventoryInput): Pro
 
 export type UpdateInventoryInput = {
   stock_quantity?: number
+  ideal_quantity?: number
   adjust?: number
   low_stock_threshold?: number
   is_available?: boolean
@@ -153,6 +172,11 @@ export async function updateInventorySkuFromDb(
   } else if (input.stock_quantity !== undefined) {
     setClauses.push("stock_quantity = ?")
     params.push(input.stock_quantity)
+  }
+
+  if (input.ideal_quantity !== undefined) {
+    setClauses.push("ideal_quantity = ?")
+    params.push(input.ideal_quantity)
   }
 
   if (input.low_stock_threshold !== undefined) {

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import fs from "fs"
 import path from "path"
 import { isDbProductsEnabled, getProductBySlugFromDb, readProductsFromDb } from "@/lib/db-products"
+import { isDbInventoryEnabled, getInventoryFromDb } from "@/lib/db-inventory"
 import { products as staticProducts } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
 import { ProductDetailClient } from "./product-detail-client"
@@ -93,9 +94,23 @@ export default async function ProductDetailPage({
     notFound()
   }
 
+  // Construir mapa de inventario por color (o "__single__" para productos sin variantes)
+  let inventoryMap: Record<string, { stock: number; available: boolean }> = {}
+  if (isDbInventoryEnabled()) {
+    try {
+      const rows = await getInventoryFromDb({ product_id: product.id, available_only: false })
+      for (const row of rows) {
+        const key = row.variant_color ?? "__single__"
+        inventoryMap[key] = { stock: row.stock_quantity, available: row.is_available }
+      }
+    } catch {
+      // DB no disponible — usar inStock del JSON/producto
+    }
+  }
+
   const relatedProducts = allProducts
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4)
 
-  return <ProductDetailClient product={product} relatedProducts={relatedProducts} />
+  return <ProductDetailClient product={product} relatedProducts={relatedProducts} inventoryMap={inventoryMap} />
 }

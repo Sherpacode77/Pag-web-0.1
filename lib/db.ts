@@ -230,6 +230,7 @@ async function runSchemaSetup() {
       variant_color_name  VARCHAR(100)  NULL,
       variant_size        VARCHAR(10)   NULL,
       stock_quantity      INT           NOT NULL DEFAULT 0,
+      ideal_quantity      INT           NOT NULL DEFAULT 0,
       low_stock_threshold INT           NOT NULL DEFAULT 3,
       is_available        TINYINT(1)    NOT NULL DEFAULT 1,
       cost_price          DECIMAL(15,2) NULL,
@@ -239,6 +240,13 @@ async function runSchemaSetup() {
       FOREIGN KEY (product_id) REFERENCES app_products(id) ON DELETE CASCADE,
       UNIQUE KEY uq_inventory_product_variant (product_id, variant_color, variant_size)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  // Migración segura: agrega ideal_quantity si la tabla ya existía sin ella
+  await pool.execute(`
+    ALTER TABLE app_inventory
+    ADD COLUMN IF NOT EXISTS ideal_quantity INT NOT NULL DEFAULT 0
+    AFTER stock_quantity
   `)
 
   // 10. Sin dependencias FK

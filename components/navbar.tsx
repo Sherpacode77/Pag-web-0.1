@@ -7,12 +7,13 @@ import { ShoppingBag, Menu, X, Search } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { assetUrl } from "@/lib/assets"
 
-const navLinks = [
+const navLinks: { href: string; label: string; highlight?: boolean }[] = [
   { href: "/", label: "Inicio" },
   { href: "/nosotros", label: "Nosotros" },
   { href: "/alforjas", label: "Alforjas" },
   { href: "/accesorios", label: "Accesorios" },
   { href: "/travel", label: "CERO.UNO Travel" },
+  { href: "/ofertas", label: "Ofertas", highlight: true },
   { href: "/contacto", label: "Contacto" },
   { href: "/blog", label: "Blog" },
 ]
@@ -73,7 +74,11 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-xs font-medium uppercase tracking-wider text-foreground hover:text-primary transition-colors"
+                className={
+                  link.highlight
+                    ? "text-xs font-bold uppercase tracking-wider text-primary hover:text-primary/80 transition-colors"
+                    : "text-xs font-medium uppercase tracking-wider text-foreground hover:text-primary transition-colors"
+                }
               >
                 {link.label}
               </Link>
@@ -113,7 +118,11 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary"
+                  className={
+                    link.highlight
+                      ? "text-sm font-bold uppercase tracking-wider text-primary"
+                      : "text-sm font-medium uppercase tracking-wider text-foreground hover:text-primary"
+                  }
                   onClick={() => setMobileOpen(false)}
                 >
                   {link.label}

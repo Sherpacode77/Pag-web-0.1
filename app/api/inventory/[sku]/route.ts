@@ -62,6 +62,7 @@ export async function GET(
 const patchSchema = z
   .object({
     stock_quantity: z.number().int().nonnegative().optional(),
+    ideal_quantity: z.number().int().nonnegative().optional(),
     adjust: z.number().int().optional(),
     low_stock_threshold: z.number().int().nonnegative().optional(),
     is_available: z.boolean().optional(),

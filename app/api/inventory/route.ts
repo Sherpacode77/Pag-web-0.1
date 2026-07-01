@@ -58,6 +58,7 @@ const createSchema = z.object({
   variant_color_name: z.string().trim().min(1).max(100).nullable().optional(),
   variant_size: z.enum(["S", "M", "L", "XL", "XXL"]).nullable().optional(),
   stock_quantity: z.number().int().nonnegative().default(0),
+  ideal_quantity: z.number().int().nonnegative().default(0),
   low_stock_threshold: z.number().int().nonnegative().default(3),
   is_available: z.boolean().default(true),
   cost_price: z.number().finite().nonnegative().nullable().optional(),

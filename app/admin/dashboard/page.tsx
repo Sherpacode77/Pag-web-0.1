@@ -8,7 +8,6 @@ import {
   Plus,
   Edit,
   Trash2,
-  LogOut,
   Search,
   Tag,
   DollarSign,
@@ -16,11 +15,22 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { ProductModal } from "@/components/admin/product-modal"
+import { AdminNav } from "@/components/admin/admin-nav"
 import { assetUrl } from "@/lib/assets"
 import type { Product } from "@/lib/data"
 
+type InvRow = {
+  sku: string
+  product_id: string
+  variant_color: string | null
+  variant_color_name: string | null
+  stock_quantity: number
+  is_available: boolean
+}
+
 export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([])
+  const [inventoryMap, setInventoryMap] = useState<Record<string, InvRow[]>>({})
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -36,7 +46,7 @@ export default function AdminDashboard() {
         router.push("/admin")
         return
       }
-      await fetchProducts()
+      await Promise.all([fetchProducts(), fetchInventory()])
     }
     bootstrap()
   }, [router])
@@ -70,13 +80,21 @@ export default function AdminDashboard() {
     }
   }
 
-  async function handleLogout() {
+  async function fetchInventory() {
     try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+      const res = await fetch("/api/inventory", { credentials: "include", cache: "no-store" })
+      if (!res.ok) return
+      const rows: InvRow[] = await res.json()
+      if (!Array.isArray(rows)) return
+      const map: Record<string, InvRow[]> = {}
+      for (const row of rows) {
+        if (!map[row.product_id]) map[row.product_id] = []
+        map[row.product_id].push(row)
+      }
+      setInventoryMap(map)
     } catch {
-      // continuar con la redirección aunque falle
+      // inventario no disponible — se muestra sin datos de stock
     }
-    router.push("/admin")
   }
 
   function openCreateModal() {
@@ -180,36 +198,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card">
-        <div className="mx-auto max-w-7xl px-4 py-4 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Image
-                src={assetUrl("/images/marca-alta-blancorecurso-207.png")}
-                alt="CERO.UNO"
-                width={120}
-                height={30}
-              />
-              <span className="text-sm text-muted-foreground hidden sm:block">
-                Panel de Administración
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <a href="/" target="_blank" className="text-sm text-primary hover:underline">
-                Ver sitio
-              </a>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Salir</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminNav />
 
       <main className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
         {/* Stats */}
@@ -298,6 +287,7 @@ export default function AdminDashboard() {
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Producto</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Categoría</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Precio</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Stock por variante</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Estado</th>
                   <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -334,6 +324,32 @@ export default function AdminDashboard() {
                         </p>
                       )}
                     </td>
+                    {/* Stock por variante */}
+                    <td className="px-4 py-4">
+                      {inventoryMap[product.id] ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {inventoryMap[product.id].map((row) => {
+                            const label = row.variant_color_name ?? row.variant_color ?? "Único"
+                            const stock = row.stock_quantity
+                            const color = !row.is_available
+                              ? "bg-secondary text-muted-foreground line-through"
+                              : stock === 0
+                              ? "bg-red-500/10 text-red-600"
+                              : stock <= 3
+                              ? "bg-orange-500/10 text-orange-600"
+                              : "bg-green-500/10 text-green-700"
+                            return (
+                              <span key={row.sku} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${color}`} title={row.sku}>
+                                {label}: {stock}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">— sin registro</span>
+                      )}
+                    </td>
+
                     <td className="px-4 py-4">
                       <div className="flex gap-2">
                         {product.featured && (

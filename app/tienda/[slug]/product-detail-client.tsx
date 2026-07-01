@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -28,9 +28,10 @@ type ProductVariant = NonNullable<Product["variants"]>[number]
 interface Props {
   product: Product
   relatedProducts: Product[]
+  inventoryMap?: Record<string, { stock: number; available: boolean }>
 }
 
-export function ProductDetailClient({ product, relatedProducts }: Props) {
+export function ProductDetailClient({ product, relatedProducts, inventoryMap = {} }: Props) {
   const { addItem } = useCart()
   const [quantity, setQuantity] = useState(1)
   const [activeImage, setActiveImage] = useState(0)
@@ -38,17 +39,40 @@ export function ProductDetailClient({ product, relatedProducts }: Props) {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
 
+  const hasInventoryData = Object.keys(inventoryMap).length > 0
+
+  // Variantes ajustadas según inventario real:
+  // - is_available=false → se oculta completamente
+  // - stock=0 → inStock=false (aparece como agotado pero visible)
+  const effectiveVariants = useMemo<ProductVariant[]>(() => {
+    if (!product.hasVariants || !product.variants) return []
+    return product.variants
+      .filter((v) => {
+        if (!hasInventoryData) return true
+        const inv = inventoryMap[v.color]
+        return !inv || inv.available
+      })
+      .map((v) => {
+        if (!hasInventoryData) return v
+        const inv = inventoryMap[v.color]
+        if (!inv) return v
+        return { ...v, inStock: inv.stock > 0 }
+      })
+  }, [product.hasVariants, product.variants, inventoryMap, hasInventoryData])
+
   useEffect(() => {
-    if (product.hasVariants && product.variants && product.variants.length > 0) {
-      const negroVariant = product.variants.find((v) => v.color === "negro" && v.inStock)
-      if (negroVariant) {
-        setSelectedVariant(negroVariant)
-      } else {
-        const firstAvailable = product.variants.find((v) => v.inStock)
-        if (firstAvailable) setSelectedVariant(firstAvailable)
-      }
-    }
-  }, [product])
+    if (!product.hasVariants || effectiveVariants.length === 0) return
+    const negro = effectiveVariants.find((v) => v.color === "negro" && v.inStock)
+    const first = effectiveVariants.find((v) => v.inStock)
+    setSelectedVariant(negro ?? first ?? effectiveVariants[0] ?? null)
+  }, [product.hasVariants, effectiveVariants])
+
+  // ¿El producto/variante actualmente seleccionado está agotado?
+  const isOutOfStock = product.hasVariants
+    ? selectedVariant ? !selectedVariant.inStock : false
+    : hasInventoryData
+      ? (inventoryMap["__single__"]?.stock ?? 1) === 0
+      : false
 
   const displayImages = selectedVariant
     ? selectedVariant.color === "negro"
@@ -204,9 +228,9 @@ export function ProductDetailClient({ product, relatedProducts }: Props) {
                 )}
               </div>
 
-              {product.hasVariants && product.variants && (
+              {product.hasVariants && effectiveVariants.length > 0 && (
                 <VariantSelector
-                  variants={product.variants}
+                  variants={effectiveVariants}
                   selectedVariant={selectedVariant}
                   onSelect={(variant) => { setSelectedVariant(variant); setActiveImage(0) }}
                 />
@@ -287,11 +311,16 @@ export function ProductDetailClient({ product, relatedProducts }: Props) {
 
                 <button
                   type="button"
-                  onClick={handleAddToCart}
-                  className="flex w-full items-center justify-center gap-3 bg-primary text-primary-foreground py-4 text-sm font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors"
+                  onClick={isOutOfStock ? undefined : handleAddToCart}
+                  disabled={isOutOfStock}
+                  className={`flex w-full items-center justify-center gap-3 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${
+                    isOutOfStock
+                      ? "bg-secondary text-muted-foreground cursor-not-allowed"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  }`}
                 >
                   <ShoppingBag className="h-5 w-5" />
-                  Agregar al Carrito
+                  {isOutOfStock ? "Agotado" : "Agregar al Carrito"}
                 </button>
 
                 <Link
