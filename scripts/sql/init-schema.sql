@@ -2,53 +2,15 @@
 -- CERO.UNO — Esquema de base de datos MariaDB
 -- Ejecutar una vez sobre la base de datos del hosting (Hostinger / MariaDB)
 -- =============================================================================
---
--- REQUISITO PREVIO — Videos grandes:
---   Los videos del sitio superan el límite por defecto de 16 MB.
---   Antes de cargar assets audiovisuales, configura en MariaDB:
---
---     SET GLOBAL max_allowed_packet = 104857600;   -- 100 MB (sesión)
---
---   O de forma permanente en /etc/mysql/mariadb.conf.d/50-server.cnf:
---     [mysqld]
---     max_allowed_packet = 100M
---
--- =============================================================================
 
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';
 
 -- ---------------------------------------------------------------------------
--- 1. ACTIVOS MULTIMEDIA
---    Almacena todas las imágenes, videos, logos, infografías y esquemas
---    del sitio. Mantiene el repositorio Git liviano.
--- ---------------------------------------------------------------------------
--- Los archivos binarios se guardan en el filesystem del servidor (public/images/ y public/videos/).
--- Esta tabla almacena únicamente metadatos: ruta, tamaño, tipo MIME, duración y miniatura.
--- Esto evita el límite de 16 MB de max_allowed_packet de MariaDB/Hostinger.
-CREATE TABLE IF NOT EXISTS app_media_assets (
-  id               BIGINT AUTO_INCREMENT PRIMARY KEY,
-  asset_path       VARCHAR(600)  NOT NULL UNIQUE  COMMENT 'Ruta pública (/images/products/foto.jpg)',
-  file_name        VARCHAR(255)  NOT NULL,
-  content_type     VARCHAR(100)  NOT NULL         COMMENT 'MIME: image/jpeg, video/mp4, etc.',
-  kind             ENUM('image','video','logo','infographic','schema') NOT NULL DEFAULT 'image',
-  alt_text         VARCHAR(500)                   COMMENT 'Texto alternativo para accesibilidad y SEO',
-  size_bytes       BIGINT        NOT NULL,
-  duration_seconds INT           NULL             COMMENT 'Duración en segundos (solo para videos)',
-  thumbnail_path   VARCHAR(600)  NULL             COMMENT 'Miniatura del video (/images/thumbs/video.jpg)',
-  created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-  INDEX idx_media_kind       (kind),
-  INDEX idx_media_created    (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Metadatos de activos multimedia — los binarios viven en el filesystem';
-
-
--- ---------------------------------------------------------------------------
--- 2. CATÁLOGO DE PRODUCTOS
+-- 1. CATÁLOGO DE PRODUCTOS
 --    El payload JSON contiene la estructura completa del producto.
 -- ---------------------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS app_products (
   id          VARCHAR(255) PRIMARY KEY,
   slug        VARCHAR(255) NOT NULL UNIQUE,
@@ -63,7 +25,7 @@ CREATE TABLE IF NOT EXISTS app_products (
 
 
 -- ---------------------------------------------------------------------------
--- 3. CLIENTES
+-- 2. CLIENTES
 --    Registro de compradores y contactos del sitio.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_customers (
@@ -94,7 +56,7 @@ CREATE TABLE IF NOT EXISTS app_customers (
 
 
 -- ---------------------------------------------------------------------------
--- 4. DIRECCIONES DE ENVÍO
+-- 3. DIRECCIONES DE ENVÍO
 --    Un cliente puede tener varias direcciones guardadas.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_addresses (
@@ -121,7 +83,7 @@ CREATE TABLE IF NOT EXISTS app_addresses (
 
 
 -- ---------------------------------------------------------------------------
--- 5. PEDIDOS
+-- 4. PEDIDOS
 --    Registro de todas las órdenes de compra.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_orders (
@@ -170,7 +132,7 @@ CREATE TABLE IF NOT EXISTS app_orders (
 
 
 -- ---------------------------------------------------------------------------
--- 6. ÍTEMS DE PEDIDO
+-- 5. ÍTEMS DE PEDIDO
 --    Líneas de producto dentro de cada pedido.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_order_items (
@@ -195,7 +157,7 @@ CREATE TABLE IF NOT EXISTS app_order_items (
 
 
 -- ---------------------------------------------------------------------------
--- 7. SUSCRIPTORES DE NEWSLETTER
+-- 6. SUSCRIPTORES DE NEWSLETTER
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_newsletter_subscribers (
   id            BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -213,7 +175,7 @@ CREATE TABLE IF NOT EXISTS app_newsletter_subscribers (
 
 
 -- ---------------------------------------------------------------------------
--- 8. MENSAJES DE CONTACTO
+-- 7. MENSAJES DE CONTACTO
 --    Formulario de contacto del sitio.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_contact_messages (
@@ -236,7 +198,7 @@ CREATE TABLE IF NOT EXISTS app_contact_messages (
 
 
 -- ---------------------------------------------------------------------------
--- 9. INVENTARIO POR VARIANTE
+-- 8. INVENTARIO POR VARIANTE
 --    Una fila por cada combinación producto + color (+ talla en ropa).
 --    Cada fila tiene un SKU único de exactamente 7 caracteres:
 --      [Letra del producto] + [3 dígitos del ID] + [3 caracteres de variante]
@@ -269,7 +231,7 @@ CREATE TABLE IF NOT EXISTS app_inventory (
 
 
 -- ---------------------------------------------------------------------------
--- 10. CUPONES Y DESCUENTOS
+-- 9. CUPONES Y DESCUENTOS
 --     Gestión de códigos promocionales con porcentaje o valor fijo.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_coupons (
@@ -299,7 +261,7 @@ CREATE TABLE IF NOT EXISTS app_coupons (
 
 
 -- ---------------------------------------------------------------------------
--- 11. HISTORIAL DE ESTADOS DEL PEDIDO
+-- 10. HISTORIAL DE ESTADOS DEL PEDIDO
 --     Registro de auditoría de cada cambio de estado, quién lo hizo y cuándo.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_order_status_history (
