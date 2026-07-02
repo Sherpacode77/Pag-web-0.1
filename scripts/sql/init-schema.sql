@@ -200,14 +200,13 @@ CREATE TABLE IF NOT EXISTS app_contact_messages (
 -- ---------------------------------------------------------------------------
 -- 8. INVENTARIO POR VARIANTE
 --    Una fila por cada combinación producto + color (+ talla en ropa).
---    Cada fila tiene un SKU único de exactamente 7 caracteres:
---      [Letra del producto] + [3 dígitos del ID] + [3 caracteres de variante]
---    Ejemplo: S001NEG = SaddleBag 12L, Negro
---             C004NGM = Camiseta Oversize, Negro, Talla M
+--    Cada fila tiene un SKU único de exactamente 8 caracteres, auto-generado
+--    al azar al crear/editar un producto: 4 letras mayúsculas + 4 dígitos.
+--    Ejemplo: ABCD1234
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_inventory (
   id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
-  sku                 VARCHAR(7)    NOT NULL UNIQUE   COMMENT 'Identificador único de 7 caracteres',
+  sku                 VARCHAR(8)    NOT NULL UNIQUE   COMMENT 'Identificador único de 8 caracteres: 4 letras + 4 dígitos',
   product_id          VARCHAR(255)  NOT NULL          COMMENT 'FK a app_products.id',
   variant_color       VARCHAR(50)   NULL              COMMENT 'Clave de color: negro, rojo, verde-oliva...',
   variant_color_name  VARCHAR(100)  NULL              COMMENT 'Nombre visible: Negro, Verde Oliva...',
@@ -228,7 +227,27 @@ CREATE TABLE IF NOT EXISTS app_inventory (
   INDEX idx_inventory_stock     (stock_quantity),
   INDEX idx_inventory_available (is_available)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Inventario por variante con SKU único de 7 caracteres';
+  COMMENT='Inventario por variante con SKU único de 8 caracteres';
+
+
+-- ---------------------------------------------------------------------------
+-- 8b. ALIAS DE SKU DE INVENTARIO
+--     Códigos externos (proveedor, marketplace) que representan la misma
+--     fila de inventario. Texto libre, sin restricción de formato.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS app_inventory_sku_aliases (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  inventory_id BIGINT       NOT NULL          COMMENT 'FK a app_inventory.id',
+  alias_sku    VARCHAR(100) NOT NULL          COMMENT 'Código externo (proveedor/marketplace)',
+  source       VARCHAR(100) NULL              COMMENT 'Origen del alias, ej. nombre del proveedor',
+  notes        VARCHAR(300) NULL,
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (inventory_id) REFERENCES app_inventory(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_inventory_alias_sku (alias_sku),
+  INDEX idx_inventory_aliases_inventory (inventory_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='SKUs alias externos vinculados a una fila de inventario';
 
 
 -- ---------------------------------------------------------------------------

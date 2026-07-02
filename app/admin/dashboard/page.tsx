@@ -137,9 +137,13 @@ export default function AdminDashboard() {
     })
 
     if (response.ok) {
-      await fetchProducts()
+      const saved = await response.json().catch(() => ({}))
+      await Promise.all([fetchProducts(), fetchInventory()])
       setIsModalOpen(false)
       toast.success(editingProduct ? "Producto actualizado correctamente" : "Producto creado correctamente")
+      if (saved?._inventoryWarning) {
+        toast.warning(saved._inventoryWarning)
+      }
     } else {
       const data = await response.json().catch(() => ({}))
       toast.error(data.error || "Error al guardar el producto")

@@ -1,12 +1,20 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { Fragment, useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { AlertTriangle, CheckCircle, Search, TrendingDown, Boxes, Pencil, Check, X, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { AdminNav } from "@/components/admin/admin-nav"
+import { SkuAliasModal } from "@/components/admin/sku-alias-modal"
 
 type StockStatus = "urgent" | "warning" | "good"
+
+type SkuAlias = {
+  id: number
+  alias_sku: string
+  source: string | null
+  notes: string | null
+}
 
 type InventoryItem = {
   id: number
@@ -21,7 +29,10 @@ type InventoryItem = {
   low_stock_threshold: number
   is_available: boolean
   updated_at: string
+  aliases: SkuAlias[]
 }
+
+const SKU_FORMAT_REGEX = /^[A-Z]{4}[0-9]{4}$/
 
 function getStatus(item: InventoryItem): StockStatus {
   if (item.ideal_quantity > 0) {
@@ -68,7 +79,7 @@ const STATUS_CONFIG = {
 
 type EditingState = {
   sku: string
-  field: "stock_quantity" | "ideal_quantity"
+  field: "stock_quantity" | "ideal_quantity" | "sku"
   value: string
 } | null
 
@@ -79,6 +90,7 @@ export default function AdminInventario() {
   const [statusFilter, setStatusFilter] = useState<"all" | StockStatus>("all")
   const [editing, setEditing] = useState<EditingState>(null)
   const [saving, setSaving] = useState(false)
+  const [aliasModalItem, setAliasModalItem] = useState<InventoryItem | null>(null)
   const router = useRouter()
 
   const fetchInventory = useCallback(async () => {
@@ -112,6 +124,36 @@ export default function AdminInventario() {
 
   async function saveEdit() {
     if (!editing) return
+
+    if (editing.field === "sku") {
+      const newSku = editing.value.trim().toUpperCase()
+      if (!SKU_FORMAT_REGEX.test(newSku)) {
+        toast.error("El SKU debe ser 4 letras mayúsculas seguidas de 4 dígitos (ej. ABCD1234)")
+        return
+      }
+      setSaving(true)
+      try {
+        const res = await fetch(`/api/inventory/${editing.sku}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ new_sku: newSku }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || "Error al renombrar SKU")
+        setItems((prev) =>
+          prev.map((it) => (it.sku === editing.sku ? { ...it, sku: newSku } : it))
+        )
+        toast.success("SKU actualizado")
+        setEditing(null)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al guardar")
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     const numValue = parseInt(editing.value, 10)
     if (isNaN(numValue) || numValue < 0) {
       toast.error("Ingresa un número válido mayor o igual a 0")
@@ -140,7 +182,7 @@ export default function AdminInventario() {
     }
   }
 
-  function startEdit(sku: string, field: "stock_quantity" | "ideal_quantity", current: number) {
+  function startEdit(sku: string, field: "stock_quantity" | "ideal_quantity" | "sku", current: string | number) {
     setEditing({ sku, field, value: String(current) })
   }
 
@@ -173,6 +215,16 @@ export default function AdminInventario() {
     const matchStatus = statusFilter === "all" || getStatus(item) === statusFilter
     return matchSearch && matchStatus
   })
+
+  const groups: { product_id: string; product_name: string; items: InventoryItem[] }[] = []
+  for (const item of filtered) {
+    let group = groups.find((g) => g.product_id === item.product_id)
+    if (!group) {
+      group = { product_id: item.product_id, product_name: item.product_name ?? item.product_id, items: [] }
+      groups.push(group)
+    }
+    group.items.push(item)
+  }
 
   const urgentCount  = safeItems.filter((i) => getStatus(i) === "urgent").length
   const warningCount = safeItems.filter((i) => getStatus(i) === "warning").length
@@ -299,7 +351,7 @@ export default function AdminInventario() {
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 border-b border-border">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Producto / Variante</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Variante</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">SKU</th>
                   <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider">
                     Real
@@ -327,24 +379,36 @@ export default function AdminInventario() {
                     </td>
                   </tr>
                 )}
-                {filtered.map((item) => {
-                  const status = getStatus(item)
-                  const coverage = getCoverage(item)
-                  const cfg = STATUS_CONFIG[status]
-                  const isEditingReal  = editing?.sku === item.sku && editing.field === "stock_quantity"
-                  const isEditingIdeal = editing?.sku === item.sku && editing.field === "ideal_quantity"
+                {groups.map((group) => (
+                  <Fragment key={group.product_id}>
+                    <tr className="bg-secondary/40">
+                      <td colSpan={7} className="px-4 py-2">
+                        <span className="font-bold">{group.product_name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {group.items.length} {group.items.length === 1 ? "variante" : "variantes"}
+                        </span>
+                      </td>
+                    </tr>
+                    {group.items.map((item) => {
+                      const status = getStatus(item)
+                      const coverage = getCoverage(item)
+                      const cfg = STATUS_CONFIG[status]
+                      const isEditingReal  = editing?.sku === item.sku && editing.field === "stock_quantity"
+                      const isEditingIdeal = editing?.sku === item.sku && editing.field === "ideal_quantity"
 
-                  return (
+                      return (
                     <tr key={item.sku} className={`hover:bg-secondary/20 ${status === "urgent" ? "bg-red-500/5" : status === "warning" ? "bg-orange-500/5" : ""}`}>
-                      {/* Producto / Variante */}
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{item.product_name ?? item.product_id}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                      {/* Variante */}
+                      <td className="px-4 py-3 pl-8">
+                        <div className="flex items-center gap-1.5">
                           {item.variant_color && (
                             <span className="text-xs text-muted-foreground">{item.variant_color_name ?? item.variant_color}</span>
                           )}
                           {item.variant_size && (
                             <span className="text-xs bg-secondary px-1.5 py-0.5 rounded">{item.variant_size}</span>
+                          )}
+                          {!item.variant_color && !item.variant_size && (
+                            <span className="text-xs text-muted-foreground italic">variante única</span>
                           )}
                           {!item.is_available && (
                             <span className="text-xs text-muted-foreground italic">— inactivo</span>
@@ -354,7 +418,39 @@ export default function AdminInventario() {
 
                       {/* SKU */}
                       <td className="px-4 py-3">
-                        <code className="text-xs bg-secondary px-2 py-1 rounded font-mono">{item.sku}</code>
+                        {editing?.sku === item.sku && editing.field === "sku" ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              maxLength={8}
+                              value={editing.value}
+                              onChange={(e) => setEditing({ ...editing, value: e.target.value.toUpperCase() })}
+                              onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditing(null) }}
+                              autoFocus
+                              className="w-24 text-center border border-primary rounded px-1 py-0.5 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary bg-background"
+                            />
+                            <button onClick={saveEdit} disabled={saving} className="text-green-500 hover:text-green-600"><Check className="h-4 w-4" /></button>
+                            <button onClick={() => setEditing(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => startEdit(item.sku, "sku", item.sku)}
+                              className="group flex items-center gap-1 hover:text-primary"
+                              title="Editar SKU"
+                            >
+                              <code className="text-xs bg-secondary px-2 py-1 rounded font-mono">{item.sku}</code>
+                              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                            <button
+                              onClick={() => setAliasModalItem(item)}
+                              className="text-xs text-muted-foreground hover:text-primary underline decoration-dotted"
+                              title="Gestionar SKUs alias"
+                            >
+                              {item.aliases.length > 0 ? `+${item.aliases.length} alias` : "+ alias"}
+                            </button>
+                          </div>
+                        )}
                       </td>
 
                       {/* Stock Real */}
@@ -459,8 +555,10 @@ export default function AdminInventario() {
                         </button>
                       </td>
                     </tr>
-                  )
-                })}
+                      )
+                    })}
+                  </Fragment>
+                ))}
               </tbody>
             </table>
           </div>
@@ -472,6 +570,18 @@ export default function AdminInventario() {
           </p>
         )}
       </main>
+
+      {aliasModalItem && (
+        <SkuAliasModal
+          sku={aliasModalItem.sku}
+          aliases={aliasModalItem.aliases}
+          onClose={() => setAliasModalItem(null)}
+          onChange={(aliases) => {
+            setItems((prev) => prev.map((it) => (it.sku === aliasModalItem.sku ? { ...it, aliases } : it)))
+            setAliasModalItem((prev) => (prev ? { ...prev, aliases } : prev))
+          }}
+        />
+      )}
     </div>
   )
 }

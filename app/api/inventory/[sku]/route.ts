@@ -5,6 +5,7 @@ import {
   getInventoryBySkuFromDb,
   updateInventorySkuFromDb,
   deleteInventorySkuFromDb,
+  renameInventorySkuFromDb,
   isDbInventoryEnabled,
   type InventoryRow,
 } from "@/lib/db-inventory"
@@ -16,8 +17,8 @@ function normalizeSku(raw: string) {
   return raw.toUpperCase()
 }
 
-function stripCostPrice(row: InventoryRow) {
-  const { cost_price: _c, ...rest } = row
+function stripPrivateFields(row: InventoryRow) {
+  const { cost_price: _c, aliases: _a, ...rest } = row
   return rest
 }
 
@@ -41,7 +42,7 @@ export async function GET(
     }
 
     const isAdmin = ensureAdminSession(request) === null
-    return NextResponse.json(isAdmin ? row : stripCostPrice(row))
+    return NextResponse.json(isAdmin ? row : stripPrivateFields(row))
   } catch (error) {
     console.error("GET /api/inventory/[sku]:", error)
     return NextResponse.json({ error: "Error al consultar inventario" }, { status: 500 })
@@ -61,6 +62,13 @@ export async function GET(
 // NOTA: stock_quantity y adjust son mutuamente excluyentes.
 const patchSchema = z
   .object({
+    new_sku: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .length(8, "El SKU debe tener exactamente 8 caracteres")
+      .regex(/^[A-Z]{4}[0-9]{4}$/, "El SKU debe ser 4 letras mayúsculas seguidas de 4 dígitos")
+      .optional(),
     stock_quantity: z.number().int().nonnegative().optional(),
     ideal_quantity: z.number().int().nonnegative().optional(),
     adjust: z.number().int().optional(),
@@ -98,7 +106,27 @@ export async function PATCH(
       )
     }
 
-    const updated = await updateInventorySkuFromDb(sku, parsed.data)
+    const { new_sku, ...rest } = parsed.data
+    let effectiveSku = sku
+
+    if (new_sku) {
+      const renamed = await renameInventorySkuFromDb(sku, new_sku)
+      if (renamed === null) {
+        return NextResponse.json({ error: "SKU no encontrado" }, { status: 404 })
+      }
+      if (renamed === "invalid_format") {
+        return NextResponse.json({ error: "Formato de SKU inválido" }, { status: 400 })
+      }
+      if (renamed === "duplicate") {
+        return NextResponse.json({ error: "Ese SKU ya está en uso" }, { status: 409 })
+      }
+      effectiveSku = new_sku
+    }
+
+    const hasOtherUpdates = Object.keys(rest).length > 0
+    const updated = hasOtherUpdates
+      ? await updateInventorySkuFromDb(effectiveSku, rest)
+      : await getInventoryBySkuFromDb(effectiveSku)
 
     if (!updated) {
       return NextResponse.json({ error: "SKU no encontrado" }, { status: 404 })

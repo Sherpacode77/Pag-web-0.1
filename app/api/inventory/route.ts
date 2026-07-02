@@ -11,8 +11,8 @@ import {
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-function stripCostPrice(row: InventoryRow) {
-  const { cost_price: _c, ...rest } = row
+function stripPrivateFields(row: InventoryRow) {
+  const { cost_price: _c, aliases: _a, ...rest } = row
   return rest
 }
 
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const rows = await getInventoryFromDb({ product_id, low_stock, available_only })
 
     const isAdmin = ensureAdminSession(request) === null
-    const data = isAdmin ? rows : rows.map(stripCostPrice)
+    const data = isAdmin ? rows : rows.map(stripPrivateFields)
 
     return NextResponse.json(data)
   } catch (error) {
@@ -51,8 +51,9 @@ const createSchema = z.object({
   sku: z
     .string()
     .trim()
-    .length(7, "El SKU debe tener exactamente 7 caracteres")
-    .regex(/^[A-Z0-9]{7}$/, "El SKU solo puede contener letras mayúsculas y dígitos"),
+    .toUpperCase()
+    .length(8, "El SKU debe tener exactamente 8 caracteres")
+    .regex(/^[A-Z]{4}[0-9]{4}$/, "El SKU debe ser 4 letras mayúsculas seguidas de 4 dígitos"),
   product_id: z.string().trim().min(1),
   variant_color: z.string().trim().min(1).max(50).nullable().optional(),
   variant_color_name: z.string().trim().min(1).max(100).nullable().optional(),

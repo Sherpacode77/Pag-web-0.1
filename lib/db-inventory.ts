@@ -1,8 +1,18 @@
-import type { RowDataPacket, ResultSetHeader } from "mysql2/promise"
-import { ensureDbSchema, getDbPool, hasDatabaseUrl } from "@/lib/db"
+import type { RowDataPacket, ResultSetHeader, Pool, PoolConnection } from "mysql2/promise"
+import type { Product } from "@/lib/data"
+import { ensureDbSchema, getDbPool, hasDatabaseUrl, withTransaction } from "@/lib/db"
 
 export function isDbInventoryEnabled() {
   return hasDatabaseUrl()
+}
+
+export type SkuAlias = {
+  id: number
+  inventory_id: number
+  alias_sku: string
+  source: string | null
+  notes: string | null
+  created_at: string
 }
 
 export type InventoryRow = {
@@ -21,6 +31,7 @@ export type InventoryRow = {
   cost_price: number | null
   notes: string | null
   updated_at: string
+  aliases: SkuAlias[]
 }
 
 export type StockStatus = "urgent" | "warning" | "good"
@@ -55,6 +66,32 @@ const SELECT_COLS = `
   DATE_FORMAT(i.updated_at, '%Y-%m-%dT%H:%i:%sZ') AS updated_at
 `
 
+async function attachAliases(rows: Omit<InventoryRow, "aliases">[]): Promise<InventoryRow[]> {
+  if (rows.length === 0) return []
+
+  const pool = getDbPool()
+  const ids = rows.map((r) => r.id)
+  const placeholders = ids.map(() => "?").join(",")
+
+  const [aliasRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT id, inventory_id, alias_sku, source, notes,
+            DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%sZ') AS created_at
+     FROM app_inventory_sku_aliases
+     WHERE inventory_id IN (${placeholders})
+     ORDER BY created_at ASC`,
+    ids
+  )
+
+  const aliasesByInventoryId = new Map<number, SkuAlias[]>()
+  for (const a of aliasRows as SkuAlias[]) {
+    const list = aliasesByInventoryId.get(a.inventory_id) ?? []
+    list.push(a)
+    aliasesByInventoryId.set(a.inventory_id, list)
+  }
+
+  return rows.map((r) => ({ ...r, aliases: aliasesByInventoryId.get(r.id) ?? [] }))
+}
+
 export async function getInventoryFromDb(filters: InventoryFilters = {}): Promise<InventoryRow[]> {
   await ensureDbSchema()
   const pool = getDbPool()
@@ -84,7 +121,7 @@ export async function getInventoryFromDb(filters: InventoryFilters = {}): Promis
     params
   )
 
-  return rows as InventoryRow[]
+  return attachAliases(rows as Omit<InventoryRow, "aliases">[])
 }
 
 export async function getInventoryBySkuFromDb(sku: string): Promise<InventoryRow | null> {
@@ -100,7 +137,9 @@ export async function getInventoryBySkuFromDb(sku: string): Promise<InventoryRow
     [sku]
   )
 
-  return rows[0] ? (rows[0] as InventoryRow) : null
+  if (!rows[0]) return null
+  const [withAliases] = await attachAliases([rows[0] as Omit<InventoryRow, "aliases">])
+  return withAliases
 }
 
 export type CreateInventoryInput = {
@@ -223,6 +262,190 @@ export async function deleteInventorySkuFromDb(sku: string): Promise<boolean> {
   const [result] = await pool.execute<ResultSetHeader>(
     `DELETE FROM app_inventory WHERE sku = ?`,
     [sku]
+  )
+
+  return result.affectedRows > 0
+}
+
+// ─── Generación automática de SKU ──────────────────────────────────────────
+// Formato: 8 caracteres — 4 letras mayúsculas + 4 dígitos (ej. ABCD1234).
+
+const SKU_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const SKU_DIGITS = "0123456789"
+export const SKU_FORMAT_REGEX = /^[A-Z]{4}[0-9]{4}$/
+
+function randomSku(): string {
+  let letters = ""
+  for (let i = 0; i < 4; i++) letters += SKU_LETTERS[Math.floor(Math.random() * SKU_LETTERS.length)]
+  let digits = ""
+  for (let i = 0; i < 4; i++) digits += SKU_DIGITS[Math.floor(Math.random() * SKU_DIGITS.length)]
+  return letters + digits
+}
+
+async function isSkuTaken(conn: Pool | PoolConnection, sku: string): Promise<boolean> {
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT 1 FROM app_inventory WHERE sku = ?
+     UNION ALL
+     SELECT 1 FROM app_inventory_sku_aliases WHERE alias_sku = ?
+     LIMIT 1`,
+    [sku, sku]
+  )
+  return rows.length > 0
+}
+
+export async function generateUniqueSku(
+  conn: Pool | PoolConnection = getDbPool(),
+  maxAttempts = 20
+): Promise<string> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidate = randomSku()
+    if (!(await isSkuTaken(conn, candidate))) return candidate
+  }
+  throw new Error("No se pudo generar un SKU único tras varios intentos")
+}
+
+// ─── Reconciliación de inventario para un producto ─────────────────────────
+// Crea las filas de app_inventory que falten para las variantes de un
+// producto (una por color, o una única fila con variant_color=NULL si el
+// producto no tiene variantes). Idempotente: llamarla repetidamente sobre el
+// mismo producto nunca duplica ni pisa filas existentes.
+
+export type ReconcileResult = {
+  created: InventoryRow[]
+  skipped: number
+  errors: string[]
+}
+
+export async function reconcileInventoryForProduct(product: Product): Promise<ReconcileResult> {
+  await ensureDbSchema()
+
+  const variantsToEnsure: { variant_color: string | null; variant_color_name: string | null }[] =
+    product.hasVariants && product.variants && product.variants.length > 0
+      ? product.variants.map((v) => ({ variant_color: v.color, variant_color_name: v.colorName }))
+      : [{ variant_color: null, variant_color_name: null }]
+
+  const result: ReconcileResult = { created: [], skipped: 0, errors: [] }
+
+  for (const v of variantsToEnsure) {
+    try {
+      const sku = await withTransaction(async (conn) => {
+        // NULL-safe: MySQL trata cada NULL como distinto en un UNIQUE KEY, así
+        // que el constraint de la tabla NO evita duplicados cuando
+        // variant_color/variant_size son NULL. Este SELECT explícito con <=>
+        // es lo que realmente previene duplicados.
+        const [existing] = await conn.execute<RowDataPacket[]>(
+          `SELECT id FROM app_inventory
+           WHERE product_id = ? AND variant_color <=> ? AND variant_size <=> ?
+           LIMIT 1`,
+          [product.id, v.variant_color, null]
+        )
+        if (existing.length > 0) return null
+
+        const generatedSku = await generateUniqueSku(conn)
+
+        await conn.execute(
+          `INSERT INTO app_inventory
+             (sku, product_id, variant_color, variant_color_name, variant_size,
+              stock_quantity, ideal_quantity, low_stock_threshold, is_available,
+              created_at, updated_at)
+           VALUES (?, ?, ?, ?, NULL, 0, 0, 3, 1, NOW(), NOW())`,
+          [generatedSku, product.id, v.variant_color, v.variant_color_name]
+        )
+        return generatedSku
+      })
+
+      if (sku === null) {
+        result.skipped++
+      } else {
+        const created = await getInventoryBySkuFromDb(sku)
+        if (created) result.created.push(created)
+      }
+    } catch (err) {
+      console.error("reconcileInventoryForProduct: fallo en variante", v, err)
+      result.errors.push(
+        `Variante ${v.variant_color_name ?? v.variant_color ?? "única"}: ` +
+        (err instanceof Error ? err.message : "error desconocido")
+      )
+    }
+  }
+
+  return result
+}
+
+// ─── Renombrar SKU principal ────────────────────────────────────────────────
+
+export async function renameInventorySkuFromDb(
+  oldSku: string,
+  newSku: string
+): Promise<InventoryRow | null | "invalid_format" | "duplicate"> {
+  await ensureDbSchema()
+
+  if (!SKU_FORMAT_REGEX.test(newSku)) return "invalid_format"
+  if (oldSku === newSku) return getInventoryBySkuFromDb(oldSku)
+
+  const pool = getDbPool()
+
+  // ER_DUP_ENTRY del UPDATE solo cubriría colisión contra app_inventory.sku,
+  // no contra un alias existente en la otra tabla — chequeo explícito primero.
+  const [aliasHit] = await pool.execute<RowDataPacket[]>(
+    `SELECT 1 FROM app_inventory_sku_aliases WHERE alias_sku = ? LIMIT 1`,
+    [newSku]
+  )
+  if (aliasHit.length > 0) return "duplicate"
+
+  try {
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE app_inventory SET sku = ?, updated_at = NOW() WHERE sku = ?`,
+      [newSku, oldSku]
+    )
+    if (result.affectedRows === 0) return null
+    return getInventoryBySkuFromDb(newSku)
+  } catch (err: unknown) {
+    const e = err as NodeJS.ErrnoException & { code?: string }
+    if (e.code === "ER_DUP_ENTRY") return "duplicate"
+    throw err
+  }
+}
+
+// ─── CRUD de alias de SKU ───────────────────────────────────────────────────
+
+export async function addAliasToSku(
+  sku: string,
+  alias: { alias_sku: string; source?: string | null; notes?: string | null }
+): Promise<SkuAlias | "not_found" | "duplicate"> {
+  await ensureDbSchema()
+  const pool = getDbPool()
+
+  const inv = await getInventoryBySkuFromDb(sku)
+  if (!inv) return "not_found"
+
+  try {
+    const [result] = await pool.execute<ResultSetHeader>(
+      `INSERT INTO app_inventory_sku_aliases (inventory_id, alias_sku, source, notes, created_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [inv.id, alias.alias_sku, alias.source ?? null, alias.notes ?? null]
+    )
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT id, inventory_id, alias_sku, source, notes,
+              DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%sZ') AS created_at
+       FROM app_inventory_sku_aliases WHERE id = ?`,
+      [result.insertId]
+    )
+    return rows[0] as SkuAlias
+  } catch (err: unknown) {
+    const e = err as NodeJS.ErrnoException & { code?: string }
+    if (e.code === "ER_DUP_ENTRY") return "duplicate"
+    throw err
+  }
+}
+
+export async function deleteAliasById(aliasId: number): Promise<boolean> {
+  await ensureDbSchema()
+  const pool = getDbPool()
+
+  const [result] = await pool.execute<ResultSetHeader>(
+    `DELETE FROM app_inventory_sku_aliases WHERE id = ?`,
+    [aliasId]
   )
 
   return result.affectedRows > 0

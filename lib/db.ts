@@ -249,6 +249,27 @@ async function runSchemaSetup() {
     AFTER stock_quantity
   `)
 
+  // Migración segura: amplía sku a 8 caracteres (4 letras + 4 dígitos).
+  // MODIFY COLUMN es idempotente por naturaleza — no falla si ya está en VARCHAR(8).
+  await pool.execute(`
+    ALTER TABLE app_inventory
+    MODIFY COLUMN sku VARCHAR(8) NOT NULL
+  `)
+
+  // 9b. FK → app_inventory — SKUs alias (códigos externos que representan la misma variante)
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_inventory_sku_aliases (
+      id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+      inventory_id BIGINT       NOT NULL,
+      alias_sku    VARCHAR(100) NOT NULL,
+      source       VARCHAR(100) NULL,
+      notes        VARCHAR(300) NULL,
+      created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (inventory_id) REFERENCES app_inventory(id) ON DELETE CASCADE,
+      UNIQUE KEY uq_inventory_alias_sku (alias_sku)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   // 10. Sin dependencias FK
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS app_coupons (
@@ -297,6 +318,7 @@ async function runSchemaSetup() {
   await createIndexSafe(pool, "CREATE INDEX idx_app_orders_mp ON app_orders(mercadopago_id)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_inventory_product ON app_inventory(product_id)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_inventory_stock ON app_inventory(stock_quantity)")
+  await createIndexSafe(pool, "CREATE INDEX idx_inventory_aliases_inventory ON app_inventory_sku_aliases(inventory_id)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_coupons_code ON app_coupons(code)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_coupons_active ON app_coupons(is_active)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_order_history_order ON app_order_status_history(order_id)")

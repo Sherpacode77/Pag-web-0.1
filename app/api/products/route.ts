@@ -12,6 +12,7 @@ import {
   readProductsFromDb,
   updateProductInDb,
 } from "@/lib/db-products"
+import { reconcileInventoryForProduct, isDbInventoryEnabled } from "@/lib/db-inventory"
 import fs from "fs"
 import path from "path"
 import { z } from "zod"
@@ -200,8 +201,25 @@ export async function POST(request: NextRequest) {
 
     if (isDbProductsEnabled()) {
       await createProductInDb(newProduct)
+
+      let inventoryWarning: string | undefined
+      if (isDbInventoryEnabled()) {
+        try {
+          const reconcile = await reconcileInventoryForProduct(newProduct)
+          if (reconcile.errors.length > 0) {
+            inventoryWarning = `Producto creado, pero hubo errores generando inventario: ${reconcile.errors.join("; ")}`
+          }
+        } catch (err) {
+          console.error("POST /api/products: fallo reconciliando inventario", err)
+          inventoryWarning = "Producto creado, pero no se pudo generar el inventario automáticamente"
+        }
+      }
+
       revalidatePath("/tienda")
-      return NextResponse.json(newProduct, { status: 201 })
+      return NextResponse.json(
+        inventoryWarning ? { ...newProduct, _inventoryWarning: inventoryWarning } : newProduct,
+        { status: 201 }
+      )
     }
 
     if (writeProducts(productsData)) {
@@ -269,9 +287,24 @@ export async function PUT(request: NextRequest) {
         )
       }
 
+      let inventoryWarning: string | undefined
+      if (isDbInventoryEnabled()) {
+        try {
+          const reconcile = await reconcileInventoryForProduct(updated)
+          if (reconcile.errors.length > 0) {
+            inventoryWarning = `Producto actualizado, pero hubo errores generando inventario: ${reconcile.errors.join("; ")}`
+          }
+        } catch (err) {
+          console.error("PUT /api/products: fallo reconciliando inventario", err)
+          inventoryWarning = "Producto actualizado, pero no se pudo generar el inventario automáticamente"
+        }
+      }
+
       revalidatePath(`/tienda/${updated.slug}`)
       revalidatePath("/tienda")
-      return NextResponse.json(updated)
+      return NextResponse.json(
+        inventoryWarning ? { ...updated, _inventoryWarning: inventoryWarning } : updated
+      )
     }
 
     if (writeProducts(productsData)) {
