@@ -24,6 +24,7 @@ type InvRow = {
   product_id: string
   variant_color: string | null
   variant_color_name: string | null
+  variant_size: string | null
   stock_quantity: number
   is_available: boolean
 }
@@ -113,6 +114,7 @@ export default function AdminDashboard() {
       colors: [],
       hasVariants: false,
       variants: [],
+      sizes: [],
       featured: false,
       bestSeller: false,
       specs: [],
@@ -333,7 +335,8 @@ export default function AdminDashboard() {
                       {inventoryMap[product.id] ? (
                         <div className="flex flex-wrap gap-1.5">
                           {inventoryMap[product.id].map((row) => {
-                            const label = row.variant_color_name ?? row.variant_color ?? "Único"
+                            const colorLabel = row.variant_color_name ?? row.variant_color
+                            const label = [colorLabel, row.variant_size].filter(Boolean).join(" ") || "Único"
                             const stock = row.stock_quantity
                             const color = !row.is_available
                               ? "bg-secondary text-muted-foreground line-through"

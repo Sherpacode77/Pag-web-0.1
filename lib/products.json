@@ -85,7 +85,8 @@
         "image": "/images/products/1778075965238-cordadarecurso_1__3_.png",
         "inStock": true
       }
-    ]
+    ],
+    "originalPrice": 250000
   },
   {
     "id": "2",
@@ -189,6 +190,39 @@
       {
         "label": "Cierre",
         "value": "Roll-top hermetico"
+      }
+    ],
+    "hasVariants": true,
+    "variants": [
+      {
+        "color": "verde",
+        "colorName": "Verde",
+        "image": "/images/products/1783028844709-whatsapp_image_2026-07-02_at_4.45.54_pm.jpeg",
+        "inStock": true
+      },
+      {
+        "color": "rojo",
+        "colorName": "Rojo",
+        "image": "/images/products/1783028848615-whatsapp_image_2026-07-02_at_4.44.38_pm.jpeg",
+        "inStock": true
+      },
+      {
+        "color": "naranja",
+        "colorName": "Naranja",
+        "image": "/images/products/1783028857626-whatsapp_image_2026-07-02_at_4.46.30_pm.jpeg",
+        "inStock": true
+      },
+      {
+        "color": "azul",
+        "colorName": "Azul",
+        "image": "/images/products/1783028867034-whatsapp_image_2026-07-02_at_4.45.18_pm.jpeg",
+        "inStock": true
+      },
+      {
+        "color": "negro",
+        "colorName": "Negro",
+        "image": "/images/products/fbl1.jpg",
+        "inStock": true
       }
     ]
   },

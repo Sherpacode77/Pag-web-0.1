@@ -7,6 +7,25 @@ import { useCart } from "@/lib/cart-context"
 import { formatPrice, type Product } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
 
+// Selección por defecto para el "agregar rápido" desde la tarjeta (sin pasar
+// por el selector de la página de detalle): negro/talla única si existen,
+// si no la primera opción disponible.
+function getDefaultVariant(product: Product) {
+  const variant = product.hasVariants && product.variants?.length
+    ? product.variants.find((v) => v.color === "negro") ?? product.variants[0]
+    : undefined
+  const size = product.sizes?.length
+    ? product.sizes.find((s) => s.size === "unica") ?? product.sizes[0]
+    : undefined
+
+  return {
+    variantColor: variant?.color,
+    variantColorName: variant?.colorName,
+    variantSize: size?.size,
+    variantSizeName: size?.sizeName,
+  }
+}
+
 export function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart()
 
@@ -59,7 +78,7 @@ export function ProductCard({ product }: { product: Product }) {
             type="button"
             onClick={(e) => {
               e.preventDefault()
-              addItem(product)
+              addItem(product, getDefaultVariant(product))
             }}
             className="flex h-8 w-8 items-center justify-center bg-foreground text-background hover:bg-primary hover:text-primary-foreground transition-colors"
             aria-label={`Agregar ${product.name} al carrito`}

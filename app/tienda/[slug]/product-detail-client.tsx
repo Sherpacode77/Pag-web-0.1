@@ -18,12 +18,14 @@ import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { VariantSelector } from "@/components/variant-selector"
+import { SizeSelector } from "@/components/size-selector"
 import { formatPrice } from "@/lib/data"
 import { trackAddToCart, sendFacebookServerEvent } from "@/lib/tracking-client"
 import type { Product } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
 
 type ProductVariant = NonNullable<Product["variants"]>[number]
+type ProductSize = NonNullable<Product["sizes"]>[number]
 
 interface Props {
   product: Product
@@ -38,25 +40,28 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
   const [activeMediaType, setActiveMediaType] = useState<"image" | "video">("image")
   const [activeVideoIndex, setActiveVideoIndex] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
+  const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null)
 
   const hasInventoryData = Object.keys(inventoryMap).length > 0
 
-  // Variantes ajustadas según inventario real:
-  // - is_available=false → se oculta completamente
-  // - stock=0 → inStock=false (aparece como agotado pero visible)
+  // Variantes de color ajustadas según inventario real, agregando el stock/
+  // disponibilidad de todas las tallas de cada color:
+  // - ninguna talla disponible → color se oculta completamente
+  // - stock total = 0 → inStock=false (aparece como agotado pero visible)
   const effectiveVariants = useMemo<ProductVariant[]>(() => {
     if (!product.hasVariants || !product.variants) return []
     return product.variants
       .filter((v) => {
         if (!hasInventoryData) return true
-        const inv = inventoryMap[v.color]
-        return !inv || inv.available
+        const rows = Object.entries(inventoryMap).filter(([key]) => key.startsWith(`${v.color}|`))
+        return rows.length === 0 || rows.some(([, inv]) => inv.available)
       })
       .map((v) => {
         if (!hasInventoryData) return v
-        const inv = inventoryMap[v.color]
-        if (!inv) return v
-        return { ...v, inStock: inv.stock > 0 }
+        const rows = Object.entries(inventoryMap).filter(([key]) => key.startsWith(`${v.color}|`))
+        if (rows.length === 0) return v
+        const totalStock = rows.reduce((sum, [, inv]) => sum + inv.stock, 0)
+        return { ...v, inStock: totalStock > 0 }
       })
   }, [product.hasVariants, product.variants, inventoryMap, hasInventoryData])
 
@@ -67,12 +72,50 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
     setSelectedVariant(negro ?? first ?? effectiveVariants[0] ?? null)
   }, [product.hasVariants, effectiveVariants])
 
-  // ¿El producto/variante actualmente seleccionado está agotado?
-  const isOutOfStock = product.hasVariants
-    ? selectedVariant ? !selectedVariant.inStock : false
-    : hasInventoryData
-      ? (inventoryMap["__single__"]?.stock ?? 1) === 0
-      : false
+  // Clave de color para consultar inventario de tallas: el color elegido,
+  // o "_" si el producto no tiene variantes de color.
+  const colorKey = product.hasVariants && selectedVariant ? selectedVariant.color : "_"
+  const hasSizes = !!(product.sizes && product.sizes.length > 0)
+
+  // Tallas ajustadas según inventario real para el color actualmente seleccionado
+  const effectiveSizes = useMemo<ProductSize[]>(() => {
+    if (!product.sizes || product.sizes.length === 0) return []
+    return product.sizes
+      .filter((s) => {
+        if (!hasInventoryData) return true
+        const inv = inventoryMap[`${colorKey}|${s.size}`]
+        return !inv || inv.available
+      })
+      .map((s) => {
+        if (!hasInventoryData) return s
+        const inv = inventoryMap[`${colorKey}|${s.size}`]
+        if (!inv) return s
+        return { ...s, inStock: inv.stock > 0 }
+      })
+  }, [product.sizes, inventoryMap, hasInventoryData, colorKey])
+
+  useEffect(() => {
+    if (!product.sizes || effectiveSizes.length === 0) {
+      setSelectedSize(null)
+      return
+    }
+    const unica = effectiveSizes.find((s) => s.size === "unica" && s.inStock)
+    const first = effectiveSizes.find((s) => s.inStock)
+    setSelectedSize(unica ?? first ?? effectiveSizes[0] ?? null)
+  }, [product.sizes, effectiveSizes])
+
+  // ¿El producto/variante/talla actualmente seleccionado está agotado?
+  const isOutOfStock = hasSizes
+    ? selectedSize ? !selectedSize.inStock : false
+    : product.hasVariants
+      ? selectedVariant ? !selectedVariant.inStock : false
+      : hasInventoryData
+        ? (inventoryMap["_|_"]?.stock ?? 1) === 0
+        : false
+
+  // Sin tallas disponibles para el color elegido (todas ocultas/agotadas)
+  const noSizeSelectable = hasSizes && !selectedSize
+  const canAddToCart = !isOutOfStock && !noSizeSelectable
 
   const displayImages = selectedVariant
     ? selectedVariant.color === "negro"
@@ -92,8 +135,14 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
   }, [selectedVariant, displayVideos.length, activeMediaType])
 
   const handleAddToCart = () => {
+    const variant = {
+      variantColor: selectedVariant?.color,
+      variantColorName: selectedVariant?.colorName,
+      variantSize: selectedSize?.size,
+      variantSizeName: selectedSize?.sizeName,
+    }
     for (let i = 0; i < quantity; i++) {
-      addItem(product)
+      addItem(product, variant)
     }
     trackAddToCart({
       id: product.id,
@@ -236,6 +285,14 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
                 />
               )}
 
+              {hasSizes && (
+                <SizeSelector
+                  sizes={effectiveSizes}
+                  selectedSize={selectedSize}
+                  onSelect={setSelectedSize}
+                />
+              )}
+
               <p className="mt-6 text-sm text-muted-foreground leading-relaxed">
                 {product.description}
               </p>
@@ -311,16 +368,16 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
 
                 <button
                   type="button"
-                  onClick={isOutOfStock ? undefined : handleAddToCart}
-                  disabled={isOutOfStock}
+                  onClick={canAddToCart ? handleAddToCart : undefined}
+                  disabled={!canAddToCart}
                   className={`flex w-full items-center justify-center gap-3 py-4 text-sm font-bold uppercase tracking-widest transition-colors ${
-                    isOutOfStock
+                    !canAddToCart
                       ? "bg-secondary text-muted-foreground cursor-not-allowed"
                       : "bg-primary text-primary-foreground hover:bg-primary/90"
                   }`}
                 >
                   <ShoppingBag className="h-5 w-5" />
-                  {isOutOfStock ? "Agotado" : "Agregar al Carrito"}
+                  {isOutOfStock ? "Agotado" : noSizeSelectable ? "Sin tallas disponibles" : "Agregar al Carrito"}
                 </button>
 
                 <Link

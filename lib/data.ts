@@ -5,6 +5,14 @@ export interface ProductVariant {
   inStock: boolean
 }
 
+export type SizeValue = "unica" | "xs" | "s" | "m" | "l" | "xl"
+
+export interface ProductSizeVariant {
+  size: SizeValue
+  sizeName: string
+  inStock: boolean
+}
+
 export interface Product {
   id: string
   name: string
@@ -22,6 +30,7 @@ export interface Product {
   colors?: string[]
   hasVariants?: boolean
   variants?: ProductVariant[]
+  sizes?: ProductSizeVariant[]
   featured: boolean
   bestSeller: boolean
   specs: { label: string; value: string }[]

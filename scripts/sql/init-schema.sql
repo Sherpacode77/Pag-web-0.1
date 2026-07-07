@@ -88,9 +88,9 @@ CREATE TABLE IF NOT EXISTS app_addresses (
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS app_orders (
   id                    BIGINT AUTO_INCREMENT PRIMARY KEY,
-  order_number          VARCHAR(50)   NOT NULL UNIQUE COMMENT 'Ej: CO-2026-00001',
+  order_number          VARCHAR(50)   NOT NULL UNIQUE COMMENT 'Ej: CO-2026-482913',
   customer_id           BIGINT                       COMMENT 'NULL si compra como invitado',
-  customer_email        VARCHAR(255)  NOT NULL,
+  customer_email        VARCHAR(255)                 COMMENT 'NULL hasta que MercadoPago confirma el pago (el checkout no pide datos antes de pagar)',
   customer_name         VARCHAR(200),
   customer_phone        VARCHAR(30),
   customer_document     VARCHAR(50),
@@ -143,6 +143,8 @@ CREATE TABLE IF NOT EXISTS app_order_items (
   product_slug      VARCHAR(255),
   variant_color     VARCHAR(50)                COMMENT 'negro, rojo, verde...',
   variant_color_name VARCHAR(100)              COMMENT 'Negro mate, Rojo fuego...',
+  variant_size      VARCHAR(10)                COMMENT 'unica, xs, s, m, l, xl',
+  variant_size_name VARCHAR(20)                COMMENT 'Talla Única, XS, S, M, L, XL',
   unit_price        DECIMAL(15,2) NOT NULL,
   quantity          INT           NOT NULL DEFAULT 1,
   subtotal          DECIMAL(15,2) NOT NULL,

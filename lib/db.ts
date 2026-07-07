@@ -182,6 +182,8 @@ async function runSchemaSetup() {
       product_slug       VARCHAR(255)  NULL,
       variant_color      VARCHAR(50)   NULL,
       variant_color_name VARCHAR(100)  NULL,
+      variant_size       VARCHAR(10)   NULL,
+      variant_size_name  VARCHAR(20)   NULL,
       unit_price         DECIMAL(15,2) NOT NULL,
       quantity           INT           NOT NULL DEFAULT 1,
       subtotal           DECIMAL(15,2) NOT NULL,
@@ -189,6 +191,23 @@ async function runSchemaSetup() {
       created_at         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (order_id) REFERENCES app_orders(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  // Migración segura: agrega columnas de talla si la tabla ya existía sin ellas
+  await pool.execute(`
+    ALTER TABLE app_order_items
+    ADD COLUMN IF NOT EXISTS variant_size VARCHAR(10) NULL AFTER variant_color_name
+  `)
+  await pool.execute(`
+    ALTER TABLE app_order_items
+    ADD COLUMN IF NOT EXISTS variant_size_name VARCHAR(20) NULL AFTER variant_size
+  `)
+
+  // Migración segura: el email del cliente se completa recién cuando MercadoPago
+  // confirma el pago (el checkout actual no pide datos de contacto antes de pagar)
+  await pool.execute(`
+    ALTER TABLE app_orders
+    MODIFY COLUMN customer_email VARCHAR(255) NULL
   `)
 
   // 7. Sin dependencias FK

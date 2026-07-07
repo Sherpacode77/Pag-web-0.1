@@ -12,7 +12,7 @@ import {
   readProductsFromDb,
   updateProductInDb,
 } from "@/lib/db-products"
-import { reconcileInventoryForProduct, isDbInventoryEnabled } from "@/lib/db-inventory"
+import { reconcileInventoryForProduct, isDbInventoryEnabled, filterProductsByAvailability } from "@/lib/db-inventory"
 import fs from "fs"
 import path from "path"
 import { z } from "zod"
@@ -24,6 +24,7 @@ const PRODUCTS_FILE = path.join(process.cwd(), "lib", "products.json")
 const categorySchema = z.enum(["alforjas", "accesorios", "ropa", "kits"])
 const bikePartSchema = z.enum(["manubrio", "sillin", "marco", "tubo-superior"])
 const variantColorSchema = z.enum(["negro", "rojo", "naranja", "verde", "azul"])
+const sizeValueSchema = z.enum(["unica", "xs", "s", "m", "l", "xl"])
 
 const baseProductSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -50,6 +51,17 @@ const baseProductSchema = z.object({
       })
     )
     .max(10)
+    .optional()
+    .default([]),
+  sizes: z
+    .array(
+      z.object({
+        size: sizeValueSchema,
+        sizeName: z.string().trim().min(1).max(20),
+        inStock: z.boolean(),
+      })
+    )
+    .max(6)
     .optional()
     .default([]),
   featured: z.boolean().optional().default(false),
@@ -110,6 +122,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
     const slug = searchParams.get("slug")
+    const publicOnly = searchParams.get("public") === "1"
 
     if (isDbProductsEnabled()) {
       if (id) {
@@ -131,11 +144,13 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(product)
       }
 
-      const productsData = await readProductsFromDb()
+      let productsData = await readProductsFromDb()
+      if (publicOnly) productsData = await filterProductsByAvailability(productsData)
       return NextResponse.json(productsData)
     }
 
-    const productsData = readProducts()
+    let productsData = readProducts()
+    if (publicOnly) productsData = await filterProductsByAvailability(productsData)
 
     if (id) {
       const product = productsData.find((item) => String(item.id) === id)
@@ -178,6 +193,13 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Datos de producto inválidos", details: parsed.error.flatten() },
+        { status: 400 }
+      )
+    }
+
+    if (parsed.data.category === "ropa" && parsed.data.sizes.length === 0) {
+      return NextResponse.json(
+        { error: "Selecciona al menos una talla para productos de categoría ropa" },
         { status: 400 }
       )
     }
@@ -277,6 +299,13 @@ export async function PUT(request: NextRequest) {
     }
     
     productsData[index] = { ...productsData[index], ...updateData }
+
+    if (productsData[index].category === "ropa" && (productsData[index].sizes?.length ?? 0) === 0) {
+      return NextResponse.json(
+        { error: "Selecciona al menos una talla para productos de categoría ropa" },
+        { status: 400 }
+      )
+    }
 
     if (isDbProductsEnabled()) {
       const updated = await updateProductInDb(id, updateData)

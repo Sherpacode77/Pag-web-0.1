@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LogOut, Package, Boxes, Tag } from "lucide-react"
+import { LogOut, Package, Boxes, Tag, Receipt, Ticket } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
 
 export function AdminNav() {
@@ -22,7 +22,9 @@ export function AdminNav() {
   const tabs = [
     { href: "/admin/dashboard", label: "Productos", icon: Package },
     { href: "/admin/inventario", label: "Inventario", icon: Boxes },
+    { href: "/admin/pedidos", label: "Pedidos", icon: Receipt },
     { href: "/admin/ofertas", label: "Ofertas", icon: Tag },
+    { href: "/admin/cupones", label: "Cupones", icon: Ticket },
   ]
 
   return (

@@ -94,18 +94,26 @@ export default async function ProductDetailPage({
     notFound()
   }
 
-  // Construir mapa de inventario por color (o "__single__" para productos sin variantes)
+  // Construir mapa de inventario por combinación color+talla. Clave: "<color>|<talla>",
+  // usando "_" cuando el producto no tiene esa dimensión (ej. sin color: "_|m").
   let inventoryMap: Record<string, { stock: number; available: boolean }> = {}
   if (isDbInventoryEnabled()) {
     try {
       const rows = await getInventoryFromDb({ product_id: product.id, available_only: false })
       for (const row of rows) {
-        const key = row.variant_color ?? "__single__"
+        const key = `${row.variant_color ?? "_"}|${row.variant_size ?? "_"}`
         inventoryMap[key] = { stock: row.stock_quantity, available: row.is_available }
       }
     } catch {
       // DB no disponible — usar inStock del JSON/producto
     }
+  }
+
+  // Producto oculto por completo: todas sus filas de inventario (SKU único
+  // o variantes de color) están deshabilitadas.
+  const hasInventoryRows = Object.keys(inventoryMap).length > 0
+  if (hasInventoryRows && Object.values(inventoryMap).every((inv) => !inv.available)) {
+    notFound()
   }
 
   const relatedProducts = allProducts

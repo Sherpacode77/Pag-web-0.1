@@ -2,10 +2,12 @@
 
 import { useState } from "react"
 import { X, Save, ImagePlus } from "lucide-react"
+import { toast } from "sonner"
 import { MultiImageUpload } from "@/components/multi-image-upload"
 import { VideoUpload } from "@/components/video-upload"
 import { ImageGalleryModal } from "@/components/image-gallery-modal"
 import { VariantManager } from "@/components/variant-manager"
+import { SizeManager } from "@/components/size-manager"
 import type { Product } from "@/lib/data"
 
 interface ProductModalProps {
@@ -21,6 +23,10 @@ export function ProductModal({ product, isEdit, onClose, onSave, onChange }: Pro
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
+    if (product.category === "ropa" && (!product.sizes || product.sizes.length === 0)) {
+      toast.error("Selecciona al menos una talla para productos de categoría ropa")
+      return
+    }
     setSaving(true)
     try {
       await onSave()
@@ -243,6 +249,27 @@ export function ProductModal({ product, isEdit, onClose, onSave, onChange }: Pro
               />
             )}
           </div>
+
+          {/* Variantes de Talla — obligatorio para categoría Ropa */}
+          {product.category === "ropa" && (
+            <div className="pt-4 border-t border-border">
+              <label className="block text-sm font-medium mb-4 uppercase tracking-wider">
+                Tallas disponibles *{" "}
+                <span className="text-xs normal-case text-muted-foreground">
+                  (selecciona al menos una)
+                </span>
+              </label>
+              <SizeManager
+                sizes={product.sizes || []}
+                onChange={(sizes) => onChange({ ...product, sizes })}
+              />
+              {(!product.sizes || product.sizes.length === 0) && (
+                <p className="mt-2 text-xs text-destructive">
+                  Selecciona al menos una talla para guardar este producto
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

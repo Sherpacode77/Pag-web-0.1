@@ -92,6 +92,28 @@ async function attachAliases(rows: Omit<InventoryRow, "aliases">[]): Promise<Inv
   return rows.map((r) => ({ ...r, aliases: aliasesByInventoryId.get(r.id) ?? [] }))
 }
 
+// Un producto se considera visible si tiene al menos un SKU con is_available=1,
+// o si aún no tiene filas de inventario (nunca reconciliado — no ocultar por defecto).
+export async function filterProductsByAvailability<T extends { id: string }>(
+  productsData: T[]
+): Promise<T[]> {
+  if (!isDbInventoryEnabled()) return productsData
+
+  try {
+    const rows = await getInventoryFromDb()
+    const availableByProduct = new Map<string, boolean>()
+    for (const row of rows) {
+      availableByProduct.set(
+        row.product_id,
+        (availableByProduct.get(row.product_id) ?? false) || row.is_available
+      )
+    }
+    return productsData.filter((p) => availableByProduct.get(p.id) ?? true)
+  } catch {
+    return productsData
+  }
+}
+
 export async function getInventoryFromDb(filters: InventoryFilters = {}): Promise<InventoryRow[]> {
   await ensureDbSchema()
   const pool = getDbPool()
@@ -306,9 +328,10 @@ export async function generateUniqueSku(
 
 // ─── Reconciliación de inventario para un producto ─────────────────────────
 // Crea las filas de app_inventory que falten para las variantes de un
-// producto (una por color, o una única fila con variant_color=NULL si el
-// producto no tiene variantes). Idempotente: llamarla repetidamente sobre el
-// mismo producto nunca duplica ni pisa filas existentes.
+// producto: el producto cartesiano de sus colores (o una única entrada
+// variant_color=NULL si no tiene variantes de color) por sus tallas (o una
+// única entrada variant_size=NULL si no tiene tallas). Idempotente: llamarla
+// repetidamente sobre el mismo producto nunca duplica ni pisa filas existentes.
 
 export type ReconcileResult = {
   created: InventoryRow[]
@@ -319,10 +342,19 @@ export type ReconcileResult = {
 export async function reconcileInventoryForProduct(product: Product): Promise<ReconcileResult> {
   await ensureDbSchema()
 
-  const variantsToEnsure: { variant_color: string | null; variant_color_name: string | null }[] =
+  const colorsToEnsure: { variant_color: string | null; variant_color_name: string | null }[] =
     product.hasVariants && product.variants && product.variants.length > 0
       ? product.variants.map((v) => ({ variant_color: v.color, variant_color_name: v.colorName }))
       : [{ variant_color: null, variant_color_name: null }]
+
+  const sizesToEnsure: { variant_size: string | null }[] =
+    product.sizes && product.sizes.length > 0
+      ? product.sizes.map((s) => ({ variant_size: s.size }))
+      : [{ variant_size: null }]
+
+  const variantsToEnsure = colorsToEnsure.flatMap((c) =>
+    sizesToEnsure.map((s) => ({ ...c, ...s }))
+  )
 
   const result: ReconcileResult = { created: [], skipped: 0, errors: [] }
 
@@ -337,7 +369,7 @@ export async function reconcileInventoryForProduct(product: Product): Promise<Re
           `SELECT id FROM app_inventory
            WHERE product_id = ? AND variant_color <=> ? AND variant_size <=> ?
            LIMIT 1`,
-          [product.id, v.variant_color, null]
+          [product.id, v.variant_color, v.variant_size]
         )
         if (existing.length > 0) return null
 
@@ -348,8 +380,8 @@ export async function reconcileInventoryForProduct(product: Product): Promise<Re
              (sku, product_id, variant_color, variant_color_name, variant_size,
               stock_quantity, ideal_quantity, low_stock_threshold, is_available,
               created_at, updated_at)
-           VALUES (?, ?, ?, ?, NULL, 0, 0, 3, 1, NOW(), NOW())`,
-          [generatedSku, product.id, v.variant_color, v.variant_color_name]
+           VALUES (?, ?, ?, ?, ?, 0, 0, 3, 1, NOW(), NOW())`,
+          [generatedSku, product.id, v.variant_color, v.variant_color_name, v.variant_size]
         )
         return generatedSku
       })
@@ -362,9 +394,9 @@ export async function reconcileInventoryForProduct(product: Product): Promise<Re
       }
     } catch (err) {
       console.error("reconcileInventoryForProduct: fallo en variante", v, err)
+      const label = [v.variant_color_name ?? v.variant_color, v.variant_size].filter(Boolean).join(" ") || "única"
       result.errors.push(
-        `Variante ${v.variant_color_name ?? v.variant_color ?? "única"}: ` +
-        (err instanceof Error ? err.message : "error desconocido")
+        `Variante ${label}: ` + (err instanceof Error ? err.message : "error desconocido")
       )
     }
   }

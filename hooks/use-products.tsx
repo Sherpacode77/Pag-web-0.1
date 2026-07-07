@@ -15,7 +15,7 @@ export function useProducts() {
   async function fetchProducts() {
     try {
       setLoading(true)
-      const response = await fetch("/api/products")
+      const response = await fetch("/api/products?public=1")
       if (!response.ok) throw new Error("Error fetching products")
       const data = await response.json()
       setProducts(data)

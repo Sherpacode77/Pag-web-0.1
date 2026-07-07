@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { products as staticProducts } from "@/lib/data"
 import { isDbProductsEnabled, readProductsFromDb } from "@/lib/db-products"
+import { filterProductsByAvailability } from "@/lib/db-inventory"
 import type { Product } from "@/lib/data"
 
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ async function getAllProducts(): Promise<Product[]> {
 }
 
 export default async function OfertasPage() {
-  const allProducts = await getAllProducts()
+  const allProducts = await filterProductsByAvailability(await getAllProducts())
   const offers = allProducts.filter((p) => p.originalPrice && p.originalPrice > p.price)
 
   return (
