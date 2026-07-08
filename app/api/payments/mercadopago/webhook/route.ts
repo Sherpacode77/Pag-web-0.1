@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { MercadoPagoConfig, Payment } from "mercadopago"
 import { hasDatabaseUrl } from "@/lib/db"
-import { updateOrderPaymentStatus, type OrderStatus } from "@/lib/db-orders"
+import {
+  getOrderByNumber,
+  getOrderWithItemsByNumber,
+  updateOrderPaymentStatus,
+  type OrderStatus,
+} from "@/lib/db-orders"
+import { sendOrderPaidEmails } from "@/lib/email"
 
 const STATUS_MAP: Record<string, OrderStatus> = {
   approved: "paid",
@@ -62,6 +68,8 @@ export async function POST(request: Request) {
     const customerName =
       [payment.payer?.first_name, payment.payer?.last_name].filter(Boolean).join(" ") || null
 
+    const previousOrder = await getOrderByNumber(orderNumber)
+
     const updated = await updateOrderPaymentStatus(orderNumber, {
       status: mappedStatus,
       mercadopago_id: payment.id != null ? String(payment.id) : null,
@@ -76,6 +84,17 @@ export async function POST(request: Request) {
       // El pedido no existe (external_reference no coincide) — nada que actualizar,
       // pero confirmamos recepción para que MercadoPago no reintente indefinidamente.
       return NextResponse.json({ received: true, orderFound: false }, { status: 200 })
+    }
+
+    // Solo se envía al transicionar a "paid" — evita duplicar correos si MercadoPago
+    // reenvía la misma notificación (reintentos) o reporta el mismo estado dos veces.
+    if (mappedStatus === "paid" && previousOrder?.status !== "paid") {
+      const orderWithItems = await getOrderWithItemsByNumber(orderNumber)
+      if (orderWithItems) {
+        sendOrderPaidEmails(orderWithItems).catch((err) =>
+          console.error("Error enviando correos de confirmación de pago:", err)
+        )
+      }
     }
 
     return NextResponse.json({ received: true, orderFound: true }, { status: 200 })

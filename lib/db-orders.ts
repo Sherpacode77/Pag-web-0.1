@@ -184,6 +184,21 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderRow | 
   return rows[0] ? parseOrderRow(rows[0]) : null
 }
 
+export async function getOrderWithItemsByNumber(
+  orderNumber: string
+): Promise<OrderWithItems | null> {
+  const order = await getOrderByNumber(orderNumber)
+  if (!order) return null
+
+  const pool = getDbPool()
+  const [items] = await pool.execute<RowDataPacket[]>(
+    `SELECT * FROM app_order_items WHERE order_id = ? ORDER BY id ASC`,
+    [order.id]
+  )
+
+  return { ...order, items: items as OrderItemRow[] }
+}
+
 export type UpdateOrderPaymentInput = {
   status: OrderStatus
   mercadopago_id?: string | null
