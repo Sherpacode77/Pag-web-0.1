@@ -9,9 +9,13 @@ export function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return
 
   const secretsPath = process.env.SECRETS_FILE_PATH || "/home/u896969397/secrets/cerounobikes.env"
-  if (!fs.existsSync(secretsPath)) return
+  if (!fs.existsSync(secretsPath)) {
+    console.log(`[secrets] archivo no encontrado en ${secretsPath}`)
+    return
+  }
 
   const content = fs.readFileSync(secretsPath, "utf-8")
+  let loaded = 0
   for (const line of content.split("\n")) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith("#")) continue
@@ -21,6 +25,8 @@ export function register() {
     const value = trimmed.slice(eqIndex + 1).trim()
     if (!(key in process.env)) {
       process.env[key] = value
+      loaded++
     }
   }
+  console.log(`[secrets] ${loaded} variable(s) cargada(s) desde ${secretsPath}`)
 }
