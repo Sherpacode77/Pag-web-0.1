@@ -1,6 +1,19 @@
 import { Resend } from "resend"
 import type { OrderWithItems } from "@/lib/db-orders"
 
+const BRAND = {
+  bg: "#0D0D0D",
+  card: "#141414",
+  border: "#2E2E2E",
+  text: "#F2F2F2",
+  muted: "#ADADAD",
+  accent: "#E00000",
+}
+
+const SITE_BASE_URL = (process.env.SITE_URL || "https://cerounobikes.com").replace(/\/+$/, "")
+const LOGO_URL = `${SITE_BASE_URL}/images/marca-alta-blancorecurso-207.png`
+const PAYMENT_CONFIRMED_IMAGE_URL = `${SITE_BASE_URL}/images/email-pago-confirmado.png`
+
 function getClient(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY
   return apiKey ? new Resend(apiKey) : null
@@ -19,11 +32,11 @@ function buildItemsRows(order: OrderWithItems): string {
     .map((item) => {
       const variant = [item.variant_color_name, item.variant_size_name].filter(Boolean).join(" / ")
       return `<tr>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;">
-          ${item.product_name}${variant ? ` (${variant})` : ""}<br/>
-          <span style="color:#888;font-size:13px;">Cantidad: ${item.quantity}</span>
+        <td style="padding:12px 0;border-bottom:1px solid ${BRAND.border};color:${BRAND.text};font-size:14px;">
+          ${item.product_name}${variant ? ` <span style="color:${BRAND.muted};">(${variant})</span>` : ""}<br/>
+          <span style="color:${BRAND.muted};font-size:13px;">Cantidad: ${item.quantity}</span>
         </td>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">
+        <td style="padding:12px 0;border-bottom:1px solid ${BRAND.border};text-align:right;white-space:nowrap;color:${BRAND.text};font-size:14px;">
           ${formatCOP(item.unit_price * item.quantity)}
         </td>
       </tr>`
@@ -38,21 +51,63 @@ function buildTotalsRows(order: OrderWithItems): string {
     ["Envío", order.shipping_cost > 0 ? formatCOP(order.shipping_cost) : "Gratis"],
   ]
   return (
-    rows.map(([label, value]) => `<tr><td style="padding:2px 0;">${label}</td><td style="padding:2px 0;text-align:right;">${value}</td></tr>`).join("") +
-    `<tr><td style="padding-top:8px;font-weight:bold;">Total</td><td style="padding-top:8px;text-align:right;font-weight:bold;">${formatCOP(order.total)}</td></tr>`
+    rows
+      .map(
+        ([label, value]) =>
+          `<tr><td style="padding:3px 0;color:${BRAND.muted};font-size:14px;">${label}</td><td style="padding:3px 0;text-align:right;color:${BRAND.text};font-size:14px;">${value}</td></tr>`
+      )
+      .join("") +
+    `<tr><td style="padding-top:12px;font-weight:700;color:${BRAND.text};font-size:16px;">Total</td><td style="padding-top:12px;text-align:right;font-weight:700;color:${BRAND.accent};font-size:16px;">${formatCOP(order.total)}</td></tr>`
   )
 }
 
-function buildCustomerEmailHtml(order: OrderWithItems): string {
+function buildEmailShell(bodyHtml: string, heroImageUrl?: string): string {
+  const headerHtml = heroImageUrl
+    ? `<td style="padding-bottom:24px;">
+        <img src="${heroImageUrl}" alt="CERO.UNO — Pago confirmado" width="560" style="display:block;width:100%;max-width:560px;height:auto;border-radius:12px;" />
+      </td>`
+    : `<td style="text-align:center;padding-bottom:24px;">
+        <img src="${LOGO_URL}" alt="CERO.UNO" width="140" style="display:inline-block;height:auto;" />
+      </td>`
+
   return `
-    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#222;">
-      <h2 style="margin-bottom:4px;">¡Gracias por tu compra${order.customer_name ? `, ${order.customer_name}` : ""}!</h2>
-      <p style="color:#555;">Confirmamos que tu pago para el pedido <strong>${order.order_number}</strong> fue acreditado correctamente.</p>
-      <table style="width:100%;border-collapse:collapse;margin-top:16px;">${buildItemsRows(order)}</table>
-      <table style="width:100%;margin-top:8px;">${buildTotalsRows(order)}</table>
-      <p style="margin-top:24px;color:#888;font-size:13px;">Te avisaremos por este medio cuando tu pedido sea despachado. Si tienes dudas, responde este correo.</p>
+    <div style="background-color:${BRAND.bg};padding:32px 16px;font-family:Arial,Helvetica,sans-serif;">
+      <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;border-collapse:collapse;">
+        <tr>${headerHtml}</tr>
+        <tr>
+          <td style="background-color:${BRAND.card};border:1px solid ${BRAND.border};border-radius:12px;padding:32px;">
+            ${bodyHtml}
+          </td>
+        </tr>
+        <tr>
+          <td style="text-align:center;padding-top:24px;color:${BRAND.muted};font-size:12px;">
+            CERO.UNO &middot; <a href="https://cerounobikes.com" style="color:${BRAND.muted};">cerounobikes.com</a>
+          </td>
+        </tr>
+      </table>
     </div>
   `
+}
+
+function buildCustomerEmailHtml(order: OrderWithItems): string {
+  const firstName = order.customer_name?.split(" ")[0]
+  return buildEmailShell(
+    `
+    <p style="margin:0 0 4px;color:${BRAND.text};font-size:16px;font-weight:700;">Hola${firstName ? ` ${firstName}` : ""},</p>
+    <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.6;">
+      Tu pedido <strong style="color:${BRAND.text};">${order.order_number}</strong> ya quedó confirmado y lo estamos alistando con todo el cuidado. Pronto estarás rodando con él.
+    </p>
+    <table role="presentation" width="100%" style="border-collapse:collapse;">${buildItemsRows(order)}</table>
+    <table role="presentation" width="100%" style="border-collapse:collapse;margin-top:8px;">${buildTotalsRows(order)}</table>
+    <p style="margin:28px 0 0;color:${BRAND.muted};font-size:13px;line-height:1.6;">
+      Te avisaremos por aquí apenas tu pedido salga despachado. Si tienes cualquier duda, simplemente responde este correo — con gusto te ayudamos.
+    </p>
+    <p style="margin:20px 0 0;color:${BRAND.text};font-size:14px;">
+      Gracias por confiar en nosotros,<br/>El equipo de CERO.UNO
+    </p>
+  `,
+    PAYMENT_CONFIRMED_IMAGE_URL
+  )
 }
 
 function buildStoreEmailHtml(order: OrderWithItems): string {
@@ -62,19 +117,18 @@ function buildStoreEmailHtml(order: OrderWithItems): string {
       ? `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.city, addr.department].filter(Boolean).join(", ")}`
       : "Retiro en punto de venta"
 
-  return `
-    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#222;">
-      <h2 style="margin-bottom:4px;">Nuevo pedido pagado: ${order.order_number}</h2>
-      <p style="color:#555;">
-        <strong>Cliente:</strong> ${order.customer_name ?? "—"}<br/>
-        <strong>Email:</strong> ${order.customer_email ?? "—"}<br/>
-        <strong>Teléfono:</strong> ${order.customer_phone ?? "—"}<br/>
-        <strong>Entrega:</strong> ${deliveryInfo}
-      </p>
-      <table style="width:100%;border-collapse:collapse;margin-top:16px;">${buildItemsRows(order)}</table>
-      <table style="width:100%;margin-top:8px;">${buildTotalsRows(order)}</table>
-    </div>
-  `
+  return buildEmailShell(`
+    <h1 style="margin:0 0 4px;color:${BRAND.text};font-size:20px;">Nuevo pedido pagado</h1>
+    <p style="margin:0 0 24px;color:${BRAND.accent};font-size:14px;font-weight:700;">${order.order_number}</p>
+    <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.8;">
+      <strong style="color:${BRAND.text};">Cliente:</strong> ${order.customer_name ?? "—"}<br/>
+      <strong style="color:${BRAND.text};">Email:</strong> ${order.customer_email ?? "—"}<br/>
+      <strong style="color:${BRAND.text};">Teléfono:</strong> ${order.customer_phone ?? "—"}<br/>
+      <strong style="color:${BRAND.text};">Entrega:</strong> ${deliveryInfo}
+    </p>
+    <table role="presentation" width="100%" style="border-collapse:collapse;">${buildItemsRows(order)}</table>
+    <table role="presentation" width="100%" style="border-collapse:collapse;margin-top:8px;">${buildTotalsRows(order)}</table>
+  `)
 }
 
 // Se llama solo cuando un pedido transiciona a "paid" (ver webhook de MercadoPago) —
@@ -96,7 +150,7 @@ export async function sendOrderPaidEmails(order: OrderWithItems): Promise<void> 
       resend.emails.send({
         from: fromAddress,
         to: order.customer_email,
-        subject: `Confirmamos tu pago — Pedido ${order.order_number}`,
+        subject: `¡Gracias por tu compra! Pedido ${order.order_number} confirmado`,
         html: buildCustomerEmailHtml(order),
       })
     )
