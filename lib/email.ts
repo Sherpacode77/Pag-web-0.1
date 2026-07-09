@@ -105,6 +105,9 @@ function buildCustomerEmailHtml(order: OrderWithItems): string {
     <p style="margin:20px 0 0;color:${BRAND.text};font-size:14px;">
       Gracias por confiar en nosotros,<br/>El equipo de CERO.UNO
     </p>
+    <p style="margin:24px 0 0;text-align:center;">
+      <img src="${LOGO_URL}" alt="CERO.UNO" width="100" style="display:inline-block;height:auto;" />
+    </p>
   `,
     PAYMENT_CONFIRMED_IMAGE_URL
   )
