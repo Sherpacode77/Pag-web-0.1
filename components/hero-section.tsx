@@ -9,6 +9,9 @@ export function HeroSection() {
         autoPlay
         muted
         loop
+        playsInline
+        preload="auto"
+        poster={assetUrl("/images/hero-bikepacking.jpg")}
         className="absolute inset-0 w-full h-full object-cover"
       >
         <source src={assetUrl("/videos/video-home.mp4")} type="video/mp4" />
