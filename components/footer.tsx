@@ -7,6 +7,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { MapPin, Phone } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
+import { PICKUP_LOCATION } from "@/lib/shipping"
 
 export function Footer() {
   const [email, setEmail] = useState("")
@@ -37,21 +38,28 @@ export function Footer() {
             </p>
             <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
               <MapPin className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-              <span>Calle 3 No 38 - 03</span>
+              <a
+                href={PICKUP_LOCATION.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary transition-colors"
+              >
+                {PICKUP_LOCATION.address}
+              </a>
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
               <Phone className="h-3.5 w-3.5 text-primary flex-shrink-0" />
               <a
-                href="tel:+573167621692"
+                href="tel:+573058287780"
                 className="hover:text-primary transition-colors"
               >
-                316 762 1692
+                305 828 7780
               </a>
             </div>
             {/* Social Icons */}
             <div className="mt-5 flex gap-4">
               <a
-                href="https://instagram.com/cerounobikes"
+                href="https://www.instagram.com/cero_punto_uno/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
@@ -66,7 +74,7 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="https://wa.me/573167621692"
+                href="https://wa.me/573058287780"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
@@ -81,7 +89,7 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="https://facebook.com/cerounobikes"
+                href="https://www.facebook.com/cero.uno.bta"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"

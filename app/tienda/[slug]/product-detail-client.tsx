@@ -381,7 +381,7 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
                 </button>
 
                 <Link
-                  href={`https://wa.me/573001234567?text=Hola! Me interesa el producto: ${product.name} (${formatPrice(product.price)})`}
+                  href={`https://wa.me/573058287780?text=Hola! Me interesa el producto: ${product.name} (${formatPrice(product.price)})`}
                   target="_blank"
                   className="flex w-full items-center justify-center gap-3 border border-border text-foreground py-4 text-sm font-bold uppercase tracking-widest hover:bg-secondary transition-colors"
                 >

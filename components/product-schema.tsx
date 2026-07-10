@@ -77,8 +77,8 @@ export function OrganizationSchema() {
       availableLanguage: ["Spanish"],
     },
     sameAs: [
-      "https://www.instagram.com/cerouno", // Actualizar con tus redes reales
-      "https://www.facebook.com/cerouno",
+      "https://www.instagram.com/cero_punto_uno/",
+      "https://www.facebook.com/cero.uno.bta",
       // Agregar más redes sociales
     ],
   }

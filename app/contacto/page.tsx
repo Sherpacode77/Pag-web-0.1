@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   MessageCircle,
 } from "lucide-react"
+import { PICKUP_LOCATION } from "@/lib/shipping"
 
 export default function ContactoPage() {
   const [formData, setFormData] = useState({
@@ -65,7 +66,7 @@ export default function ContactoPage() {
                 </h2>
                 <div className="flex flex-col gap-6">
                   <a
-                    href="https://wa.me/573001234567"
+                    href="https://wa.me/573058287780"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
@@ -78,7 +79,7 @@ export default function ContactoPage() {
                         WhatsApp
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        +57 300 123 4567
+                        +57 305 828 7780
                       </p>
                       <p className="mt-1 text-xs text-primary">
                         Respuesta en menos de 2 horas
@@ -98,7 +99,10 @@ export default function ContactoPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-4 rounded-sm border border-border bg-card p-5">
+                  <a
+                    href="tel:+573058287780"
+                    className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
+                  >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
                       <Phone className="h-5 w-5 text-primary" />
                     </div>
@@ -107,29 +111,37 @@ export default function ContactoPage() {
                         Telefono
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        +57 (1) 234 5678
+                        +57 305 828 7780
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Lun - Vie / 8am - 6pm
+                        {PICKUP_LOCATION.hours}
                       </p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-4 rounded-sm border border-border bg-card p-5">
+                  </a>
+                  <a
+                    href={PICKUP_LOCATION.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
+                  >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
                       <MapPin className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-foreground">
-                        Ubicacion
+                        Punto de fabrica y retiro
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Bogota, Colombia
+                        {PICKUP_LOCATION.address}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Envios a todo el pais
+                        Horario de atencion: {PICKUP_LOCATION.hours}.
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {PICKUP_LOCATION.note}
                       </p>
                     </div>
-                  </div>
+                  </a>
                 </div>
 
                 {/* Social */}
@@ -139,7 +151,7 @@ export default function ContactoPage() {
                   </h3>
                   <div className="flex gap-3">
                     <a
-                      href="https://instagram.com/ceropuntouno"
+                      href="https://www.instagram.com/cero_punto_uno/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex h-10 w-10 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
@@ -154,7 +166,7 @@ export default function ContactoPage() {
                       </svg>
                     </a>
                     <a
-                      href="https://facebook.com/ceropuntouno"
+                      href="https://www.facebook.com/cero.uno.bta"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex h-10 w-10 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
@@ -169,7 +181,7 @@ export default function ContactoPage() {
                       </svg>
                     </a>
                     <a
-                      href="https://wa.me/573001234567"
+                      href="https://wa.me/573058287780"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex h-10 w-10 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
