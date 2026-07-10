@@ -9,6 +9,8 @@ import { Footer } from "@/components/footer"
 import { blogPosts } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
 
+export const revalidate = 3600
+
 export async function generateStaticParams() {
   return blogPosts.map((post) => ({ slug: post.slug }))
 }

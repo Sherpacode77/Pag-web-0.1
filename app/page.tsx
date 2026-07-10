@@ -9,6 +9,8 @@ import { ReviewsSection } from "@/components/reviews-section"
 import { BlogSection } from "@/components/blog-section"
 import { Footer } from "@/components/footer"
 
+export const revalidate = 3600
+
 export const metadata: Metadata = {
   title: "CERO.UNO | Bolsos de Bikepacking y Ciclismo de Aventura",
   description:
