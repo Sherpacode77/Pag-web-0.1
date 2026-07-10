@@ -99,23 +99,9 @@ export function MultiImageUpload({
     }
   }
 
-  async function removeImage(index: number) {
-    const imagePath = value[index]
-    
-    try {
-      // Llamar a la API para eliminar el archivo físico
-      const response = await fetch(`/api/upload/images?path=${encodeURIComponent(imagePath)}`, {
-        method: "DELETE",
-      })
-      
-      if (!response.ok) {
-        console.error("Error al eliminar el archivo físico de la imagen")
-      }
-    } catch (error) {
-      console.error("Error al eliminar imagen del servidor:", error)
-    }
-    
-    // Remover del array de imágenes
+  function removeImage(index: number) {
+    // El borrado físico del archivo se difiere hasta que se confirme "Guardar"
+    // (lo maneja ProductModal) — aquí solo se actualiza el array en memoria.
     const newImages = value.filter((_, i) => i !== index)
     onChange(newImages)
   }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { ImageUpload } from "./image-upload"
 import { Check } from "lucide-react"
+import { toast } from "sonner"
 import { assetUrl } from "@/lib/assets"
 
 interface ProductVariant {
@@ -45,9 +46,23 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
 
   function toggleColor(colorValue: string) {
     if (selectedColors.includes(colorValue)) {
-      // Remover color
-      setSelectedColors(selectedColors.filter((c) => c !== colorValue))
-      onChange(variants.filter((v) => v.color !== colorValue))
+      // Remover color — requiere confirmación, se pierde su imagen y stock configurados
+      const colorInfo = availableColors.find((c) => c.value === colorValue)
+      toast.warning(`¿Quitar la variante ${colorInfo?.name ?? colorValue}?`, {
+        description: "Se perderá su imagen y estado de stock configurados.",
+        action: {
+          label: "Quitar",
+          onClick: () => {
+            setSelectedColors((prev) => prev.filter((c) => c !== colorValue))
+            onChange(variants.filter((v) => v.color !== colorValue))
+          },
+        },
+        cancel: {
+          label: "Cancelar",
+          onClick: () => {},
+        },
+        duration: 8000,
+      })
     } else {
       // Agregar color
       const colorInfo = availableColors.find((c) => c.value === colorValue)

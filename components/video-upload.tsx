@@ -11,6 +11,80 @@ interface VideoUploadProps {
   maxVideos?: number
 }
 
+interface UploadStats {
+  percent: number
+  loaded: number
+  total: number
+  speedBps: number
+  etaSeconds: number
+}
+
+function formatMB(bytes: number) {
+  return (bytes / (1024 * 1024)).toFixed(1)
+}
+
+function formatEta(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "calculando..."
+  if (seconds < 60) return `${Math.ceil(seconds)}s`
+  const minutes = Math.floor(seconds / 60)
+  const secs = Math.round(seconds % 60)
+  return `${minutes}m ${secs}s`
+}
+
+// XHR en vez de fetch: es la única API del navegador que expone progreso de
+// subida (fetch no lo soporta), sin depender de ninguna libreria externa.
+function uploadVideoWithProgress(
+  file: File,
+  onProgress: (stats: UploadStats) => void
+): Promise<{ ok: boolean; data: { success?: boolean; path?: string; error?: string } }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const formData = new FormData()
+    formData.append("file", file)
+
+    let lastLoaded = 0
+    let lastTime = performance.now()
+    let emaSpeedBps = 0
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return
+
+      const now = performance.now()
+      const dt = (now - lastTime) / 1000
+      if (dt > 0.15) {
+        const instantSpeed = (event.loaded - lastLoaded) / dt
+        emaSpeedBps = emaSpeedBps === 0 ? instantSpeed : emaSpeedBps * 0.7 + instantSpeed * 0.3
+        lastLoaded = event.loaded
+        lastTime = now
+      }
+
+      const remaining = event.total - event.loaded
+      onProgress({
+        percent: Math.round((event.loaded / event.total) * 100),
+        loaded: event.loaded,
+        total: event.total,
+        speedBps: emaSpeedBps,
+        etaSeconds: emaSpeedBps > 0 ? remaining / emaSpeedBps : 0,
+      })
+    }
+
+    xhr.onload = () => {
+      let data: { success?: boolean; path?: string; error?: string } = {}
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        // respuesta no-JSON (error de servidor) — data queda vacio
+      }
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, data })
+    }
+
+    xhr.onerror = () => reject(new Error("Error de red al subir el video"))
+
+    xhr.open("POST", "/api/upload/video")
+    xhr.send(formData)
+  })
+}
+
 export function VideoUpload({
   value,
   onChange,
@@ -21,6 +95,7 @@ export function VideoUpload({
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState("")
   const [uploadProgress, setUploadProgress] = useState<string>("")
+  const [uploadStats, setUploadStats] = useState<UploadStats | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function handleFiles(files: FileList) {
@@ -60,17 +135,10 @@ export function VideoUpload({
           continue
         }
 
-        const formData = new FormData()
-        formData.append("file", file)
+        setUploadStats(null)
+        const { ok, data } = await uploadVideoWithProgress(file, setUploadStats)
 
-        const response = await fetch("/api/upload/video", {
-          method: "POST",
-          body: formData,
-        })
-
-        const data = await response.json()
-
-        if (response.ok && data.success) {
+        if (ok && data.success && data.path) {
           uploadedPaths.push(data.path)
         } else {
           setError(data.error || `Error al subir ${file.name}`)
@@ -86,6 +154,7 @@ export function VideoUpload({
     } finally {
       setUploading(false)
       setUploadProgress("")
+      setUploadStats(null)
     }
   }
 
@@ -115,28 +184,9 @@ export function VideoUpload({
     }
   }
 
-  async function removeVideo(index: number) {
-    const videoPath = value[index]
-    
-    // Extraer el nombre del archivo de la ruta
-    const filename = videoPath.split('/').pop()
-    
-    if (filename) {
-      try {
-        // Llamar a la API para eliminar el archivo físico
-        const response = await fetch(`/api/upload/video?filename=${filename}`, {
-          method: "DELETE",
-        })
-        
-        if (!response.ok) {
-          console.error("Error al eliminar el archivo físico del video")
-        }
-      } catch (error) {
-        console.error("Error al eliminar video del servidor:", error)
-      }
-    }
-    
-    // Remover del array de videos
+  function removeVideo(index: number) {
+    // El borrado físico del archivo se difiere hasta que se confirme "Guardar"
+    // (lo maneja ProductModal) — aquí solo se actualiza el array en memoria.
     const newVideos = value.filter((_, i) => i !== index)
     onChange(newVideos)
   }
@@ -245,6 +295,31 @@ export function VideoUpload({
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-8 w-8 text-primary animate-spin" />
               <p className="text-sm text-muted-foreground">{uploadProgress}</p>
+
+              {uploadStats && (
+                <div className="w-full max-w-xs space-y-1.5">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full bg-primary transition-[width] duration-150"
+                      style={{ width: `${uploadStats.percent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs font-medium text-foreground">
+                    <span>{uploadStats.percent}%</span>
+                    <span>
+                      Faltan {formatMB(uploadStats.total - uploadStats.loaded)} MB
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {uploadStats.speedBps > 0
+                        ? `${formatMB(uploadStats.speedBps)} MB/s`
+                        : "calculando velocidad..."}
+                    </span>
+                    <span>~{formatEta(uploadStats.etaSeconds)} restante</span>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">

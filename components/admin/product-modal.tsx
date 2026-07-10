@@ -21,6 +21,44 @@ interface ProductModalProps {
 export function ProductModal({ product, isEdit, onClose, onSave, onChange }: ProductModalProps) {
   const [showGallery, setShowGallery] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Rutas de archivos que el usuario quitó del formulario durante esta sesión
+  // de edición. El borrado físico real se difiere hasta que "Guardar" tenga
+  // éxito — así cancelar/cerrar el modal nunca deja referencias rotas.
+  const [pendingDeletions, setPendingDeletions] = useState<string[]>([])
+
+  function trackRemovals(oldPaths: Array<string | undefined>, newPaths: Array<string | undefined>) {
+    const stillPresent = new Set(newPaths.filter(Boolean) as string[])
+    const removed = oldPaths.filter((p): p is string => !!p && !stillPresent.has(p))
+    if (removed.length > 0) {
+      setPendingDeletions((prev) => [...prev, ...removed])
+    }
+  }
+
+  async function flushPendingDeletions() {
+    if (pendingDeletions.length === 0) return
+
+    // Chequeo de seguridad final: nunca borrar una ruta que siga referenciada
+    // en el estado guardado (ej. la misma imagen reutilizada en una variante).
+    const stillReferenced = new Set<string>()
+    for (const img of product.images || []) if (img) stillReferenced.add(img)
+    for (const vid of product.videos || []) if (vid) stillReferenced.add(vid)
+    for (const v of product.variants || []) if (v.image) stillReferenced.add(v.image)
+    if (product.image) stillReferenced.add(product.image)
+
+    const toDelete = Array.from(new Set(pendingDeletions)).filter((p) => !stillReferenced.has(p))
+
+    await Promise.all(
+      toDelete.map((filePath) => {
+        const isVideo = filePath.startsWith("/videos/")
+        const endpoint = isVideo
+          ? `/api/upload/video?filename=${encodeURIComponent(filePath.split("/").pop() || "")}`
+          : `/api/upload/images?path=${encodeURIComponent(filePath)}`
+        return fetch(endpoint, { method: "DELETE" }).catch((err) => {
+          console.error("Error limpiando archivo huérfano:", filePath, err)
+        })
+      })
+    )
+  }
 
   async function handleSave() {
     if (product.category === "ropa" && (!product.sizes || product.sizes.length === 0)) {
@@ -30,6 +68,8 @@ export function ProductModal({ product, isEdit, onClose, onSave, onChange }: Pro
     setSaving(true)
     try {
       await onSave()
+      await flushPendingDeletions()
+      setPendingDeletions([])
     } finally {
       setSaving(false)
     }
@@ -162,9 +202,10 @@ export function ProductModal({ product, isEdit, onClose, onSave, onChange }: Pro
           {/* Imágenes principales */}
           <MultiImageUpload
             value={product.images || []}
-            onChange={(paths) =>
+            onChange={(paths) => {
+              trackRemovals(product.images || [], paths)
               onChange({ ...product, images: paths, image: paths[0] || "" })
-            }
+            }}
             label="Imágenes principales del producto (color negro) *"
           />
 
@@ -181,7 +222,10 @@ export function ProductModal({ product, isEdit, onClose, onSave, onChange }: Pro
           {/* Videos */}
           <VideoUpload
             value={product.videos || []}
-            onChange={(paths) => onChange({ ...product, videos: paths })}
+            onChange={(paths) => {
+              trackRemovals(product.videos || [], paths)
+              onChange({ ...product, videos: paths })
+            }}
             label="Videos del producto (opcional)"
             maxVideos={3}
           />
@@ -245,7 +289,13 @@ export function ProductModal({ product, isEdit, onClose, onSave, onChange }: Pro
               <VariantManager
                 variants={product.variants || []}
                 productImages={product.images || []}
-                onChange={(variants) => onChange({ ...product, variants })}
+                onChange={(variants) => {
+                  trackRemovals(
+                    (product.variants || []).map((v) => v.image),
+                    variants.map((v) => v.image)
+                  )
+                  onChange({ ...product, variants })
+                }}
               />
             )}
           </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { Check } from "lucide-react"
+import { toast } from "sonner"
 import type { ProductSizeVariant, SizeValue } from "@/lib/data"
 
 interface SizeManagerProps {
@@ -21,7 +22,19 @@ export function SizeManager({ sizes, onChange }: SizeManagerProps) {
   function toggleSize(value: SizeValue) {
     const exists = sizes.some((s) => s.size === value)
     if (exists) {
-      onChange(sizes.filter((s) => s.size !== value))
+      const sizeInfo = availableSizes.find((s) => s.value === value)
+      toast.warning(`¿Quitar la talla ${sizeInfo?.name ?? value}?`, {
+        description: "Se perderá su estado de stock configurado.",
+        action: {
+          label: "Quitar",
+          onClick: () => onChange(sizes.filter((s) => s.size !== value)),
+        },
+        cancel: {
+          label: "Cancelar",
+          onClick: () => {},
+        },
+        duration: 8000,
+      })
     } else {
       const sizeInfo = availableSizes.find((s) => s.value === value)
       if (!sizeInfo) return

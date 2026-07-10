@@ -85,23 +85,9 @@ export function ImageUpload({ value, onChange, label = "Imagen" }: ImageUploadPr
     }
   }
 
-  async function handleRemoveImage() {
-    if (value) {
-      try {
-        // Llamar a la API para eliminar el archivo físico
-        const response = await fetch(`/api/upload/images?path=${encodeURIComponent(value)}`, {
-          method: "DELETE",
-        })
-        
-        if (!response.ok) {
-          console.error("Error al eliminar el archivo físico de la imagen")
-        }
-      } catch (error) {
-        console.error("Error al eliminar imagen del servidor:", error)
-      }
-    }
-    
-    // Limpiar el valor
+  function handleRemoveImage() {
+    // El borrado físico del archivo se difiere hasta que se confirme "Guardar"
+    // (lo maneja ProductModal) — aquí solo se limpia el valor en memoria.
     onChange("")
   }
 
