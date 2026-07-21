@@ -12,7 +12,13 @@ import {
   readProductsFromDb,
   updateProductInDb,
 } from "@/lib/db-products"
-import { reconcileInventoryForProduct, isDbInventoryEnabled, filterProductsByAvailability } from "@/lib/db-inventory"
+import {
+  reconcileInventoryForProduct,
+  isDbInventoryEnabled,
+  filterProductsByAvailability,
+  getVariantKeysForProduct,
+  releaseVariantCodes,
+} from "@/lib/db-inventory"
 import fs from "fs"
 import path from "path"
 import { z } from "zod"
@@ -23,7 +29,13 @@ const PRODUCTS_FILE = path.join(process.cwd(), "lib", "products.json")
 
 const categorySchema = z.enum(["alforjas", "accesorios", "ropa", "kits"])
 const bikePartSchema = z.enum(["manubrio", "sillin", "marco", "tubo-superior"])
-const variantColorSchema = z.enum(["negro", "rojo", "naranja", "verde", "azul"])
+const variantColorSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(50)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "El color debe ser un slug en minúsculas (ej. morado-lavanda)")
+const colorHexSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Hex inválido").optional()
 const sizeValueSchema = z.enum(["unica", "xs", "s", "m", "l", "xl"])
 
 const baseProductSchema = z.object({
@@ -46,6 +58,7 @@ const baseProductSchema = z.object({
       z.object({
         color: variantColorSchema,
         colorName: z.string().trim().min(1).max(30),
+        colorHex: colorHexSchema,
         image: z.string().trim().startsWith("/"),
         inStock: z.boolean(),
       })
@@ -383,12 +396,22 @@ export async function DELETE(request: NextRequest) {
     }
     
     if (isDbProductsEnabled()) {
+      const variantKeys = isDbInventoryEnabled() ? await getVariantKeysForProduct(id) : []
+
       const deleted = await deleteProductInDb(id)
       if (!deleted) {
         return NextResponse.json(
           { error: "Product not found" },
           { status: 404 }
         )
+      }
+
+      if (variantKeys.length > 0) {
+        try {
+          await releaseVariantCodes(variantKeys)
+        } catch (err) {
+          console.error("DELETE /api/products: fallo liberando códigos de variante", err)
+        }
       }
 
       revalidatePath("/tienda")

@@ -99,6 +99,13 @@ async function runSchemaSetup() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // Migración segura: prefijo y sufijo de SKU exclusivos por producto (ver lib/db-inventory.ts)
+  await pool.execute(`
+    ALTER TABLE app_products
+    ADD COLUMN IF NOT EXISTS sku_prefix CHAR(2) NULL,
+    ADD COLUMN IF NOT EXISTS sku_suffix CHAR(3) NULL
+  `)
+
   // 3. Sin dependencias FK
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS app_customers (
@@ -289,6 +296,18 @@ async function runSchemaSetup() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 9c. Sin dependencias FK — registro global de códigos numéricos de variante
+  // (identidad color/talla → código de 3 dígitos, exclusivo en todo el catálogo)
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_sku_variant_codes (
+      id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+      variant_key VARCHAR(191) NOT NULL UNIQUE,
+      code        CHAR(3)      NOT NULL UNIQUE,
+      label       VARCHAR(150) NULL,
+      created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   // 10. Sin dependencias FK
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS app_coupons (
@@ -328,6 +347,7 @@ async function runSchemaSetup() {
   `)
 
   await createIndexSafe(pool, "CREATE INDEX idx_app_products_slug ON app_products(slug)")
+  await createIndexSafe(pool, "CREATE UNIQUE INDEX uq_app_products_sku_prefix ON app_products(sku_prefix)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_customers_email ON app_customers(email)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_customers_phone ON app_customers(phone)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_orders_number ON app_orders(order_number)")

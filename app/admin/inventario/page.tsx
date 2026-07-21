@@ -32,7 +32,10 @@ type InventoryItem = {
   aliases: SkuAlias[]
 }
 
-const SKU_FORMAT_REGEX = /^[A-Z]{4}[0-9]{4}$/
+// Debe coincidir con SKU_FORMAT_REGEX de lib/db-inventory.ts — no se importa
+// directo porque ese módulo trae dependencias de servidor (mysql2) que no
+// pueden entrar al bundle de este componente cliente.
+const SKU_FORMAT_REGEX = /^[A-Z]{2}[0-9]{3}[A-Z]{3}$/
 
 function getStatus(item: InventoryItem): StockStatus {
   if (item.ideal_quantity > 0) {
@@ -128,7 +131,7 @@ export default function AdminInventario() {
     if (editing.field === "sku") {
       const newSku = editing.value.trim().toUpperCase()
       if (!SKU_FORMAT_REGEX.test(newSku)) {
-        toast.error("El SKU debe ser 4 letras mayúsculas seguidas de 4 dígitos (ej. ABCD1234)")
+        toast.error("El SKU debe ser 2 letras + 3 dígitos + 3 letras mayúsculas (ej. AB001CDE)")
         return
       }
       setSaving(true)

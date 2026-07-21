@@ -1,27 +1,13 @@
 "use client"
 
-import { useState } from "react"
 import { Check } from "lucide-react"
-
-interface ProductVariant {
-  color: "negro" | "rojo" | "naranja" | "verde" | "azul"
-  colorName: string
-  image: string
-  inStock: boolean
-}
+import type { ProductVariant } from "@/lib/data"
+import { LEGACY_COLOR_HEX } from "@/lib/color-palette"
 
 interface VariantSelectorProps {
   variants: ProductVariant[]
   selectedVariant: ProductVariant | null
   onSelect: (variant: ProductVariant) => void
-}
-
-const colorHex = {
-  negro: "#1F2937",
-  rojo: "#EF4444",
-  naranja: "#F97316",
-  verde: "#10B981",
-  azul: "#3B82F6",
 }
 
 export function VariantSelector({
@@ -65,7 +51,7 @@ export function VariantSelector({
             >
               <div
                 className="h-6 w-6 rounded-full border-2 border-white shadow-sm"
-                style={{ backgroundColor: colorHex[variant.color] }}
+                style={{ backgroundColor: variant.colorHex ?? LEGACY_COLOR_HEX[variant.color] ?? "#9CA3AF" }}
               />
               <span className="text-sm font-medium">{variant.colorName}</span>
               {isSelected && (

@@ -1,6 +1,7 @@
 export interface ProductVariant {
-  color: "negro" | "rojo" | "naranja" | "verde" | "azul"
+  color: string
   colorName: string
+  colorHex?: string
   image: string
   inStock: boolean
 }

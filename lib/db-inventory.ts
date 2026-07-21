@@ -281,27 +281,53 @@ export async function deleteInventorySkuFromDb(sku: string): Promise<boolean> {
   await ensureDbSchema()
   const pool = getDbPool()
 
+  const [existingRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT variant_color, variant_size FROM app_inventory WHERE sku = ? LIMIT 1`,
+    [sku]
+  )
+  const existing = existingRows[0] as
+    | { variant_color: string | null; variant_size: string | null }
+    | undefined
+
   const [result] = await pool.execute<ResultSetHeader>(
     `DELETE FROM app_inventory WHERE sku = ?`,
     [sku]
   )
 
+  if (result.affectedRows > 0 && existing) {
+    await releaseVariantCodeIfUnused(pool, computeVariantKey(existing.variant_color, existing.variant_size))
+  }
+
   return result.affectedRows > 0
 }
 
-// ─── Generación automática de SKU ──────────────────────────────────────────
-// Formato: 8 caracteres — 4 letras mayúsculas + 4 dígitos (ej. ABCD1234).
+// ─── Generación estructurada de SKU ────────────────────────────────────────
+// Formato: 8 caracteres — 2 letras de prefijo (exclusivo por producto) +
+// 3 dígitos de código de variante (exclusivo y GLOBAL en todo el catálogo:
+// la misma identidad de variante, p.ej. "negro sin talla", reutiliza el mismo
+// código en cualquier producto que la tenga) + 3 letras derivadas del nombre
+// del producto. Ejemplo: AB001NGL.
 
 const SKU_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-const SKU_DIGITS = "0123456789"
-export const SKU_FORMAT_REGEX = /^[A-Z]{4}[0-9]{4}$/
+export const SKU_FORMAT_REGEX = /^[A-Z]{2}[0-9]{3}[A-Z]{3}$/
 
-function randomSku(): string {
-  let letters = ""
-  for (let i = 0; i < 4; i++) letters += SKU_LETTERS[Math.floor(Math.random() * SKU_LETTERS.length)]
-  let digits = ""
-  for (let i = 0; i < 4; i++) digits += SKU_DIGITS[Math.floor(Math.random() * SKU_DIGITS.length)]
-  return letters + digits
+function randomLetters(count: number): string {
+  let out = ""
+  for (let i = 0; i < count; i++) out += SKU_LETTERS[Math.floor(Math.random() * SKU_LETTERS.length)]
+  return out
+}
+
+function normalizeKeyPart(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+// Identidad normalizada de una variante — la unidad de exclusividad global
+// del código de 3 dígitos. Un producto sin ninguna variante usa "base".
+export function computeVariantKey(color: string | null, size: string | null): string {
+  const parts: string[] = []
+  if (color) parts.push(`color:${normalizeKeyPart(color)}`)
+  if (size) parts.push(`size:${normalizeKeyPart(size)}`)
+  return parts.length > 0 ? parts.join("|") : "base"
 }
 
 async function isSkuTaken(conn: Pool | PoolConnection, sku: string): Promise<boolean> {
@@ -315,15 +341,169 @@ async function isSkuTaken(conn: Pool | PoolConnection, sku: string): Promise<boo
   return rows.length > 0
 }
 
-export async function generateUniqueSku(
-  conn: Pool | PoolConnection = getDbPool(),
-  maxAttempts = 20
+// Asigna (o reutiliza) el prefijo de 2 letras exclusivo del producto.
+async function getOrAssignProductPrefix(
+  conn: Pool | PoolConnection,
+  productId: string
 ): Promise<string> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const candidate = randomSku()
-    if (!(await isSkuTaken(conn, candidate))) return candidate
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT sku_prefix FROM app_products WHERE id = ? LIMIT 1`,
+    [productId]
+  )
+  const existing = rows[0]?.sku_prefix as string | null | undefined
+  if (existing) return existing
+
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const candidate = randomLetters(2)
+    const [taken] = await conn.execute<RowDataPacket[]>(
+      `SELECT 1 FROM app_products WHERE sku_prefix = ? LIMIT 1`,
+      [candidate]
+    )
+    if (taken.length === 0) {
+      await conn.execute(`UPDATE app_products SET sku_prefix = ? WHERE id = ?`, [candidate, productId])
+      return candidate
+    }
   }
-  throw new Error("No se pudo generar un SKU único tras varios intentos")
+  throw new Error("No se pudo asignar un prefijo de SKU único tras varios intentos")
+}
+
+// Calcula el sufijo de 3 letras a partir del nombre del producto: la inicial
+// alfabética de cada palabra (saltando palabras sin ninguna letra) hasta
+// reunir 3; si el nombre no alcanza, se completa con letras aleatorias.
+function computeNameSuffix(productName: string): string {
+  const words = productName.trim().split(/\s+/).filter(Boolean)
+  const initials: string[] = []
+  for (const word of words) {
+    const match = word.match(/[a-zA-Z]/)
+    if (match) initials.push(match[0].toUpperCase())
+    if (initials.length === 3) break
+  }
+  while (initials.length < 3) initials.push(randomLetters(1))
+  return initials.join("")
+}
+
+// Asigna (o reutiliza) el sufijo de 3 letras del producto, cacheado en DB
+// para que no cambie entre regeneraciones (relevante para nombres de 1-2
+// palabras, cuyo sufijo incluye letras aleatorias).
+async function getOrAssignProductSuffix(
+  conn: Pool | PoolConnection,
+  productId: string,
+  productName: string
+): Promise<string> {
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT sku_suffix FROM app_products WHERE id = ? LIMIT 1`,
+    [productId]
+  )
+  const existing = rows[0]?.sku_suffix as string | null | undefined
+  if (existing) return existing
+
+  const suffix = computeNameSuffix(productName)
+  await conn.execute(`UPDATE app_products SET sku_suffix = ? WHERE id = ?`, [suffix, productId])
+  return suffix
+}
+
+// Asigna (o reutiliza) el código de 3 dígitos global de una identidad de
+// variante — el menor código libre entre 000 y 999.
+async function getOrAssignVariantCode(
+  conn: Pool | PoolConnection,
+  variantKey: string,
+  label: string
+): Promise<string> {
+  const [existing] = await conn.execute<RowDataPacket[]>(
+    `SELECT code FROM app_sku_variant_codes WHERE variant_key = ? LIMIT 1`,
+    [variantKey]
+  )
+  if (existing[0]) return existing[0].code as string
+
+  const [usedRows] = await conn.execute<RowDataPacket[]>(`SELECT code FROM app_sku_variant_codes`)
+  const used = new Set((usedRows as { code: string }[]).map((r) => r.code))
+  let code: string | null = null
+  for (let n = 0; n <= 999; n++) {
+    const candidate = String(n).padStart(3, "0")
+    if (!used.has(candidate)) {
+      code = candidate
+      break
+    }
+  }
+  if (!code) throw new Error("Se agotaron los códigos de variante disponibles (000-999)")
+
+  try {
+    await conn.execute(
+      `INSERT INTO app_sku_variant_codes (variant_key, code, label) VALUES (?, ?, ?)`,
+      [variantKey, code, label]
+    )
+  } catch (err: unknown) {
+    // Otra transacción concurrente ya reservó esta identidad — reusar su código
+    const e = err as NodeJS.ErrnoException & { code?: string }
+    if (e.code === "ER_DUP_ENTRY") {
+      const [rows] = await conn.execute<RowDataPacket[]>(
+        `SELECT code FROM app_sku_variant_codes WHERE variant_key = ? LIMIT 1`,
+        [variantKey]
+      )
+      if (rows[0]) return rows[0].code as string
+    }
+    throw err
+  }
+  return code
+}
+
+// Libera el código de una identidad de variante si ya ningún SKU del
+// catálogo la usa (se llama tras borrar un SKU individual o un producto).
+export async function releaseVariantCodeIfUnused(
+  conn: Pool | PoolConnection,
+  variantKey: string
+): Promise<void> {
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT DISTINCT variant_color, variant_size FROM app_inventory`
+  )
+  const stillUsed = (rows as { variant_color: string | null; variant_size: string | null }[]).some(
+    (r) => computeVariantKey(r.variant_color, r.variant_size) === variantKey
+  )
+  if (!stillUsed) {
+    await conn.execute(`DELETE FROM app_sku_variant_codes WHERE variant_key = ?`, [variantKey])
+  }
+}
+
+// Identidades de variante distintas que tiene hoy un producto — capturar
+// antes de borrarlo, para poder liberar sus códigos después del borrado.
+export async function getVariantKeysForProduct(productId: string): Promise<string[]> {
+  const pool = getDbPool()
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT DISTINCT variant_color, variant_size FROM app_inventory WHERE product_id = ?`,
+    [productId]
+  )
+  return (rows as { variant_color: string | null; variant_size: string | null }[]).map((r) =>
+    computeVariantKey(r.variant_color, r.variant_size)
+  )
+}
+
+export async function releaseVariantCodes(variantKeys: string[]): Promise<void> {
+  const pool = getDbPool()
+  for (const key of variantKeys) {
+    await releaseVariantCodeIfUnused(pool, key)
+  }
+}
+
+export async function generateStructuredSku(
+  conn: Pool | PoolConnection,
+  product: { id: string; name: string },
+  color: string | null,
+  colorLabel: string | null,
+  size: string | null
+): Promise<string> {
+  const prefix = await getOrAssignProductPrefix(conn, product.id)
+  const suffix = await getOrAssignProductSuffix(conn, product.id, product.name)
+  const variantKey = computeVariantKey(color, size)
+  const label = [colorLabel, size].filter(Boolean).join(" / ") || "Sin variante"
+  const code = await getOrAssignVariantCode(conn, variantKey, label)
+
+  const sku = `${prefix}${code}${suffix}`
+  if (await isSkuTaken(conn, sku)) {
+    throw new Error(
+      `SKU generado ${sku} ya existe — revisar integridad de app_products/app_sku_variant_codes`
+    )
+  }
+  return sku
 }
 
 // ─── Reconciliación de inventario para un producto ─────────────────────────
@@ -373,7 +553,13 @@ export async function reconcileInventoryForProduct(product: Product): Promise<Re
         )
         if (existing.length > 0) return null
 
-        const generatedSku = await generateUniqueSku(conn)
+        const generatedSku = await generateStructuredSku(
+          conn,
+          { id: product.id, name: product.name },
+          v.variant_color,
+          v.variant_color_name,
+          v.variant_size
+        )
 
         await conn.execute(
           `INSERT INTO app_inventory

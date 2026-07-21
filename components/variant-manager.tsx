@@ -3,16 +3,12 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { ImageUpload } from "./image-upload"
-import { Check } from "lucide-react"
+import { Check, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { assetUrl } from "@/lib/assets"
-
-interface ProductVariant {
-  color: "negro" | "rojo" | "naranja" | "verde" | "azul"
-  colorName: string
-  image: string
-  inStock: boolean
-}
+import type { ProductVariant } from "@/lib/data"
+import { CustomColorDialog } from "./custom-color-dialog"
+import { QUICK_PRESET_COLORS, LEGACY_COLOR_HEX, slugifyColorName } from "@/lib/color-palette"
 
 interface VariantManagerProps {
   variants: ProductVariant[]
@@ -20,18 +16,13 @@ interface VariantManagerProps {
   productImages?: string[]
 }
 
-const availableColors = [
-  { value: "negro", name: "Negro", hex: "#1F2937" },
-  { value: "rojo", name: "Rojo", hex: "#EF4444" },
-  { value: "naranja", name: "Naranja", hex: "#F97316" },
-  { value: "verde", name: "Verde", hex: "#10B981" },
-  { value: "azul", name: "Azul", hex: "#3B82F6" },
-] as const
+const availableColors = QUICK_PRESET_COLORS.map((c) => ({ value: c.slug, name: c.name, hex: c.hex }))
 
 export function VariantManager({ variants, onChange, productImages = [] }: VariantManagerProps) {
   const [selectedColors, setSelectedColors] = useState<string[]>(
     variants.map((v) => v.color)
   )
+  const [customDialogOpen, setCustomDialogOpen] = useState(false)
 
   // Sincronizar imagen de variante "negro" con productImages
   useEffect(() => {
@@ -44,10 +35,18 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
     }
   }, [productImages])
 
+  function colorInfoFor(colorValue: string): { name: string; hex: string } | null {
+    const preset = availableColors.find((c) => c.value === colorValue)
+    if (preset) return preset
+    const variant = variants.find((v) => v.color === colorValue)
+    if (variant) return { name: variant.colorName, hex: variant.colorHex ?? LEGACY_COLOR_HEX[colorValue] ?? "#9CA3AF" }
+    return null
+  }
+
   function toggleColor(colorValue: string) {
     if (selectedColors.includes(colorValue)) {
       // Remover color — requiere confirmación, se pierde su imagen y stock configurados
-      const colorInfo = availableColors.find((c) => c.value === colorValue)
+      const colorInfo = colorInfoFor(colorValue)
       toast.warning(`¿Quitar la variante ${colorInfo?.name ?? colorValue}?`, {
         description: "Se perderá su imagen y estado de stock configurados.",
         action: {
@@ -64,25 +63,50 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
         duration: 8000,
       })
     } else {
-      // Agregar color
+      // Agregar color preset
       const colorInfo = availableColors.find((c) => c.value === colorValue)
       if (!colorInfo) return
 
       setSelectedColors([...selectedColors, colorValue])
-      
+
       // Si es negro, usar la primera imagen principal del producto
       const image = colorValue === "negro" ? (productImages[0] || "") : ""
-      
+
       onChange([
         ...variants,
         {
-          color: colorValue as any,
+          color: colorValue,
           colorName: colorInfo.name,
+          colorHex: colorInfo.hex,
           image: image,
           inStock: true,
         },
       ])
     }
+  }
+
+  function addCustomColor(name: string, hex: string) {
+    let slug = slugifyColorName(name)
+    if (!slug) slug = "color"
+    let candidate = slug
+    let n = 2
+    while (selectedColors.includes(candidate)) {
+      candidate = `${slug}-${n}`
+      n++
+    }
+
+    setSelectedColors([...selectedColors, candidate])
+    onChange([
+      ...variants,
+      {
+        color: candidate,
+        colorName: name,
+        colorHex: hex,
+        image: "",
+        inStock: true,
+      },
+    ])
+    setCustomDialogOpen(false)
   }
 
   function updateVariantImage(colorValue: string, imagePath: string) {
@@ -133,6 +157,47 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
             )
           })}
         </div>
+
+        {/* Variantes de color personalizadas ya agregadas (no forman parte de los presets rápidos) */}
+        {selectedColors
+          .filter((c) => !availableColors.some((preset) => preset.value === c))
+          .map((colorValue) => {
+            const colorInfo = colorInfoFor(colorValue)
+            if (!colorInfo) return null
+            return (
+              <button
+                key={colorValue}
+                type="button"
+                onClick={() => toggleColor(colorValue)}
+                className="relative mt-3 flex items-center gap-3 p-3 rounded-lg border-2 border-primary bg-primary/5 w-full"
+              >
+                <div
+                  className="h-8 w-8 rounded-full border-2 border-white shadow-sm"
+                  style={{ backgroundColor: colorInfo.hex }}
+                />
+                <span className="text-sm font-medium">{colorInfo.name}</span>
+                <span className="text-xs text-muted-foreground">(personalizado)</span>
+                <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-0.5">
+                  <Check className="h-3 w-3" />
+                </div>
+              </button>
+            )
+          })}
+
+        <button
+          type="button"
+          onClick={() => setCustomDialogOpen(true)}
+          className="mt-3 flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-border hover:border-primary/50 w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-all"
+        >
+          <Plus className="h-4 w-4" />
+          Color personalizado
+        </button>
+
+        <CustomColorDialog
+          open={customDialogOpen}
+          onOpenChange={setCustomDialogOpen}
+          onConfirm={addCustomColor}
+        />
       </div>
 
       {/* Imágenes para cada variante seleccionada */}
@@ -142,7 +207,7 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
             Imágenes por variante
           </p>
           {selectedColors.map((colorValue) => {
-            const colorInfo = availableColors.find((c) => c.value === colorValue)
+            const colorInfo = colorInfoFor(colorValue)
             const variant = variants.find((v) => v.color === colorValue)
             if (!colorInfo || !variant) return null
 
