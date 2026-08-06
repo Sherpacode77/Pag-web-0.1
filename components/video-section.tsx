@@ -4,12 +4,14 @@ import { useState } from "react"
 import { Play } from "lucide-react"
 import Image from "next/image"
 import { assetUrl } from "@/lib/assets"
+import { SectionDivider } from "./section-divider"
 
 export function VideoSection() {
   const [playing, setPlaying] = useState(false)
 
   return (
-    <section className="py-16 lg:py-24">
+    <section className="section-light relative py-16 lg:py-24 bg-background">
+      <SectionDivider />
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="text-center mb-10">
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-primary mb-2">

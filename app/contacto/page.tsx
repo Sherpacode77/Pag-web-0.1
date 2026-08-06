@@ -16,6 +16,7 @@ import {
   MessageCircle,
 } from "lucide-react"
 import { PICKUP_LOCATION } from "@/lib/shipping"
+import { SectionDivider } from "@/components/section-divider"
 
 export default function ContactoPage() {
   const [formData, setFormData] = useState({
@@ -39,7 +40,7 @@ export default function ContactoPage() {
       <CartSidebar />
       <main>
         {/* Hero */}
-        <section className="border-b border-border py-16">
+        <section className="section-light py-16 bg-background">
           <div className="mx-auto max-w-7xl px-4 text-center lg:px-8">
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.3em] text-primary">
               Hablemos
@@ -56,7 +57,8 @@ export default function ContactoPage() {
         </section>
 
         {/* Contact info + Form */}
-        <section className="py-20">
+        <section className="section-light relative py-20 bg-secondary">
+          <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="grid gap-12 lg:grid-cols-5">
               {/* Contact info */}
@@ -66,7 +68,7 @@ export default function ContactoPage() {
                 </h2>
                 <div className="flex flex-col gap-6">
                   <a
-                    href="https://wa.me/573058287780"
+                    href="https://wa.me/573107513387"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
@@ -79,7 +81,7 @@ export default function ContactoPage() {
                         WhatsApp
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        +57 305 828 7780
+                        +57 310 751 3387
                       </p>
                       <p className="mt-1 text-xs text-primary">
                         Respuesta en menos de 2 horas
@@ -100,7 +102,7 @@ export default function ContactoPage() {
                     </div>
                   </div>
                   <a
-                    href="tel:+573058287780"
+                    href="tel:+573107513387"
                     className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
                   >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
@@ -111,7 +113,7 @@ export default function ContactoPage() {
                         Telefono
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        +57 305 828 7780
+                        +57 310 751 3387
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {PICKUP_LOCATION.hours}
@@ -181,7 +183,7 @@ export default function ContactoPage() {
                       </svg>
                     </a>
                     <a
-                      href="https://wa.me/573058287780"
+                      href="https://wa.me/573107513387"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex h-10 w-10 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"

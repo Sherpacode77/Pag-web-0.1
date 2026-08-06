@@ -44,6 +44,25 @@
     --sidebar-border: 0 0% 18%;
     --sidebar-ring: 0 100% 44%;
   }
+
+  /* Alcance de color claro para las secciones del home debajo del video
+     principal (lineas de negocio, productos, video secundario, opiniones,
+     journal). Redefine las variables de tema dentro de su propio arbol para
+     que las utilidades existentes (bg-secondary, text-foreground,
+     text-muted-foreground, border-border, bg-card...) se inviertan solas sin
+     tocar el resto del sitio (navbar, footer, demas paginas). */
+  .section-light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 12%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 12%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 40%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+  }
 }
 
 @layer base {

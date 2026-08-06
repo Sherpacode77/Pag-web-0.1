@@ -6,6 +6,7 @@ import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { useProducts } from "@/hooks/use-products"
+import { SectionDivider } from "@/components/section-divider"
 
 const accCategories = [
   { id: "all", label: "Todos" },
@@ -30,7 +31,7 @@ export default function AccesoriosPage() {
       <CartSidebar />
       <main>
         {/* Hero */}
-        <section className="border-b border-border py-16">
+        <section className="section-light py-16 bg-background">
           <div className="mx-auto max-w-7xl px-4 text-center lg:px-8">
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.3em] text-primary">
               Complementa tu setup
@@ -47,7 +48,7 @@ export default function AccesoriosPage() {
         </section>
 
         {/* Filter bar */}
-        <section className="sticky top-[73px] z-30 border-b border-border bg-background/95 backdrop-blur">
+        <section className="section-light sticky top-[73px] z-30 border-b border-border bg-background/95 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="flex items-center gap-2 overflow-x-auto py-3">
               {accCategories.map((cat) => (
@@ -69,7 +70,8 @@ export default function AccesoriosPage() {
         </section>
 
         {/* Products grid */}
-        <section className="py-16">
+        <section className="section-light relative py-16 bg-background">
+          <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             {loading ? (
               <div className="py-20 text-center">

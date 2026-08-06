@@ -5,10 +5,12 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { blogPosts } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
+import { SectionDivider } from "./section-divider"
 
 export function BlogSection() {
   return (
-    <section className="py-16 lg:py-24">
+    <section className="section-light relative py-16 lg:py-24 bg-background">
+      <SectionDivider />
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="flex items-end justify-between mb-10">
           <div>

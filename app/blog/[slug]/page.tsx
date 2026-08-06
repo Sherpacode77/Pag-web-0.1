@@ -69,7 +69,7 @@ export default async function BlogPostPage({
     <>
       <Navbar />
       <CartSidebar />
-      <main className="min-h-screen">
+      <main className="section-light min-h-screen bg-background">
         {/* Back link */}
         <div className="border-b border-border">
           <div className="mx-auto max-w-4xl px-4 py-4 lg:px-8">

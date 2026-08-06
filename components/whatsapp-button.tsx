@@ -3,8 +3,8 @@
 import Link from "next/link"
 
 export function WhatsAppButton() {
-  const whatsappNumber = "+573058287780"
-  const whatsappUrl = `https://wa.me/573058287780`
+  const whatsappNumber = "+573107513387"
+  const whatsappUrl = `https://wa.me/573107513387`
 
   return (
     <Link

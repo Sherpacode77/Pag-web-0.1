@@ -4,6 +4,7 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { useProducts } from "@/hooks/use-products"
 import { ProductCard } from "./product-card"
+import { SectionDivider } from "./section-divider"
 
 export function BestsellersSection() {
   const { products, loading } = useProducts()
@@ -11,7 +12,8 @@ export function BestsellersSection() {
 
   if (loading) {
     return (
-      <section id="bestsellers" className="py-16 lg:py-24">
+      <section id="bestsellers" className="section-light relative py-16 lg:py-24 bg-background">
+        <SectionDivider />
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="text-center py-12">
             <p className="text-muted-foreground">Cargando productos...</p>
@@ -22,7 +24,8 @@ export function BestsellersSection() {
   }
 
   return (
-    <section id="bestsellers" className="py-16 lg:py-24">
+    <section id="bestsellers" className="section-light relative py-16 lg:py-24 bg-background">
+      <SectionDivider />
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="flex items-end justify-between mb-10">
           <div>

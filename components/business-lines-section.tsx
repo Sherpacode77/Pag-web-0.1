@@ -2,6 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
+import { SectionDivider } from "./section-divider"
 
 const lines = [
   {
@@ -32,7 +33,8 @@ const lines = [
 
 export function BusinessLinesSection() {
   return (
-    <section className="py-16 lg:py-24 bg-secondary">
+    <section className="section-light relative py-16 lg:py-24 bg-secondary">
+      <SectionDivider />
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="text-center mb-12">
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-primary mb-2">

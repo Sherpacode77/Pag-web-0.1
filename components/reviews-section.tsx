@@ -2,10 +2,12 @@
 
 import { Star } from "lucide-react"
 import { reviews } from "@/lib/data"
+import { SectionDivider } from "./section-divider"
 
 export function ReviewsSection() {
   return (
-    <section className="py-16 lg:py-24 bg-secondary">
+    <section className="section-light relative py-16 lg:py-24 bg-secondary">
+      <SectionDivider />
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="text-center mb-12">
           <p className="text-xs font-medium uppercase tracking-[0.3em] text-primary mb-2">

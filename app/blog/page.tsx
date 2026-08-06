@@ -21,6 +21,7 @@ import { Footer } from "@/components/footer"
 import { NewsletterSection } from "@/components/newsletter-section"
 import { blogPosts } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
+import { SectionDivider } from "@/components/section-divider"
 
 function BlogContent() {
   const featured = blogPosts[0]
@@ -30,9 +31,9 @@ function BlogContent() {
     <>
       <Navbar />
       <CartSidebar />
-      <main className="min-h-screen">
+      <main className="section-light min-h-screen bg-background">
         {/* Header */}
-        <div className="border-b border-border bg-card">
+        <div className="border-b border-border bg-secondary">
           <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8 lg:py-16">
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-primary mb-2">
               Historias, rutas y consejos
@@ -48,7 +49,8 @@ function BlogContent() {
         </div>
 
         {/* Featured post */}
-        <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+        <div className="relative mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+          <SectionDivider />
           <Link
             href={`/blog/${featured.slug}`}
             className="group grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10"
@@ -99,7 +101,8 @@ function BlogContent() {
         </div>
 
         {/* More posts */}
-        <div className="border-t border-border">
+        <div className="relative border-t border-border bg-secondary">
+          <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
             <h3 className="text-lg font-bold uppercase tracking-wider text-foreground mb-8">
               Mas Articulos

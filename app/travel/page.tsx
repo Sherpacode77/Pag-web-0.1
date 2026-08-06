@@ -21,6 +21,7 @@ import {
   Send,
 } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
+import { SectionDivider } from "@/components/section-divider"
 
 export default function TravelPage() {
   const [formData, setFormData] = useState({
@@ -78,7 +79,8 @@ export default function TravelPage() {
         </section>
 
         {/* Services */}
-        <section className="border-b border-border py-20">
+        <section className="section-light relative py-20 bg-background">
+          <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="mb-12 text-center">
               <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
@@ -128,7 +130,8 @@ export default function TravelPage() {
         </section>
 
         {/* Upcoming events */}
-        <section className="border-b border-border py-20 bg-secondary/30">
+        <section className="section-light relative py-20 bg-secondary">
+          <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="mb-12 text-center">
               <p className="mb-2 text-xs font-medium uppercase tracking-[0.3em] text-primary">
@@ -177,7 +180,8 @@ export default function TravelPage() {
         </section>
 
         {/* Lead Form */}
-        <section className="py-20" id="cotizar">
+        <section className="section-light relative py-20 bg-background" id="cotizar">
+          <SectionDivider />
           <div className="mx-auto max-w-2xl px-4 lg:px-8">
             <div className="mb-10 text-center">
               <p className="mb-2 text-xs font-medium uppercase tracking-[0.3em] text-primary">

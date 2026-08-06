@@ -19,6 +19,7 @@ import { Footer } from "@/components/footer"
 import { cyclingEvents } from "@/lib/data"
 import { MapPin, Calendar, Route, Mountain, Award, Users } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
+import { SectionDivider } from "@/components/section-divider"
 
 const timeline = [
   {
@@ -84,7 +85,8 @@ export default function NosotrosPage() {
         </section>
 
         {/* Values */}
-        <section className="border-b border-border py-20">
+        <section className="section-light relative py-20 bg-background">
+          <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="grid gap-8 md:grid-cols-3">
               <div className="flex flex-col items-center text-center">
@@ -130,7 +132,8 @@ export default function NosotrosPage() {
         </section>
 
         {/* Badge images */}
-        <section className="border-b border-border py-16 bg-secondary/30">
+        <section className="section-light relative py-16 bg-secondary">
+          <SectionDivider />
           <div className="mx-auto max-w-4xl px-4 lg:px-8">
             <h2 className="mb-10 text-center text-2xl font-bold tracking-tight text-foreground md:text-3xl">
               Nuestros sellos de calidad
@@ -162,7 +165,8 @@ export default function NosotrosPage() {
         </section>
 
         {/* Timeline / Trajectory */}
-        <section className="border-b border-border py-20">
+        <section className="section-light relative py-20 bg-background">
+          <SectionDivider />
           <div className="mx-auto max-w-3xl px-4 lg:px-8">
             <h2 className="mb-12 text-center text-2xl font-bold tracking-tight text-foreground md:text-3xl">
               Nuestra trayectoria
@@ -196,7 +200,8 @@ export default function NosotrosPage() {
         </section>
 
         {/* Events we support */}
-        <section className="py-20">
+        <section className="section-light relative py-20 bg-secondary">
+          <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="mb-12 text-center">
               <p className="mb-2 text-xs font-medium uppercase tracking-[0.3em] text-primary">

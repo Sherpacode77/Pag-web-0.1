@@ -10,6 +10,7 @@ import { products as staticProducts } from "@/lib/data"
 import { isDbProductsEnabled, readProductsFromDb } from "@/lib/db-products"
 import { filterProductsByAvailability } from "@/lib/db-inventory"
 import type { Product } from "@/lib/data"
+import { SectionDivider } from "@/components/section-divider"
 
 export const metadata: Metadata = {
   title: "Ofertas | CERO.UNO",
@@ -59,7 +60,9 @@ export default async function OfertasPage() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
+        <div className="section-light relative bg-background px-4 py-12 lg:px-8">
+          <SectionDivider />
+          <div className="mx-auto max-w-7xl">
           {offers.length === 0 ? (
             /* Estado vacío */
             <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -103,6 +106,7 @@ export default async function OfertasPage() {
               </p>
             </>
           )}
+          </div>
         </div>
       </main>
       <Footer />

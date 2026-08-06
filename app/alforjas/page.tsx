@@ -10,6 +10,7 @@ import { ProductCard } from "@/components/product-card"
 import { useProducts } from "@/hooks/use-products"
 import { bikePartFilters } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
+import { SectionDivider } from "@/components/section-divider"
 
 const bikeParts = [
   {
@@ -54,7 +55,7 @@ export default function AlforjasPage() {
       <CartSidebar />
       <main>
         {/* Hero */}
-        <section className="border-b border-border py-16 lg:py-24">
+        <section className="section-light py-16 lg:py-24 bg-background">
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="grid items-center gap-12 lg:grid-cols-2">
               <div>
@@ -100,7 +101,7 @@ export default function AlforjasPage() {
                   src={assetUrl("/images/category-setup.jpg")}
                   alt="Bicicleta de bikepacking completamente equipada"
                   fill
-                  className="rounded-sm object-cover opacity-40"
+                  className="rounded-sm object-cover"
                 />
                 {/* Interactive hotspots */}
                 {bikeParts.map((part) => (
@@ -147,7 +148,7 @@ export default function AlforjasPage() {
         </section>
 
         {/* Filter bar */}
-        <section className="sticky top-[73px] z-30 border-b border-border bg-background/95 backdrop-blur">
+        <section className="section-light sticky top-[73px] z-30 border-b border-border bg-background/95 backdrop-blur">
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="flex items-center gap-2 overflow-x-auto py-3">
               {bikePartFilters.map((filter) => (
@@ -169,7 +170,8 @@ export default function AlforjasPage() {
         </section>
 
         {/* Products grid */}
-        <section className="py-16">
+        <section className="section-light relative py-16 bg-background">
+          <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             {loading ? (
               <div className="py-20 text-center">
