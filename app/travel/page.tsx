@@ -15,37 +15,59 @@ import {
   Bus,
   Wrench,
   Shield,
-  Phone,
   CheckCircle2,
+  AlertCircle,
   Users,
   Send,
 } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
 import { SectionDivider } from "@/components/section-divider"
 
-export default function TravelPage() {
-  const [formData, setFormData] = useState({
-    nombre: "",
-    telefono: "",
-    evento: "",
-    fecha: "",
-    personas: "",
-    mensaje: "",
-  })
-  const [submitted, setSubmitted] = useState(false)
+const initialFormData = {
+  nombre: "",
+  telefono: "",
+  evento: "",
+  tipoViaje: "ida" as "ida" | "ida_vuelta",
+  fechaIda: "",
+  fechaRegreso: "",
+  personas: "",
+  servicioTransporte: false,
+  servicioHospedaje: false,
+  mensaje: "",
+}
 
-  function handleSubmit(e: React.FormEvent) {
+export default function TravelPage() {
+  const [formData, setFormData] = useState(initialFormData)
+  const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 4000)
-    setFormData({
-      nombre: "",
-      telefono: "",
-      evento: "",
-      fecha: "",
-      personas: "",
-      mensaje: "",
-    })
+    setSubmitting(true)
+    setError("")
+    try {
+      const response = await fetch("/api/travel-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "No se pudo enviar la solicitud")
+      }
+      setSubmitted(true)
+      setTimeout(() => setSubmitted(false), 4000)
+      setFormData(initialFormData)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo enviar la solicitud. Intenta de nuevo."
+      )
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -91,7 +113,7 @@ export default function TravelPage() {
               {[
                 {
                   icon: Bus,
-                  title: "Transporte de retorno",
+                  title: "Servicio privado de transporte (ida - regreso)",
                   desc: "Buses comodos con racks especializados para bicicletas. Regresa seguro despues de tu evento.",
                 },
                 {
@@ -101,12 +123,12 @@ export default function TravelPage() {
                 },
                 {
                   icon: Shield,
-                  title: "Seguro de ruta",
+                  title: "Seguro de ruta para ti y tu bici",
                   desc: "Cobertura de asistencia durante todo el recorrido para tu tranquilidad.",
                 },
                 {
                   icon: Users,
-                  title: "Grupos de 30 a 500",
+                  title: "Grupos de 10 pasajeros en adelante",
                   desc: "Capacidad logistica para eventos pequenos y grandes. Cotizamos a tu medida.",
                 },
               ].map((service) => (
@@ -145,33 +167,48 @@ export default function TravelPage() {
               {cyclingEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="rounded-sm border border-border bg-card p-6"
+                  className="overflow-hidden rounded-sm border border-border bg-card"
                 >
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-primary/10">
-                      <Route className="h-5 w-5 text-primary" />
+                  {event.image && (
+                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-secondary">
+                      <Image
+                        src={assetUrl(event.image)}
+                        alt={event.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
                     </div>
-                    <div>
-                      <h3 className="text-base font-bold text-foreground">
-                        {event.name}
-                      </h3>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {event.location}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {event.date}
-                        </span>
+                  )}
+                  <div className="p-6">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
+                        <Route className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-foreground">
+                          {event.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {event.location}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {event.date}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {event.description}
-                  </p>
-                  <div className="mt-3 inline-block rounded-sm bg-secondary px-3 py-1 text-xs font-medium text-foreground">
-                    {event.distance}
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {event.description}
+                    </p>
+                    {event.distance && (
+                      <div className="mt-3 inline-block rounded-sm bg-secondary px-3 py-1 text-xs font-medium text-foreground">
+                        {event.distance}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -188,7 +225,7 @@ export default function TravelPage() {
                 Cotiza tu servicio
               </p>
               <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-                Solicita informacion
+                Solicitar mas informacion
               </h2>
               <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                 Cuentanos sobre tu evento y te enviamos una cotizacion
@@ -272,24 +309,6 @@ export default function TravelPage() {
                   </div>
                   <div>
                     <label
-                      htmlFor="fecha"
-                      className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                    >
-                      Fecha del evento
-                    </label>
-                    <input
-                      id="fecha"
-                      type="date"
-                      required
-                      value={formData.fecha}
-                      onChange={(e) =>
-                        setFormData({ ...formData, fecha: e.target.value })
-                      }
-                      className="w-full rounded-sm border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label
                       htmlFor="personas"
                       className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
                     >
@@ -309,6 +328,135 @@ export default function TravelPage() {
                     />
                   </div>
                 </div>
+
+                <div className="mt-5">
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Tipo de viaje
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          tipoViaje: "ida",
+                          fechaRegreso: "",
+                        })
+                      }
+                      className={`rounded-sm px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+                        formData.tipoViaje === "ida"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Solo ida
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({ ...formData, tipoViaje: "ida_vuelta" })
+                      }
+                      className={`rounded-sm px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+                        formData.tipoViaje === "ida_vuelta"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Ida y vuelta
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  className={`mt-5 grid gap-5 ${formData.tipoViaje === "ida_vuelta" ? "md:grid-cols-2" : ""}`}
+                >
+                  <div>
+                    <label
+                      htmlFor="fechaIda"
+                      className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                    >
+                      {formData.tipoViaje === "ida_vuelta"
+                        ? "Fecha de ida"
+                        : "Fecha del evento"}
+                    </label>
+                    <input
+                      id="fechaIda"
+                      type="date"
+                      required
+                      value={formData.fechaIda}
+                      onChange={(e) =>
+                        setFormData({ ...formData, fechaIda: e.target.value })
+                      }
+                      className="w-full rounded-sm border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  {formData.tipoViaje === "ida_vuelta" && (
+                    <div>
+                      <label
+                        htmlFor="fechaRegreso"
+                        className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                      >
+                        Fecha de regreso
+                      </label>
+                      <input
+                        id="fechaRegreso"
+                        type="date"
+                        required
+                        value={formData.fechaRegreso}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            fechaRegreso: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-sm border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-5">
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Servicio a cotizar (opcional)
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      aria-pressed={formData.servicioTransporte}
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          servicioTransporte: !formData.servicioTransporte,
+                        })
+                      }
+                      className={`rounded-sm px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+                        formData.servicioTransporte
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Transporte
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={formData.servicioHospedaje}
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          servicioHospedaje: !formData.servicioHospedaje,
+                        })
+                      }
+                      className={`rounded-sm px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
+                        formData.servicioHospedaje
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Hospedaje
+                    </button>
+                  </div>
+                </div>
+
                 <div className="mt-5">
                   <label
                     htmlFor="mensaje"
@@ -327,12 +475,19 @@ export default function TravelPage() {
                     placeholder="Detalles adicionales sobre tu evento..."
                   />
                 </div>
+                {error && (
+                  <div className="mt-5 flex items-start gap-2 rounded-sm border border-destructive/40 bg-destructive/5 px-4 py-3">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
                 <button
                   type="submit"
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-6 py-3 text-sm font-bold uppercase tracking-wider text-primary-foreground transition-colors hover:bg-primary/90"
+                  disabled={submitting}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-6 py-3 text-sm font-bold uppercase tracking-wider text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Send className="h-4 w-4" />
-                  Enviar solicitud
+                  {submitting ? "Enviando..." : "Enviar solicitud"}
                 </button>
               </form>
             )}

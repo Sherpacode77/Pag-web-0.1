@@ -14,6 +14,10 @@ const SITE_BASE_URL = (process.env.SITE_URL || "https://cerounobikes.com").repla
 const LOGO_URL = `${SITE_BASE_URL}/images/marca-alta-blancorecurso-207.png`
 const PAYMENT_CONFIRMED_IMAGE_URL = `${SITE_BASE_URL}/images/email-pago-confirmado.png`
 
+// Destinatarios fijos para notificaciones de formularios (contacto, cotizacion Travel).
+// Distintos de STORE_NOTIFICATION_EMAIL, que es solo para pedidos pagados.
+const FORM_NOTIFICATION_EMAILS = ["cerounobta@gmail.com", "equipo@cerounobikes.com"]
+
 function getClient(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY
   return apiKey ? new Resend(apiKey) : null
@@ -175,5 +179,126 @@ export async function sendOrderPaidEmails(order: OrderWithItems): Promise<void> 
     if (result.status === "rejected") {
       console.error("sendOrderPaidEmails: fallo enviando email", result.reason)
     }
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+type ContactFormData = {
+  nombre: string
+  email: string
+  telefono: string
+  asunto: string
+  mensaje: string
+}
+
+function buildContactFormEmailHtml(data: ContactFormData): string {
+  return buildEmailShell(`
+    <h1 style="margin:0 0 4px;color:${BRAND.text};font-size:20px;">Nuevo mensaje de contacto</h1>
+    <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.8;">
+      <strong style="color:${BRAND.text};">Nombre:</strong> ${escapeHtml(data.nombre)}<br/>
+      <strong style="color:${BRAND.text};">Email:</strong> ${escapeHtml(data.email)}<br/>
+      <strong style="color:${BRAND.text};">Telefono / WhatsApp:</strong> ${escapeHtml(data.telefono)}<br/>
+      <strong style="color:${BRAND.text};">Asunto:</strong> ${escapeHtml(data.asunto)}
+    </p>
+    <p style="margin:0;color:${BRAND.text};font-size:14px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(data.mensaje)}</p>
+  `)
+}
+
+// Disparado por el formulario de /contacto — notifica al equipo, con reply-to
+// apuntando al correo del cliente para poder responder directo.
+export async function sendContactFormEmail(data: ContactFormData): Promise<void> {
+  const resend = getClient()
+  if (!resend) {
+    console.error("sendContactFormEmail: RESEND_API_KEY no configurado, se omite el envío")
+    throw new Error("Servicio de email no configurado")
+  }
+
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "CERO.UNO <onboarding@resend.dev>"
+
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: FORM_NOTIFICATION_EMAILS,
+    replyTo: data.email,
+    subject: `Nuevo mensaje de contacto — ${data.asunto}`,
+    html: buildContactFormEmailHtml(data),
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
+type TravelQuoteFormData = {
+  nombre: string
+  telefono: string
+  evento: string
+  tipoViaje: "ida" | "ida_vuelta"
+  fechaIda: string
+  fechaRegreso?: string
+  personas: string
+  servicioTransporte?: boolean
+  servicioHospedaje?: boolean
+  mensaje?: string
+}
+
+function buildTravelQuoteEmailHtml(data: TravelQuoteFormData): string {
+  const fechasHtml =
+    data.tipoViaje === "ida_vuelta" && data.fechaRegreso
+      ? `<strong style="color:${BRAND.text};">Fecha de ida:</strong> ${escapeHtml(data.fechaIda)}<br/>
+         <strong style="color:${BRAND.text};">Fecha de regreso:</strong> ${escapeHtml(data.fechaRegreso)}<br/>`
+      : `<strong style="color:${BRAND.text};">Fecha (solo ida):</strong> ${escapeHtml(data.fechaIda)}<br/>`
+
+  const servicios = [
+    data.servicioTransporte ? "Transporte" : null,
+    data.servicioHospedaje ? "Hospedaje" : null,
+  ].filter(Boolean)
+  const serviciosLabel = servicios.length > 0 ? servicios.join(" y ") : "No especificado"
+
+  return buildEmailShell(`
+    <h1 style="margin:0 0 4px;color:${BRAND.text};font-size:20px;">Nueva cotizacion — CERO.UNO Travel</h1>
+    <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.8;">
+      <strong style="color:${BRAND.text};">Nombre:</strong> ${escapeHtml(data.nombre)}<br/>
+      <strong style="color:${BRAND.text};">Telefono / WhatsApp:</strong> ${escapeHtml(data.telefono)}<br/>
+      <strong style="color:${BRAND.text};">Evento:</strong> ${escapeHtml(data.evento)}<br/>
+      <strong style="color:${BRAND.text};">Tipo de viaje:</strong> ${data.tipoViaje === "ida_vuelta" ? "Ida y vuelta" : "Solo ida"}<br/>
+      ${fechasHtml}
+      <strong style="color:${BRAND.text};">Personas:</strong> ${escapeHtml(data.personas)}<br/>
+      <strong style="color:${BRAND.text};">Servicio solicitado:</strong> ${escapeHtml(serviciosLabel)}
+    </p>
+    ${
+      data.mensaje
+        ? `<p style="margin:0;color:${BRAND.text};font-size:14px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(data.mensaje)}</p>`
+        : ""
+    }
+  `)
+}
+
+// Disparado por el formulario de cotizacion en /travel.
+export async function sendTravelQuoteEmail(data: TravelQuoteFormData): Promise<void> {
+  const resend = getClient()
+  if (!resend) {
+    console.error("sendTravelQuoteEmail: RESEND_API_KEY no configurado, se omite el envío")
+    throw new Error("Servicio de email no configurado")
+  }
+
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "CERO.UNO <onboarding@resend.dev>"
+
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: FORM_NOTIFICATION_EMAILS,
+    subject: `Nueva cotizacion Travel — ${data.evento}`,
+    html: buildTravelQuoteEmailHtml(data),
+  })
+
+  if (error) {
+    throw new Error(error.message)
   }
 }

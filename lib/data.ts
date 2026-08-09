@@ -63,8 +63,9 @@ export interface CyclingEvent {
   name: string
   location: string
   date: string
-  distance: string
+  distance?: string
   description: string
+  image?: string
 }
 
 // --- PRODUCTS ---
@@ -469,39 +470,39 @@ export const reviews: Review[] = [
 export const cyclingEvents: CyclingEvent[] = [
   {
     id: "1",
-    name: "Cierre Vial Bogota - Villavicencio",
-    location: "Cundinamarca - Meta",
-    date: "Enero 2026",
-    distance: "120 km",
+    name: "Giro de Rigo 2026",
+    location: "Cali - Colombia",
+    date: "01 de Noviembre 2026",
     description:
-      "El evento ciclistico mas grande de Colombia. Acompanamos a mas de 500 ciclistas con servicio de retorno en bus y camion de carga.",
+      "Cotiza con nosotros el transporte y hospedaje para vivir esta ciclo-travesia en Cali sin preocupaciones.",
+    image: "/images/event-ciclotravesia.jpg",
   },
   {
     id: "2",
-    name: "Gran Fondo Boyaca",
-    location: "Tunja - Villa de Leyva",
-    date: "Marzo 2026",
-    distance: "85 km",
+    name: "Reto Mariquita - Letras",
+    location: "Mariquita - Colombia",
+    date: "13 de Septiembre 2026",
     description:
-      "Ruta por los paisajes boyacenses con ascensos exigentes. Servicio de asistencia mecanica y transporte de regreso.",
+      "Te llevamos a Mariquita con toda la logistica de transporte para que solo te enfoques en rodar.",
+    image: "/images/blog/trans-andes.jpg",
   },
   {
     id: "3",
-    name: "Vuelta al Tolima",
-    location: "Ibague - Armero - Honda",
-    date: "Junio 2026",
-    distance: "160 km",
+    name: "Travesia Aventura MTB La Vega",
+    location: "La Vega - Colombia",
+    date: "13 de Septiembre 2026",
     description:
-      "Recorrido por el departamento del Tolima con paradas estrategicas. Logistica completa para grupos de 30 a 200 ciclistas.",
+      "Transporte y soporte logistico para tu aventura en montana en La Vega.",
+    image: "/images/category-setup.jpg",
   },
   {
     id: "4",
-    name: "Trans-Andes Colombia",
-    location: "Bogota - Manizales",
-    date: "Noviembre 2026",
-    distance: "450 km (5 etapas)",
+    name: "Gran Fondo Nairo Quintana Fest",
+    location: "Cartagena - Colombia",
+    date: "9 al 11 de Octubre 2026",
     description:
-      "La aventura definitiva de bikepacking por los Andes colombianos. Soporte vehicular, puntos de hidratacion y campamento.",
+      "Acompanamos tu logistica de transporte y hospedaje para este gran fondo en Cartagena.",
+    image: "/images/category-urban.jpg",
   },
 ]
 

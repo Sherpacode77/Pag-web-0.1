@@ -13,6 +13,7 @@ import {
   MapPin,
   Send,
   CheckCircle2,
+  AlertCircle,
   MessageCircle,
 } from "lucide-react"
 import { PICKUP_LOCATION } from "@/lib/shipping"
@@ -22,16 +23,40 @@ export default function ContactoPage() {
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
+    telefono: "",
     asunto: "",
     mensaje: "",
   })
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 4000)
-    setFormData({ nombre: "", email: "", asunto: "", mensaje: "" })
+    setSubmitting(true)
+    setError("")
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "No se pudo enviar el mensaje")
+      }
+      setSubmitted(true)
+      setTimeout(() => setSubmitted(false), 4000)
+      setFormData({ nombre: "", email: "", telefono: "", asunto: "", mensaje: "" })
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo enviar el mensaje. Intenta de nuevo."
+      )
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -88,7 +113,10 @@ export default function ContactoPage() {
                       </p>
                     </div>
                   </a>
-                  <div className="flex items-start gap-4 rounded-sm border border-border bg-card p-5">
+                  <a
+                    href="mailto:equipo@cerounobikes.com"
+                    className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
+                  >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
                       <Mail className="h-5 w-5 text-primary" />
                     </div>
@@ -97,10 +125,10 @@ export default function ContactoPage() {
                         Correo electronico
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        info@ceropuntouno.co
+                        equipo@cerounobikes.com
                       </p>
                     </div>
-                  </div>
+                  </a>
                   <a
                     href="tel:+573107513387"
                     className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
@@ -267,27 +295,51 @@ export default function ContactoPage() {
                         />
                       </div>
                     </div>
-                    <div className="mt-5">
-                      <label
-                        htmlFor="c-asunto"
-                        className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                      >
-                        Asunto
-                      </label>
-                      <input
-                        id="c-asunto"
-                        type="text"
-                        required
-                        value={formData.asunto}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            asunto: e.target.value,
-                          })
-                        }
-                        className="w-full rounded-sm border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                        placeholder="Asesoria de producto, cotizacion Travel, etc."
-                      />
+                    <div className="mt-5 grid gap-5 md:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="c-telefono"
+                          className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                        >
+                          Telefono / WhatsApp
+                        </label>
+                        <input
+                          id="c-telefono"
+                          type="tel"
+                          required
+                          value={formData.telefono}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              telefono: e.target.value,
+                            })
+                          }
+                          className="w-full rounded-sm border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          placeholder="+57 300 000 0000"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="c-asunto"
+                          className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                        >
+                          Asunto
+                        </label>
+                        <input
+                          id="c-asunto"
+                          type="text"
+                          required
+                          value={formData.asunto}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              asunto: e.target.value,
+                            })
+                          }
+                          className="w-full rounded-sm border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          placeholder="Asesoria de producto, cotizacion Travel, etc."
+                        />
+                      </div>
                     </div>
                     <div className="mt-5">
                       <label
@@ -311,12 +363,19 @@ export default function ContactoPage() {
                         placeholder="Cuentanos en que podemos ayudarte..."
                       />
                     </div>
+                    {error && (
+                      <div className="mt-5 flex items-start gap-2 rounded-sm border border-destructive/40 bg-destructive/5 px-4 py-3">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                        <p className="text-sm text-destructive">{error}</p>
+                      </div>
+                    )}
                     <button
                       type="submit"
-                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-6 py-3 text-sm font-bold uppercase tracking-wider text-primary-foreground transition-colors hover:bg-primary/90"
+                      disabled={submitting}
+                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-6 py-3 text-sm font-bold uppercase tracking-wider text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <Send className="h-4 w-4" />
-                      Enviar mensaje
+                      {submitting ? "Enviando..." : "Enviar mensaje"}
                     </button>
                   </form>
                 )}

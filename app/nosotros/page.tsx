@@ -240,9 +240,11 @@ export default function NosotrosPage() {
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     {event.description}
                   </p>
-                  <div className="mt-3 inline-block rounded-sm bg-secondary px-3 py-1 text-xs font-medium text-foreground">
-                    {event.distance}
-                  </div>
+                  {event.distance && (
+                    <div className="mt-3 inline-block rounded-sm bg-secondary px-3 py-1 text-xs font-medium text-foreground">
+                      {event.distance}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
