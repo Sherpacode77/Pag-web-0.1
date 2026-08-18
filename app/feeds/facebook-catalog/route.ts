@@ -26,7 +26,13 @@ const FEED_COLUMNS = [
   "color",
   "size",
   "sale_price",
+  "quantity_to_sell_on_facebook",
 ] as const
+
+// Cantidad a reportar cuando no hay inventario reconciliado para esa fila
+// (producto/variante disponible por defecto, pero sin conteo real todavia).
+// Meta exige un numero >= 1 para que el item se pueda mostrar/vender.
+const DEFAULT_QUANTITY = 999
 
 async function getAllProducts(): Promise<Product[]> {
   if (isDbProductsEnabled()) {
@@ -42,7 +48,8 @@ async function getAllProducts(): Promise<Product[]> {
   }
 }
 
-type InventoryByProduct = Map<string, { color: string; size: string; available: boolean }[]>
+type InventoryRowLite = { color: string; size: string; available: boolean; quantity: number }
+type InventoryByProduct = Map<string, InventoryRowLite[]>
 
 // Agrupa el inventario real por producto. Un producto sin ninguna fila
 // registrada se asume disponible (mismo criterio laxo que
@@ -60,6 +67,7 @@ async function getInventoryByProduct(): Promise<InventoryByProduct> {
         color: row.variant_color ?? "",
         size: row.variant_size ?? "",
         available: row.is_available && row.stock_quantity > 0,
+        quantity: row.stock_quantity,
       })
       map.set(row.product_id, list)
     }
@@ -74,7 +82,7 @@ async function getInventoryByProduct(): Promise<InventoryByProduct> {
 // producto con variantes reales expuestas en la tienda: busca la fila
 // exacta; si el producto no tiene inventario reconciliado, asume disponible.
 function isVariantAvailable(
-  productRows: { color: string; size: string; available: boolean }[] | undefined,
+  productRows: InventoryRowLite[] | undefined,
   color: string,
   size: string
 ): boolean {
@@ -88,11 +96,28 @@ function isVariantAvailable(
 // (ver app_inventory) aunque la ficha del producto no muestre selector de
 // color. Disponible si tiene al menos una fila utilizable, o si no tiene
 // ninguna fila registrada todavia.
-function isProductAvailable(
-  productRows: { color: string; size: string; available: boolean }[] | undefined
-): boolean {
+function isProductAvailable(productRows: InventoryRowLite[] | undefined): boolean {
   if (!productRows || productRows.length === 0) return true
   return productRows.some((r) => r.available)
+}
+
+// Cantidad vendible para una variante concreta — la fila exacta si existe,
+// o el valor por defecto si esa variante no tiene inventario reconciliado.
+function getVariantQuantity(
+  productRows: InventoryRowLite[] | undefined,
+  color: string,
+  size: string
+): number {
+  const match = productRows?.find((r) => r.color === color && r.size === size)
+  return match ? match.quantity : DEFAULT_QUANTITY
+}
+
+// Cantidad vendible para un producto sin variantes expuestas: suma el stock
+// de todas sus filas de inventario (pueden vivir bajo una llave de color
+// implícita), o el valor por defecto si no tiene ninguna fila registrada.
+function getProductQuantity(productRows: InventoryRowLite[] | undefined): number {
+  if (!productRows || productRows.length === 0) return DEFAULT_QUANTITY
+  return productRows.reduce((sum, r) => sum + r.quantity, 0)
 }
 
 function tsvSafe(value: string | number): string {
@@ -132,6 +157,9 @@ function buildRows(product: Product, inventoryByProduct: InventoryByProduct): Fe
       const inStock = hasRealVariants
         ? isVariantAvailable(productRows, color?.color ?? "", size?.size ?? "")
         : isProductAvailable(productRows)
+      const quantity = hasRealVariants
+        ? getVariantQuantity(productRows, color?.color ?? "", size?.size ?? "")
+        : getProductQuantity(productRows)
 
       const idParts = [product.id, color?.color, size?.size].filter(Boolean)
       const titleParts = [product.name, color?.colorName, size?.sizeName].filter(Boolean)
@@ -151,6 +179,7 @@ function buildRows(product: Product, inventoryByProduct: InventoryByProduct): Fe
         color: tsvSafe(color?.colorName ?? ""),
         size: tsvSafe(size?.sizeName ?? ""),
         sale_price: salePrice !== null ? formatCop(salePrice) : "",
+        quantity_to_sell_on_facebook: inStock ? String(Math.max(1, quantity)) : "0",
       })
     }
   }
