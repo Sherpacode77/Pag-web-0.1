@@ -1,11 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
+import { useState } from "react"
 import { ImageUpload } from "./image-upload"
-import { Check, Plus } from "lucide-react"
+import { Check, Plus, X } from "lucide-react"
 import { toast } from "sonner"
-import { assetUrl } from "@/lib/assets"
 import type { ProductVariant } from "@/lib/data"
 import { CustomColorDialog } from "./custom-color-dialog"
 import { QUICK_PRESET_COLORS, LEGACY_COLOR_HEX, slugifyColorName } from "@/lib/color-palette"
@@ -13,27 +11,15 @@ import { QUICK_PRESET_COLORS, LEGACY_COLOR_HEX, slugifyColorName } from "@/lib/c
 interface VariantManagerProps {
   variants: ProductVariant[]
   onChange: (variants: ProductVariant[]) => void
-  productImages?: string[]
 }
 
 const availableColors = QUICK_PRESET_COLORS.map((c) => ({ value: c.slug, name: c.name, hex: c.hex }))
 
-export function VariantManager({ variants, onChange, productImages = [] }: VariantManagerProps) {
+export function VariantManager({ variants, onChange }: VariantManagerProps) {
   const [selectedColors, setSelectedColors] = useState<string[]>(
     variants.map((v) => v.color)
   )
   const [customDialogOpen, setCustomDialogOpen] = useState(false)
-
-  // Sincronizar imagen de variante "negro" con productImages
-  useEffect(() => {
-    const negroVariant = variants.find((v) => v.color === "negro")
-    if (negroVariant && productImages.length > 0 && negroVariant.image !== productImages[0]) {
-      const updatedVariants = variants.map((v) =>
-        v.color === "negro" ? { ...v, image: productImages[0] } : v
-      )
-      onChange(updatedVariants)
-    }
-  }, [productImages])
 
   function colorInfoFor(colorValue: string): { name: string; hex: string } | null {
     const preset = availableColors.find((c) => c.value === colorValue)
@@ -45,10 +31,10 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
 
   function toggleColor(colorValue: string) {
     if (selectedColors.includes(colorValue)) {
-      // Remover color — requiere confirmación, se pierde su imagen y stock configurados
+      // Remover color — requiere confirmación, se pierde sus imágenes y stock configurados
       const colorInfo = colorInfoFor(colorValue)
       toast.warning(`¿Quitar la variante ${colorInfo?.name ?? colorValue}?`, {
-        description: "Se perderá su imagen y estado de stock configurados.",
+        description: "Se perderán sus imágenes y estado de stock configurados.",
         action: {
           label: "Quitar",
           onClick: () => {
@@ -69,16 +55,13 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
 
       setSelectedColors([...selectedColors, colorValue])
 
-      // Si es negro, usar la primera imagen principal del producto
-      const image = colorValue === "negro" ? (productImages[0] || "") : ""
-
       onChange([
         ...variants,
         {
           color: colorValue,
           colorName: colorInfo.name,
           colorHex: colorInfo.hex,
-          image: image,
+          images: [],
           inStock: true,
         },
       ])
@@ -102,16 +85,45 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
         color: candidate,
         colorName: name,
         colorHex: hex,
-        image: "",
+        images: [],
         inStock: true,
       },
     ])
     setCustomDialogOpen(false)
   }
 
-  function updateVariantImage(colorValue: string, imagePath: string) {
+  function addVariantImage(colorValue: string) {
     const updatedVariants = variants.map((v) =>
-      v.color === colorValue ? { ...v, image: imagePath } : v
+      v.color === colorValue
+        ? { ...v, images: [...v.images, { url: "", designName: "" }] }
+        : v
+    )
+    onChange(updatedVariants)
+  }
+
+  function updateVariantImageUrl(colorValue: string, index: number, url: string) {
+    const updatedVariants = variants.map((v) =>
+      v.color === colorValue
+        ? { ...v, images: v.images.map((img, i) => (i === index ? { ...img, url } : img)) }
+        : v
+    )
+    onChange(updatedVariants)
+  }
+
+  function updateVariantImageDesignName(colorValue: string, index: number, designName: string) {
+    const updatedVariants = variants.map((v) =>
+      v.color === colorValue
+        ? { ...v, images: v.images.map((img, i) => (i === index ? { ...img, designName } : img)) }
+        : v
+    )
+    onChange(updatedVariants)
+  }
+
+  function removeVariantImage(colorValue: string, index: number) {
+    const updatedVariants = variants.map((v) =>
+      v.color === colorValue
+        ? { ...v, images: v.images.filter((_, i) => i !== index) }
+        : v
     )
     onChange(updatedVariants)
   }
@@ -200,11 +212,14 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
         />
       </div>
 
-      {/* Imágenes para cada variante seleccionada */}
+      {/* Imágenes y diseños para cada variante seleccionada */}
       {selectedColors.length > 0 && (
         <div className="space-y-4 pt-4 border-t border-border">
           <p className="text-sm font-medium uppercase tracking-wider">
-            Imágenes por variante
+            Imágenes y diseños por variante
+          </p>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Cada color puede tener varias imágenes, una por cada diseño disponible en esa tela.
           </p>
           {selectedColors.map((colorValue) => {
             const colorInfo = colorInfoFor(colorValue)
@@ -236,35 +251,53 @@ export function VariantManager({ variants, onChange, productImages = [] }: Varia
                     </span>
                   </label>
                 </div>
-                {colorValue === "negro" ? (
-                  <div className="p-4 rounded-lg bg-muted border border-border">
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Negro</span> usa automáticamente las <strong>Imágenes principales del producto</strong>.
-                    </p>
-                    {productImages.length > 0 ? (
-                      <div className="mt-2 flex gap-2">
-                        {productImages.slice(0, 3).map((img, idx) => (
-                          <div key={img} className="relative h-14 w-14 rounded border border-border overflow-hidden">
-                            <Image src={assetUrl(img || "/placeholder.svg")} alt={`Imagen ${idx + 1}`} fill className="object-cover" />
-                          </div>
-                        ))}
-                        {productImages.length > 3 && (
-                          <div className="h-14 w-14 rounded border border-border bg-secondary flex items-center justify-center">
-                            <span className="text-xs font-medium">+{productImages.length - 3}</span>
-                          </div>
-                        )}
+
+                <div className="space-y-3">
+                  {variant.images.map((img, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 rounded-md border border-border bg-background p-3"
+                    >
+                      <div className="flex-1 space-y-2">
+                        <ImageUpload
+                          value={img.url}
+                          onChange={(path) => updateVariantImageUrl(colorValue, index, path)}
+                          label={`Imagen ${index + 1}`}
+                        />
+                        <input
+                          type="text"
+                          value={img.designName}
+                          onChange={(e) =>
+                            updateVariantImageDesignName(colorValue, index, e.target.value)
+                          }
+                          placeholder="Nombre del diseño (ej. Logo Clásico, Ruta Andina...)"
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        />
                       </div>
-                    ) : (
-                      <p className="mt-2 text-xs text-destructive">⚠️ Sube imágenes principales arriba</p>
-                    )}
-                  </div>
-                ) : (
-                  <ImageUpload
-                    value={variant.image}
-                    onChange={(path) => updateVariantImage(colorValue, path)}
-                    label={`Imagen ${colorInfo.name}`}
-                  />
-                )}
+                      <button
+                        type="button"
+                        onClick={() => removeVariantImage(colorValue, index)}
+                        className="mt-1 text-muted-foreground hover:text-destructive"
+                        aria-label="Quitar imagen"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => addVariantImage(colorValue)}
+                    className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-border py-2.5 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground transition-all"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Agregar imagen / diseño
+                  </button>
+
+                  {variant.images.length === 0 && (
+                    <p className="text-xs text-destructive">⚠️ Agrega al menos una imagen para este color</p>
+                  )}
+                </div>
               </div>
             )
           })}

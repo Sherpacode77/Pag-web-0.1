@@ -11,6 +11,7 @@ interface Product {
   images?: string[]
   video?: string
   videos?: string[]
+  variants?: { images?: { url?: string }[] }[]
 }
 
 function getUsedFiles(): Set<string> {
@@ -37,7 +38,16 @@ function getUsedFiles(): Set<string> {
     if (product.images && Array.isArray(product.images)) {
       product.images.forEach(img => usedFiles.add(img))
     }
-    
+
+    // Imágenes por variante de color (una o mas por diseño)
+    if (product.variants && Array.isArray(product.variants)) {
+      product.variants.forEach(variant => {
+        (variant.images || []).forEach(img => {
+          if (img.url) usedFiles.add(img.url)
+        })
+      })
+    }
+
     // Video principal
     if (product.video) {
       usedFiles.add(product.video)

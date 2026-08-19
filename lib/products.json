@@ -58,32 +58,57 @@
       {
         "color": "negro",
         "colorName": "Negro",
-        "image": "/images/products/saddlebag-urban.jpg",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/saddlebag-urban.jpg",
+            "designName": "Diseño único"
+          }
+        ]
       },
       {
         "color": "rojo",
         "colorName": "Rojo",
-        "image": "/images/products/1778075810605-rojo.png",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/1778075810605-rojo.png",
+            "designName": "Diseño único"
+          }
+        ]
       },
       {
         "color": "naranja",
         "colorName": "Naranja",
-        "image": "/images/products/1778075823794-cordadarecurso_2__2_.png",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/1778075823794-cordadarecurso_2__2_.png",
+            "designName": "Diseño único"
+          }
+        ]
       },
       {
         "color": "verde",
         "colorName": "Verde",
-        "image": "/images/products/1778075941013-cordadarecurso_6__2_.png",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/1778075941013-cordadarecurso_6__2_.png",
+            "designName": "Diseño único"
+          }
+        ]
       },
       {
         "color": "azul",
         "colorName": "Azul",
-        "image": "/images/products/1778075965238-cordadarecurso_1__3_.png",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/1778075965238-cordadarecurso_1__3_.png",
+            "designName": "Diseño único"
+          }
+        ]
       }
     ],
     "originalPrice": 250000
@@ -197,32 +222,57 @@
       {
         "color": "verde",
         "colorName": "Verde",
-        "image": "/images/products/1783028844709-whatsapp_image_2026-07-02_at_4.45.54_pm.jpeg",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/1783028844709-whatsapp_image_2026-07-02_at_4.45.54_pm.jpeg",
+            "designName": "Diseño único"
+          }
+        ]
       },
       {
         "color": "rojo",
         "colorName": "Rojo",
-        "image": "/images/products/1783028848615-whatsapp_image_2026-07-02_at_4.44.38_pm.jpeg",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/1783028848615-whatsapp_image_2026-07-02_at_4.44.38_pm.jpeg",
+            "designName": "Diseño único"
+          }
+        ]
       },
       {
         "color": "naranja",
         "colorName": "Naranja",
-        "image": "/images/products/1783028857626-whatsapp_image_2026-07-02_at_4.46.30_pm.jpeg",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/1783028857626-whatsapp_image_2026-07-02_at_4.46.30_pm.jpeg",
+            "designName": "Diseño único"
+          }
+        ]
       },
       {
         "color": "azul",
         "colorName": "Azul",
-        "image": "/images/products/1783028867034-whatsapp_image_2026-07-02_at_4.45.18_pm.jpeg",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/1783028867034-whatsapp_image_2026-07-02_at_4.45.18_pm.jpeg",
+            "designName": "Diseño único"
+          }
+        ]
       },
       {
         "color": "negro",
         "colorName": "Negro",
-        "image": "/images/products/fbl1.jpg",
-        "inStock": true
+        "inStock": true,
+        "images": [
+          {
+            "url": "/images/products/fbl1.jpg",
+            "designName": "Diseño único"
+          }
+        ]
       }
     ]
   },

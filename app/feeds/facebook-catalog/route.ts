@@ -163,7 +163,7 @@ function buildRows(product: Product, inventoryByProduct: InventoryByProduct): Fe
 
       const idParts = [product.id, color?.color, size?.size].filter(Boolean)
       const titleParts = [product.name, color?.colorName, size?.sizeName].filter(Boolean)
-      const image = color?.image || product.image
+      const image = color?.images[0]?.url || product.image
 
       rows.push({
         id: tsvSafe(idParts.join("-")),

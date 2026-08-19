@@ -1,8 +1,13 @@
+export interface ProductVariantImage {
+  url: string
+  designName: string
+}
+
 export interface ProductVariant {
   color: string
   colorName: string
   colorHex?: string
-  image: string
+  images: ProductVariantImage[]
   inStock: boolean
 }
 

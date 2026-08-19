@@ -18,6 +18,7 @@ import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { VariantSelector } from "@/components/variant-selector"
+import { DesignSelector } from "@/components/design-selector"
 import { SizeSelector } from "@/components/size-selector"
 import { formatPrice } from "@/lib/data"
 import { trackAddToCart, sendFacebookServerEvent } from "@/lib/tracking-client"
@@ -117,14 +118,12 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
   const noSizeSelectable = hasSizes && !selectedSize
   const canAddToCart = !isOutOfStock && !noSizeSelectable
 
-  const displayImages = selectedVariant
-    ? selectedVariant.color === "negro"
-      ? product.images || []
-      : [selectedVariant.image]
-    : product.images || []
+  const displayImages =
+    selectedVariant && selectedVariant.images.length > 0
+      ? selectedVariant.images.map((img) => img.url)
+      : product.images || []
 
-  const shouldShowVideos = !selectedVariant || selectedVariant.color === "negro"
-  const displayVideos = shouldShowVideos ? (product.videos || []) : []
+  const displayVideos = product.videos || []
   const currentVideo = displayVideos[activeVideoIndex] || ""
 
   useEffect(() => {
@@ -282,6 +281,14 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
                   variants={effectiveVariants}
                   selectedVariant={selectedVariant}
                   onSelect={(variant) => { setSelectedVariant(variant); setActiveImage(0) }}
+                />
+              )}
+
+              {selectedVariant && selectedVariant.images.length > 0 && (
+                <DesignSelector
+                  images={selectedVariant.images}
+                  selectedIndex={activeImage}
+                  onSelect={(index) => { setActiveImage(index); setActiveMediaType("image") }}
                 />
               )}
 

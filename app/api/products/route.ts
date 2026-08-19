@@ -59,7 +59,14 @@ const baseProductSchema = z.object({
         color: variantColorSchema,
         colorName: z.string().trim().min(1).max(30),
         colorHex: colorHexSchema,
-        image: z.string().trim().startsWith("/"),
+        images: z
+          .array(
+            z.object({
+              url: z.string().trim().startsWith("/"),
+              designName: z.string().trim().max(60).optional().default(""),
+            })
+          )
+          .max(20),
         inStock: z.boolean(),
       })
     )

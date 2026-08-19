@@ -42,7 +42,7 @@ export function ProductModal({ product, isEdit, onClose, onSave, onChange }: Pro
     const stillReferenced = new Set<string>()
     for (const img of product.images || []) if (img) stillReferenced.add(img)
     for (const vid of product.videos || []) if (vid) stillReferenced.add(vid)
-    for (const v of product.variants || []) if (v.image) stillReferenced.add(v.image)
+    for (const v of product.variants || []) for (const img of v.images) if (img.url) stillReferenced.add(img.url)
     if (product.image) stillReferenced.add(product.image)
 
     const toDelete = Array.from(new Set(pendingDeletions)).filter((p) => !stillReferenced.has(p))
@@ -288,11 +288,10 @@ export function ProductModal({ product, isEdit, onClose, onSave, onChange }: Pro
             {product.hasVariants && (
               <VariantManager
                 variants={product.variants || []}
-                productImages={product.images || []}
                 onChange={(variants) => {
                   trackRemovals(
-                    (product.variants || []).map((v) => v.image),
-                    variants.map((v) => v.image)
+                    (product.variants || []).flatMap((v) => v.images.map((img) => img.url)),
+                    variants.flatMap((v) => v.images.map((img) => img.url))
                   )
                   onChange({ ...product, variants })
                 }}
