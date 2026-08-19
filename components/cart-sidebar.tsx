@@ -63,6 +63,7 @@ export function CartSidebar() {
         variant_color_name: item.variantColorName ?? null,
         variant_size: item.variantSize ?? null,
         variant_size_name: item.variantSizeName ?? null,
+        variant_design_name: item.variantDesignName ?? null,
         unit_price: item.product.price,
         quantity: item.quantity,
       }))
@@ -124,7 +125,7 @@ export function CartSidebar() {
       }
 
       const cartItems: MpItem[] = items.map((item) => {
-        const variantLabel = [item.variantColorName, item.variantSizeName]
+        const variantLabel = [item.variantColorName, item.variantSizeName, item.variantDesignName]
           .filter(Boolean)
           .join(" — ")
         return {
@@ -259,7 +260,7 @@ export function CartSidebar() {
               <div className="flex flex-col gap-4">
                 {items.map((item) => {
                   const key = getCartItemKey(item)
-                  const variantLabel = [item.variantColorName, item.variantSizeName]
+                  const variantLabel = [item.variantColorName, item.variantSizeName, item.variantDesignName]
                     .filter(Boolean)
                     .join(" — ")
                   return (

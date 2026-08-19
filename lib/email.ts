@@ -34,7 +34,9 @@ function formatCOP(amount: number): string {
 function buildItemsRows(order: OrderWithItems): string {
   return order.items
     .map((item) => {
-      const variant = [item.variant_color_name, item.variant_size_name].filter(Boolean).join(" / ")
+      const variant = [item.variant_color_name, item.variant_size_name, item.variant_design_name]
+        .filter(Boolean)
+        .join(" / ")
       return `<tr>
         <td style="padding:12px 0;border-bottom:1px solid ${BRAND.border};color:${BRAND.text};font-size:14px;">
           ${item.product_name}${variant ? ` <span style="color:${BRAND.muted};">(${variant})</span>` : ""}<br/>

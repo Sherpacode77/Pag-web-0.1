@@ -81,8 +81,10 @@ export function OrderSummary({ items, deliveryMethod, onCouponChange, missingFie
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-4">
         {items.map((item) => {
-          const key = `${item.product.id}|${item.variantColor ?? "_"}|${item.variantSize ?? "_"}`
-          const variantLabel = [item.variantColorName, item.variantSizeName].filter(Boolean).join(" / ")
+          const key = `${item.product.id}|${item.variantColor ?? "_"}|${item.variantSize ?? "_"}|${item.variantDesignName ?? "_"}`
+          const variantLabel = [item.variantColorName, item.variantSizeName, item.variantDesignName]
+            .filter(Boolean)
+            .join(" / ")
           return (
             <div key={key} className="flex gap-3">
               <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded bg-secondary">

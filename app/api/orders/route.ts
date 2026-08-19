@@ -15,6 +15,7 @@ const orderItemSchema = z.object({
   variant_color_name: z.string().trim().max(100).optional().nullable(),
   variant_size: z.string().trim().max(10).optional().nullable(),
   variant_size_name: z.string().trim().max(20).optional().nullable(),
+  variant_design_name: z.string().trim().max(100).optional().nullable(),
   unit_price: z.number().finite().nonnegative(),
   quantity: z.number().int().positive().max(100),
 })

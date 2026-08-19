@@ -18,6 +18,7 @@ export type OrderItemInput = {
   variant_color_name?: string | null
   variant_size?: string | null
   variant_size_name?: string | null
+  variant_design_name?: string | null
   unit_price: number
   quantity: number
 }
@@ -135,8 +136,8 @@ export async function createOrder(input: CreateOrderInput): Promise<{ id: number
       await conn.execute(
         `INSERT INTO app_order_items
            (order_id, product_id, product_name, product_slug, variant_color, variant_color_name,
-            variant_size, variant_size_name, unit_price, quantity, subtotal, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            variant_size, variant_size_name, variant_design_name, unit_price, quantity, subtotal, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [
           orderId,
           item.product_id,
@@ -146,6 +147,7 @@ export async function createOrder(input: CreateOrderInput): Promise<{ id: number
           item.variant_color_name ?? null,
           item.variant_size ?? null,
           item.variant_size_name ?? null,
+          item.variant_design_name ?? null,
           item.unit_price,
           item.quantity,
           subtotal,

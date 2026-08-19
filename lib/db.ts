@@ -191,6 +191,7 @@ async function runSchemaSetup() {
       variant_color_name VARCHAR(100)  NULL,
       variant_size       VARCHAR(10)   NULL,
       variant_size_name  VARCHAR(20)   NULL,
+      variant_design_name VARCHAR(100) NULL,
       unit_price         DECIMAL(15,2) NOT NULL,
       quantity           INT           NOT NULL DEFAULT 1,
       subtotal           DECIMAL(15,2) NOT NULL,
@@ -208,6 +209,10 @@ async function runSchemaSetup() {
   await pool.execute(`
     ALTER TABLE app_order_items
     ADD COLUMN IF NOT EXISTS variant_size_name VARCHAR(20) NULL AFTER variant_size
+  `)
+  await pool.execute(`
+    ALTER TABLE app_order_items
+    ADD COLUMN IF NOT EXISTS variant_design_name VARCHAR(100) NULL AFTER variant_size_name
   `)
 
   // Migración segura: el email del cliente se completa recién cuando MercadoPago

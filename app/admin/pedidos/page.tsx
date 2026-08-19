@@ -15,6 +15,7 @@ type OrderItem = {
   variant_color_name: string | null
   variant_size: string | null
   variant_size_name: string | null
+  variant_design_name: string | null
   unit_price: number
   quantity: number
   subtotal: number
@@ -89,7 +90,9 @@ function formatDate(iso: string) {
 }
 
 function variantLabel(item: OrderItem): string {
-  return [item.variant_color_name, item.variant_size_name].filter(Boolean).join(" — ")
+  return [item.variant_color_name, item.variant_size_name, item.variant_design_name]
+    .filter(Boolean)
+    .join(" — ")
 }
 
 export default function AdminPedidosPage() {

@@ -133,12 +133,15 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
     }
   }, [selectedVariant, displayVideos.length, activeMediaType])
 
+  const selectedDesignName = selectedVariant?.images[activeImage]?.designName?.trim() || undefined
+
   const handleAddToCart = () => {
     const variant = {
       variantColor: selectedVariant?.color,
       variantColorName: selectedVariant?.colorName,
       variantSize: selectedSize?.size,
       variantSizeName: selectedSize?.sizeName,
+      variantDesignName: selectedDesignName,
     }
     for (let i = 0; i < quantity; i++) {
       addItem(product, variant)

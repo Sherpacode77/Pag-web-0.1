@@ -16,6 +16,7 @@ export interface CartItem {
   variantColorName?: string
   variantSize?: string
   variantSizeName?: string
+  variantDesignName?: string
 }
 
 export type CartItemVariant = {
@@ -23,12 +24,13 @@ export type CartItemVariant = {
   variantColorName?: string
   variantSize?: string
   variantSizeName?: string
+  variantDesignName?: string
 }
 
-// Clave única por producto+color+talla — dos variantes distintas del mismo
-// producto NUNCA deben fusionarse en una sola línea del carrito.
+// Clave única por producto+color+talla+diseño — dos variantes distintas del
+// mismo producto NUNCA deben fusionarse en una sola línea del carrito.
 export function getCartItemKey(item: { product: Product } & Partial<CartItemVariant>): string {
-  return `${item.product.id}|${item.variantColor ?? "_"}|${item.variantSize ?? "_"}`
+  return `${item.product.id}|${item.variantColor ?? "_"}|${item.variantSize ?? "_"}|${item.variantDesignName ?? "_"}`
 }
 
 interface CartContextType {
