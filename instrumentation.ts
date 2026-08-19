@@ -23,7 +23,10 @@ export function register() {
     if (eqIndex === -1) continue
     const key = trimmed.slice(0, eqIndex).trim()
     const value = trimmed.slice(eqIndex + 1).trim()
-    if (!(key in process.env)) {
+    // No solo "!(key in process.env)": Hostinger a veces declara la variable
+    // pero con valor vacio, lo cual pasa la comprobacion de "in" sin aportar
+    // nada util — por eso se sobreescribe cualquier valor vacio tambien.
+    if (!process.env[key]) {
       process.env[key] = value
       loaded++
     }

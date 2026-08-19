@@ -26,12 +26,15 @@ type PreferencePayload = {
   metadata?: Record<string, unknown>
 }
 
+// Ojo: esta funcion corre SOLO en el servidor (route handler), asi que
+// usa exclusivamente SITE_URL (sin prefijo NEXT_PUBLIC_). Next.js reemplaza
+// las variables NEXT_PUBLIC_* por su valor literal en tiempo de BUILD — como
+// el build de produccion se compila en local, quedaria fijado para siempre
+// al valor de desarrollo (http://localhost:3000) sin importar que se
+// configure en el servidor real. SITE_URL, al no tener ese prefijo, si se
+// lee en tiempo de ejecucion como corresponde.
 function getBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    "http://localhost:3000"
-  )
+  return process.env.SITE_URL || "http://localhost:3000"
 }
 
 export async function POST(request: Request) {
@@ -74,33 +77,32 @@ export async function POST(request: Request) {
     const client = new MercadoPagoConfig({ accessToken })
     const preference = new Preference(client)
 
-    const result = await preference.create({
-      body: {
-        items: body.items.map((item) => ({
-          id: item.id,
-          title: item.title,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          currency_id: "COP",
-          picture_url: item.picture_url,
-          category_id: item.category_id,
-        })),
-        payer: body.payer,
-        metadata: body.metadata,
-        external_reference:
-          body.externalReference || `cero-uno-${Date.now()}`,
-        back_urls: {
-          success:
-            body.backUrls?.success || `${baseUrl}/tienda?checkout=success`,
-          failure:
-            body.backUrls?.failure || `${baseUrl}/tienda?checkout=failure`,
-          pending:
-            body.backUrls?.pending || `${baseUrl}/tienda?checkout=pending`,
-        },
-        auto_return: "approved",
-        notification_url: `${baseUrl}/api/payments/mercadopago/webhook`,
+    const preferenceBody = {
+      items: body.items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        currency_id: "COP",
+        picture_url: item.picture_url,
+        category_id: item.category_id,
+      })),
+      payer: body.payer,
+      metadata: body.metadata,
+      external_reference: body.externalReference || `cero-uno-${Date.now()}`,
+      back_urls: {
+        success:
+          body.backUrls?.success || `${baseUrl}/tienda?checkout=success`,
+        failure:
+          body.backUrls?.failure || `${baseUrl}/tienda?checkout=failure`,
+        pending:
+          body.backUrls?.pending || `${baseUrl}/tienda?checkout=pending`,
       },
-    })
+      auto_return: "approved" as const,
+      notification_url: `${baseUrl}/api/payments/mercadopago/webhook`,
+    }
+
+    const result = await preference.create({ body: preferenceBody })
 
     return NextResponse.json(
       {
@@ -111,8 +113,13 @@ export async function POST(request: Request) {
       { status: 201 }
     )
   } catch (error) {
+    console.error("POST /api/payments/mercadopago/preference:", error)
     const message =
-      error instanceof Error ? error.message : "Error creando preferencia"
+      error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "Error creando preferencia"
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
