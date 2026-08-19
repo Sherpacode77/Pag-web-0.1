@@ -9,12 +9,12 @@ import { assetUrl } from "@/lib/assets"
 
 const navLinks: { href: string; label: string; highlight?: boolean }[] = [
   { href: "/", label: "Inicio" },
-  { href: "/nosotros", label: "Nosotros" },
   { href: "/alforjas", label: "Alforjas" },
   { href: "/accesorios", label: "Accesorios" },
   { href: "/travel", label: "CERO.UNO Travel" },
   { href: "/ofertas", label: "Ofertas", highlight: true },
   { href: "/contacto", label: "Contacto" },
+  { href: "/nosotros", label: "Nosotros" },
   { href: "/blog", label: "Blog" },
 ]
 
