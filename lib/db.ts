@@ -346,6 +346,23 @@ async function runSchemaSetup() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 12. Estado de servicios (health checks periodicos del sitio)
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_service_status (
+      service_id           VARCHAR(64)   NOT NULL PRIMARY KEY,
+      service_name         VARCHAR(120)  NOT NULL,
+      status                ENUM('ok','failing','unknown') NOT NULL DEFAULT 'unknown',
+      last_checked_at       DATETIME      NULL,
+      last_ok_at            DATETIME      NULL,
+      last_failure_at       DATETIME      NULL,
+      error_type            VARCHAR(64)   NULL,
+      error_message         TEXT          NULL,
+      response_time_ms      INT           NULL,
+      consecutive_failures  INT           NOT NULL DEFAULT 0,
+      updated_at            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   await createIndexSafe(pool, "CREATE INDEX idx_app_products_slug ON app_products(slug)")
   await createIndexSafe(pool, "CREATE UNIQUE INDEX uq_app_products_sku_prefix ON app_products(sku_prefix)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_customers_email ON app_customers(email)")
@@ -364,6 +381,7 @@ async function runSchemaSetup() {
   await createIndexSafe(pool, "CREATE INDEX idx_app_newsletter_email ON app_newsletter_subscribers(email)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_contact_status ON app_contact_messages(status)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_contact_created ON app_contact_messages(created_at)")
+  await createIndexSafe(pool, "CREATE INDEX idx_app_service_status_status ON app_service_status(status)")
 }
 
 export async function ensureDbSchema() {

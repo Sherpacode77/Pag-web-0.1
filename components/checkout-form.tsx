@@ -28,14 +28,25 @@ const COLOMBIAN_DEPARTMENTS = [
 
 type FieldErrors = Partial<Record<"email" | "firstName" | "lastName" | "document" | "phone" | "address" | "city", string>>
 
+const FIELD_LABELS: Record<keyof FieldErrors, string> = {
+  email: "Correo electrónico",
+  firstName: "Nombre",
+  lastName: "Apellidos",
+  document: "Número de Cédula o ID",
+  phone: "Teléfono",
+  address: "Dirección",
+  city: "Ciudad",
+}
+
 interface CheckoutFormProps {
   onBack: () => void
   onSubmit: (data: CheckoutFormData) => void
   submitting: boolean
   onDeliveryMethodChange?: (method: "envio" | "retiro") => void
+  onMissingFieldsChange?: (fields: string[]) => void
 }
 
-export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodChange }: CheckoutFormProps) {
+export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodChange, onMissingFieldsChange }: CheckoutFormProps) {
   const [form, setForm] = useState<CheckoutFormData>({
     email: "",
     newsletterOptIn: true,
@@ -74,6 +85,9 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
       if (!form.city.trim()) next.city = "Requerido"
     }
     setErrors(next)
+    onMissingFieldsChange?.(
+      (Object.keys(next) as (keyof FieldErrors)[]).map((key) => FIELD_LABELS[key])
+    )
     return Object.keys(next).length === 0
   }
 

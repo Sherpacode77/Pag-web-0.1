@@ -18,6 +18,7 @@ export function CartSidebar() {
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [couponCode, setCouponCode] = useState<string | null>(null)
   const [deliveryMethod, setDeliveryMethod] = useState<"envio" | "retiro">("envio")
+  const [missingFields, setMissingFields] = useState<string[]>([])
 
   const handleConfirmAndPay = async (form: CheckoutFormData) => {
     if (items.length === 0 || isCheckingOut) return
@@ -197,8 +198,8 @@ export function CartSidebar() {
         role="presentation"
       />
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-card border-l border-border transition-[max-width] ${
-          step === "checkout" ? "max-w-4xl" : "max-w-md"
+        className={`fixed right-0 top-0 z-50 flex h-full w-full flex-col border-l border-border transition-[max-width] ${
+          step === "checkout" ? "max-w-4xl section-light bg-background" : "max-w-md bg-card"
         }`}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -233,14 +234,23 @@ export function CartSidebar() {
           <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
             <div className="flex md:flex-1 md:overflow-y-auto">
               <CheckoutForm
-                onBack={() => setStep("cart")}
+                onBack={() => {
+                  setMissingFields([])
+                  setStep("cart")
+                }}
                 onSubmit={handleConfirmAndPay}
                 submitting={isCheckingOut}
                 onDeliveryMethodChange={setDeliveryMethod}
+                onMissingFieldsChange={setMissingFields}
               />
             </div>
             <div className="border-t border-border px-6 py-6 md:w-[340px] md:flex-shrink-0 md:overflow-y-auto md:border-l md:border-t-0">
-              <OrderSummary items={items} deliveryMethod={deliveryMethod} onCouponChange={setCouponCode} />
+              <OrderSummary
+                items={items}
+                deliveryMethod={deliveryMethod}
+                onCouponChange={setCouponCode}
+                missingFields={missingFields}
+              />
             </div>
           </div>
         ) : (

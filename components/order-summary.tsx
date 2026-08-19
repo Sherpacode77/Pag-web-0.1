@@ -12,11 +12,12 @@ interface OrderSummaryProps {
   items: CartItem[]
   deliveryMethod: "envio" | "retiro"
   onCouponChange: (code: string | null) => void
+  missingFields?: string[]
 }
 
 type CouponStatus = "idle" | "checking" | "applied" | "error"
 
-export function OrderSummary({ items, deliveryMethod, onCouponChange }: OrderSummaryProps) {
+export function OrderSummary({ items, deliveryMethod, onCouponChange, missingFields = [] }: OrderSummaryProps) {
   const [couponInput, setCouponInput] = useState("")
   const [status, setStatus] = useState<CouponStatus>("idle")
   const [message, setMessage] = useState<string | null>(null)
@@ -170,6 +171,18 @@ export function OrderSummary({ items, deliveryMethod, onCouponChange }: OrderSum
           <span>Total</span>
           <span>COP {formatPrice(total)}</span>
         </div>
+        {missingFields.length > 0 && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2.5 text-xs text-destructive">
+            <p className="font-medium">
+              Para finalizar tu compra termina de completar los siguientes campos:
+            </p>
+            <ul className="mt-1 list-disc pl-4">
+              {missingFields.map((field) => (
+                <li key={field}>{field}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {totalSavings > 0 && (
           <div className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
             <Tag className="h-3 w-3" />
