@@ -199,7 +199,7 @@ export function CartSidebar() {
       />
       <aside
         className={`fixed right-0 top-0 z-50 flex h-full w-full flex-col border-l border-border transition-[max-width] ${
-          step === "checkout" ? "max-w-4xl section-light bg-background" : "max-w-md bg-card"
+          step === "checkout" ? "max-w-4xl section-light bg-background text-foreground" : "max-w-md bg-card"
         }`}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
