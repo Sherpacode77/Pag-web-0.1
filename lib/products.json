@@ -62,7 +62,23 @@
         "images": [
           {
             "url": "/images/products/saddlebag-urban.jpg",
-            "designName": "Diseño único"
+            "designName": ""
+          },
+          {
+            "url": "/images/products/1778075774633-piezas_saddlebag-06__1_.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/saddlebag-studio.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/saddlebag-dimensiones.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/saddlebag-agarres.jpg",
+            "designName": ""
           }
         ]
       },
@@ -270,7 +286,35 @@
         "images": [
           {
             "url": "/images/products/fbl1.jpg",
-            "designName": "Diseño único"
+            "designName": ""
+          },
+          {
+            "url": "/images/products/fbl2.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/fbl3.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/fbl4.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/fbl5.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/fbl6.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/fbl7.jpg",
+            "designName": ""
+          },
+          {
+            "url": "/images/products/fbl8.jpg",
+            "designName": ""
           }
         ]
       }
