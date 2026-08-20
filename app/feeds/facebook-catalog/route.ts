@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
 import type { Product, ProductVariant, ProductSizeVariant } from "@/lib/data"
-import { products as staticProducts } from "@/lib/data"
+import { products as staticProducts, getCatalogItemId } from "@/lib/data"
 import { isDbProductsEnabled, readProductsFromDb } from "@/lib/db-products"
 import { isDbInventoryEnabled, getInventoryFromDb } from "@/lib/db-inventory"
 
@@ -161,12 +161,11 @@ function buildRows(product: Product, inventoryByProduct: InventoryByProduct): Fe
         ? getVariantQuantity(productRows, color?.color ?? "", size?.size ?? "")
         : getProductQuantity(productRows)
 
-      const idParts = [product.id, color?.color, size?.size].filter(Boolean)
       const titleParts = [product.name, color?.colorName, size?.sizeName].filter(Boolean)
       const image = color?.images[0]?.url || product.image
 
       rows.push({
-        id: tsvSafe(idParts.join("-")),
+        id: tsvSafe(getCatalogItemId(product.id, color?.color, size?.size)),
         title: tsvSafe(titleParts.join(" - ")),
         description: tsvSafe(product.shortDescription || product.description),
         availability: inStock ? "in stock" : "out of stock",

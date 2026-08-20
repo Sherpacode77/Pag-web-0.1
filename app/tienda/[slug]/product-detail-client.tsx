@@ -20,7 +20,7 @@ import { ProductCard } from "@/components/product-card"
 import { VariantSelector } from "@/components/variant-selector"
 import { DesignSelector } from "@/components/design-selector"
 import { SizeSelector } from "@/components/size-selector"
-import { formatPrice } from "@/lib/data"
+import { formatPrice, getCatalogItemId } from "@/lib/data"
 import { trackAddToCart, sendFacebookServerEvent } from "@/lib/tracking-client"
 import type { Product } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
@@ -146,8 +146,9 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
     for (let i = 0; i < quantity; i++) {
       addItem(product, variant)
     }
+    const catalogItemId = getCatalogItemId(product.id, selectedVariant?.color, selectedSize?.size)
     trackAddToCart({
-      id: product.id,
+      id: catalogItemId,
       name: product.name,
       category: product.category,
       price: product.price,
@@ -160,7 +161,7 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
         currency: "COP",
         value: product.price * quantity,
         content_type: "product",
-        contents: [{ id: product.id, quantity, item_price: product.price }],
+        contents: [{ id: catalogItemId, quantity, item_price: product.price }],
       },
     })
   }

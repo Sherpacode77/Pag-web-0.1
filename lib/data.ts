@@ -583,3 +583,15 @@ export function formatPrice(price: number): string {
     maximumFractionDigits: 0,
   }).format(price)
 }
+
+// ID de item usado en el feed de catalogo de Meta (app/feeds/facebook-catalog)
+// y en los eventos de Pixel/Conversions API (AddToCart, InitiateCheckout...).
+// Debe construirse SIEMPRE igual en ambos lados, o Meta reporta "content IDs
+// sent by your Pixel don't match product IDs in your catalog".
+export function getCatalogItemId(
+  productId: string,
+  variantColor?: string | null,
+  variantSize?: string | null
+): string {
+  return [productId, variantColor, variantSize].filter(Boolean).join("-")
+}

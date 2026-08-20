@@ -4,7 +4,7 @@ import { useState } from "react"
 import Image from "next/image"
 import { X, Minus, Plus, ShoppingBag } from "lucide-react"
 import { useCart, getCartItemKey } from "@/lib/cart-context"
-import { formatPrice } from "@/lib/data"
+import { formatPrice, getCatalogItemId } from "@/lib/data"
 import { trackBeginCheckout, sendFacebookServerEvent } from "@/lib/tracking-client"
 import { assetUrl } from "@/lib/assets"
 import { FreeShippingBar } from "@/components/free-shipping-bar"
@@ -28,7 +28,7 @@ export function CartSidebar() {
 
       trackBeginCheckout(
         items.map((item) => ({
-          id: item.product.id,
+          id: getCatalogItemId(item.product.id, item.variantColor, item.variantSize),
           name: item.product.name,
           category: item.product.category,
           price: item.product.price,
@@ -44,7 +44,7 @@ export function CartSidebar() {
           value: totalPrice,
           content_type: "product",
           contents: items.map((item) => ({
-            id: item.product.id,
+            id: getCatalogItemId(item.product.id, item.variantColor, item.variantSize),
             quantity: item.quantity,
             item_price: item.product.price,
           })),
