@@ -93,9 +93,11 @@ export function ImageUpload({ value, onChange, label = "Imagen" }: ImageUploadPr
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium uppercase tracking-wider">
-        {label}
-      </label>
+      {label && (
+        <label className="block text-sm font-medium uppercase tracking-wider">
+          {label}
+        </label>
+      )}
 
       {/* Preview actual */}
       {value && !uploading && (

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { ImageUpload } from "./image-upload"
-import { Check, Plus, X } from "lucide-react"
+import { Check, ImagePlus, Loader2, Plus, X } from "lucide-react"
 import { toast } from "sonner"
 import type { ProductVariant } from "@/lib/data"
 import { CustomColorDialog } from "./custom-color-dialog"
@@ -20,6 +20,9 @@ export function VariantManager({ variants, onChange }: VariantManagerProps) {
     variants.map((v) => v.color)
   )
   const [customDialogOpen, setCustomDialogOpen] = useState(false)
+  const [uploadingColor, setUploadingColor] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<Record<string, string>>({})
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   function colorInfoFor(colorValue: string): { name: string; hex: string } | null {
     const preset = availableColors.find((c) => c.value === colorValue)
@@ -126,6 +129,70 @@ export function VariantManager({ variants, onChange }: VariantManagerProps) {
         : v
     )
     onChange(updatedVariants)
+  }
+
+  // Mueve una imagen de la variante a otra posicion (ej. la ultima subida
+  // hasta la primera posicion, que es la portada de esa variante).
+  function moveVariantImage(colorValue: string, fromIndex: number, toIndex: number) {
+    const updatedVariants = variants.map((v) => {
+      if (v.color !== colorValue) return v
+      const images = [...v.images]
+      const [removed] = images.splice(fromIndex, 1)
+      images.splice(toIndex, 0, removed)
+      return { ...v, images }
+    })
+    onChange(updatedVariants)
+  }
+
+  // Sube varios archivos a la vez para una variante y agrega cada uno como
+  // una imagen nueva (diseño vacio, se completa despues manualmente).
+  async function addVariantImagesFromFiles(colorValue: string, files: FileList) {
+    if (!files || files.length === 0) return
+
+    setUploadError((prev) => ({ ...prev, [colorValue]: "" }))
+    setUploadingColor(colorValue)
+
+    try {
+      const uploadedUrls: string[] = []
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+
+        if (!file.type.startsWith("image/")) {
+          setUploadError((prev) => ({ ...prev, [colorValue]: `${file.name} no es una imagen válida` }))
+          continue
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          setUploadError((prev) => ({ ...prev, [colorValue]: `${file.name} es demasiado grande (máx 5MB)` }))
+          continue
+        }
+
+        const formData = new FormData()
+        formData.append("file", file)
+        const response = await fetch("/api/upload/image", { method: "POST", body: formData })
+        const data = await response.json()
+
+        if (response.ok && data.success) {
+          uploadedUrls.push(data.path)
+        } else {
+          setUploadError((prev) => ({ ...prev, [colorValue]: data.error || `Error al subir ${file.name}` }))
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        const updatedVariants = variants.map((v) =>
+          v.color === colorValue
+            ? { ...v, images: [...v.images, ...uploadedUrls.map((url) => ({ url, designName: "" }))] }
+            : v
+        )
+        onChange(updatedVariants)
+      }
+    } catch (error) {
+      console.error("Upload error:", error)
+      setUploadError((prev) => ({ ...prev, [colorValue]: "Error al subir las imágenes" }))
+    } finally {
+      setUploadingColor(null)
+    }
   }
 
   function toggleStock(colorValue: string) {
@@ -259,10 +326,47 @@ export function VariantManager({ variants, onChange }: VariantManagerProps) {
                       className="flex items-start gap-3 rounded-md border border-border bg-background p-3"
                     >
                       <div className="flex-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            Imagen {index + 1}{index === 0 ? " (portada)" : ""}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {index > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => moveVariantImage(colorValue, index, index - 1)}
+                                className="px-2 py-1 rounded text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                title="Mover adelante"
+                              >
+                                ←
+                              </button>
+                            )}
+                            {index > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => moveVariantImage(colorValue, index, 0)}
+                                className="px-2 py-1 rounded text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                title="Llevar a portada"
+                              >
+                                Portada
+                              </button>
+                            )}
+                            {index < variant.images.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => moveVariantImage(colorValue, index, index + 1)}
+                                className="px-2 py-1 rounded text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                title="Mover atrás"
+                              >
+                                →
+                              </button>
+                            )}
+                          </div>
+                        </div>
                         <ImageUpload
                           value={img.url}
                           onChange={(path) => updateVariantImageUrl(colorValue, index, path)}
-                          label={`Imagen ${index + 1}`}
+                          label=""
                         />
                         <input
                           type="text"
@@ -285,14 +389,46 @@ export function VariantManager({ variants, onChange }: VariantManagerProps) {
                     </div>
                   ))}
 
+                  <div
+                    onClick={() => fileInputRefs.current[colorValue]?.click()}
+                    className="relative flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-dashed border-border py-4 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground transition-all"
+                  >
+                    <input
+                      ref={(el) => { fileInputRefs.current[colorValue] = el }}
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files) addVariantImagesFromFiles(colorValue, e.target.files)
+                        e.target.value = ""
+                      }}
+                    />
+                    {uploadingColor === colorValue ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Subiendo imágenes...
+                      </>
+                    ) : (
+                      <>
+                        <ImagePlus className="h-3.5 w-3.5" />
+                        Subir una o varias imágenes
+                      </>
+                    )}
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => addVariantImage(colorValue)}
-                    className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-border py-2.5 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground transition-all"
+                    className="flex w-full items-center justify-center gap-2 rounded-md border border-border py-2 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground transition-all"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Agregar imagen / diseño
+                    Agregar por URL manual
                   </button>
+
+                  {uploadError[colorValue] && (
+                    <p className="text-xs text-destructive">{uploadError[colorValue]}</p>
+                  )}
 
                   {variant.images.length === 0 && (
                     <p className="text-xs text-destructive">⚠️ Agrega al menos una imagen para este color</p>
