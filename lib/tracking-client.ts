@@ -22,7 +22,44 @@ function getValue(items: EcommerceItem[]) {
   return items.reduce((sum, item) => sum + item.price * item.quantity, 0)
 }
 
-export function trackAddToCart(item: EcommerceItem) {
+// eventId: mismo identificador que se envia al servidor (sendFacebookServerEvent)
+// para el evento equivalente, asi Meta deduplica el pixel del navegador con la
+// Conversions API en vez de contar el mismo evento dos veces.
+export function trackViewContent(item: EcommerceItem, eventId?: string) {
+  const currentWindow = getWindow()
+
+  if (typeof currentWindow.gtag === "function") {
+    currentWindow.gtag("event", "view_item", {
+      currency: "COP",
+      value: item.price,
+      items: [
+        {
+          item_id: item.id,
+          item_name: item.name,
+          item_category: item.category,
+          price: item.price,
+        },
+      ],
+    })
+  }
+
+  if (typeof currentWindow.fbq === "function") {
+    currentWindow.fbq(
+      "track",
+      "ViewContent",
+      {
+        content_ids: [item.id],
+        content_name: item.name,
+        content_type: "product",
+        value: item.price,
+        currency: "COP",
+      },
+      eventId ? { eventID: eventId } : undefined
+    )
+  }
+}
+
+export function trackAddToCart(item: EcommerceItem, eventId?: string) {
   const currentWindow = getWindow()
   const value = item.price * item.quantity
 
@@ -43,17 +80,22 @@ export function trackAddToCart(item: EcommerceItem) {
   }
 
   if (typeof currentWindow.fbq === "function") {
-    currentWindow.fbq("track", "AddToCart", {
-      content_ids: [item.id],
-      content_name: item.name,
-      content_type: "product",
-      value,
-      currency: "COP",
-    })
+    currentWindow.fbq(
+      "track",
+      "AddToCart",
+      {
+        content_ids: [item.id],
+        content_name: item.name,
+        content_type: "product",
+        value,
+        currency: "COP",
+      },
+      eventId ? { eventID: eventId } : undefined
+    )
   }
 }
 
-export function trackBeginCheckout(items: EcommerceItem[]) {
+export function trackBeginCheckout(items: EcommerceItem[], eventId?: string) {
   const currentWindow = getWindow()
   const value = getValue(items)
 
@@ -72,16 +114,21 @@ export function trackBeginCheckout(items: EcommerceItem[]) {
   }
 
   if (typeof currentWindow.fbq === "function") {
-    currentWindow.fbq("track", "InitiateCheckout", {
-      contents: items.map((item) => ({
-        id: item.id,
-        quantity: item.quantity,
-        item_price: item.price,
-      })),
-      num_items: items.reduce((sum, item) => sum + item.quantity, 0),
-      value,
-      currency: "COP",
-    })
+    currentWindow.fbq(
+      "track",
+      "InitiateCheckout",
+      {
+        contents: items.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          item_price: item.price,
+        })),
+        num_items: items.reduce((sum, item) => sum + item.quantity, 0),
+        value,
+        currency: "COP",
+      },
+      eventId ? { eventID: eventId } : undefined
+    )
   }
 }
 

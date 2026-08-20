@@ -26,6 +26,8 @@ export function CartSidebar() {
     try {
       setIsCheckingOut(true)
 
+      const checkoutEventId = `checkout-${Date.now()}`
+
       trackBeginCheckout(
         items.map((item) => ({
           id: getCatalogItemId(item.product.id, item.variantColor, item.variantSize),
@@ -33,12 +35,13 @@ export function CartSidebar() {
           category: item.product.category,
           price: item.product.price,
           quantity: item.quantity,
-        }))
+        })),
+        checkoutEventId
       )
 
       void sendFacebookServerEvent({
         eventName: "InitiateCheckout",
-        eventId: `checkout-${Date.now()}`,
+        eventId: checkoutEventId,
         customData: {
           currency: "COP",
           value: totalPrice,

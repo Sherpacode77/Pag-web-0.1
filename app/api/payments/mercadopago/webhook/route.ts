@@ -6,8 +6,52 @@ import {
   getOrderWithItemsByNumber,
   updateOrderPaymentStatus,
   type OrderStatus,
+  type OrderWithItems,
 } from "@/lib/db-orders"
 import { sendOrderPaidEmails } from "@/lib/email"
+import { sendFacebookCapiEvent } from "@/lib/facebook-capi"
+import { getCatalogItemId } from "@/lib/data"
+
+function getBaseUrl() {
+  return process.env.SITE_URL || "https://cerounobikes.com"
+}
+
+// Se envia server-side (a diferencia de AddToCart/InitiateCheckout, que ademas
+// disparan el pixel del navegador) porque es la unica confirmacion confiable
+// de una compra real -- el navegador puede cerrarse antes de volver del
+// checkout de MercadoPago. event_id fijo por pedido para que reintentos del
+// webhook no dupliquen el evento en Meta.
+async function sendPurchaseCapiEvent(orderWithItems: OrderWithItems) {
+  const contents = orderWithItems.items.map((item) => ({
+    id: getCatalogItemId(item.product_id, item.variant_color, item.variant_size),
+    quantity: item.quantity,
+    item_price: item.unit_price,
+  }))
+
+  const result = await sendFacebookCapiEvent({
+    eventName: "Purchase",
+    eventId: `purchase-${orderWithItems.order_number}`,
+    eventSourceUrl: `${getBaseUrl()}/tienda`,
+    actionSource: "website",
+    customData: {
+      currency: orderWithItems.currency || "COP",
+      value: orderWithItems.total,
+      content_type: "product",
+      contents,
+      content_ids: contents.map((c) => c.id),
+      num_items: orderWithItems.items.reduce((sum, item) => sum + item.quantity, 0),
+      order_id: orderWithItems.order_number,
+    },
+    userData: {
+      email: orderWithItems.customer_email,
+      phone: orderWithItems.customer_phone,
+    },
+  })
+
+  if (!result.ok) {
+    console.error("Error enviando Purchase a Meta Conversions API:", result.error, "details" in result ? result.details : undefined)
+  }
+}
 
 const STATUS_MAP: Record<string, OrderStatus> = {
   approved: "paid",
@@ -93,6 +137,9 @@ export async function POST(request: Request) {
       if (orderWithItems) {
         sendOrderPaidEmails(orderWithItems).catch((err) =>
           console.error("Error enviando correos de confirmación de pago:", err)
+        )
+        sendPurchaseCapiEvent(orderWithItems).catch((err) =>
+          console.error("Error enviando Purchase a Meta Conversions API:", err)
         )
       }
     }

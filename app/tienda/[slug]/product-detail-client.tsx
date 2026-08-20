@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -21,7 +21,7 @@ import { VariantSelector } from "@/components/variant-selector"
 import { DesignSelector } from "@/components/design-selector"
 import { SizeSelector } from "@/components/size-selector"
 import { formatPrice, getCatalogItemId } from "@/lib/data"
-import { trackAddToCart, sendFacebookServerEvent } from "@/lib/tracking-client"
+import { trackAddToCart, trackViewContent, sendFacebookServerEvent } from "@/lib/tracking-client"
 import type { Product } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
 
@@ -143,6 +143,35 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
 
   const selectedDesignName = selectedVariant?.images[activeImage]?.designName?.trim() || undefined
 
+  // Dispara ViewContent una sola vez por visita a la ficha, esperando a que
+  // se resuelva la variante/talla seleccionada (si el producto tiene) para
+  // reportar el content_id exacto del catalogo en vez de solo el producto base.
+  const viewContentFired = useRef(false)
+  useEffect(() => {
+    if (viewContentFired.current) return
+    if (product.hasVariants && effectiveVariants.length > 0 && !selectedVariant) return
+    if (hasSizes && effectiveSizes.length > 0 && !selectedSize) return
+    viewContentFired.current = true
+
+    const catalogItemId = getCatalogItemId(product.id, selectedVariant?.color, selectedSize?.size)
+    const eventId = `view-${catalogItemId}-${Date.now()}`
+
+    trackViewContent(
+      { id: catalogItemId, name: product.name, category: product.category, price: product.price, quantity: 1 },
+      eventId
+    )
+    void sendFacebookServerEvent({
+      eventName: "ViewContent",
+      eventId,
+      customData: {
+        currency: "COP",
+        value: product.price,
+        content_type: "product",
+        content_ids: [catalogItemId],
+      },
+    })
+  }, [product, effectiveVariants, selectedVariant, hasSizes, effectiveSizes, selectedSize])
+
   const handleAddToCart = () => {
     const variant = {
       variantColor: selectedVariant?.color,
@@ -155,16 +184,20 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
       addItem(product, variant)
     }
     const catalogItemId = getCatalogItemId(product.id, selectedVariant?.color, selectedSize?.size)
-    trackAddToCart({
-      id: catalogItemId,
-      name: product.name,
-      category: product.category,
-      price: product.price,
-      quantity,
-    })
+    const eventId = `add-${catalogItemId}-${Date.now()}`
+    trackAddToCart(
+      {
+        id: catalogItemId,
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        quantity,
+      },
+      eventId
+    )
     void sendFacebookServerEvent({
       eventName: "AddToCart",
-      eventId: `add-${product.id}-${Date.now()}`,
+      eventId,
       customData: {
         currency: "COP",
         value: product.price * quantity,
