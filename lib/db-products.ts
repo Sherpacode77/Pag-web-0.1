@@ -1,9 +1,31 @@
+import fs from "fs"
+import path from "path"
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise"
 import type { Product } from "@/lib/data"
+import { products as staticProducts } from "@/lib/data"
 import { ensureDbSchema, getDbPool, hasDatabaseUrl } from "@/lib/db"
+
+const PRODUCTS_FILE = path.join(process.cwd(), "lib", "products.json")
 
 export function isDbProductsEnabled() {
   return hasDatabaseUrl() && process.env.DB_PRODUCTS_ENABLED === "true"
+}
+
+// Fuente unica de productos con el mismo fallback usado por el feed de
+// catalogo y por los health checks: DB (si esta habilitada) -> products.json
+// -> lista estatica embebida en el codigo.
+export async function getAllProductsWithFallback(): Promise<Product[]> {
+  if (isDbProductsEnabled()) {
+    try {
+      return await readProductsFromDb()
+    } catch {}
+  }
+  try {
+    const data = fs.readFileSync(PRODUCTS_FILE, "utf-8")
+    return JSON.parse(data) as Product[]
+  } catch {
+    return staticProducts
+  }
 }
 
 function parsePayload(raw: unknown): Product {

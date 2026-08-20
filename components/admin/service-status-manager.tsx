@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { RefreshCw, AlertTriangle } from "lucide-react"
 
-type ServiceStatusValue = "ok" | "failing" | "unknown"
+type ServiceStatusValue = "ok" | "degraded" | "failing" | "unknown"
 
 type ServiceStatusRow = {
   service_id: string
@@ -35,7 +35,7 @@ function formatRelative(dateStr: string | null): string {
 // "Tiempo sin caidas": tiempo desde la ultima vez que fallo. Si nunca ha
 // fallado, se muestra desde la ultima vez que se confirmo funcionando.
 function formatUptime(row: ServiceStatusRow): string {
-  if (row.status === "failing") return "Con problemas ahora"
+  if (row.status === "failing" || row.status === "degraded") return "Con problemas ahora"
   const since = row.last_failure_at ?? row.last_ok_at
   if (!since) return "Sin datos"
   const diffMs = Date.now() - new Date(since).getTime()
@@ -48,12 +48,14 @@ function formatUptime(row: ServiceStatusRow): string {
 
 const STATUS_BADGE: Record<ServiceStatusValue, string> = {
   ok: "bg-green-500/10 text-green-600",
+  degraded: "bg-orange-500/10 text-orange-600",
   failing: "bg-red-500/10 text-red-600 animate-pulse",
   unknown: "bg-secondary text-muted-foreground",
 }
 
 const STATUS_LABEL: Record<ServiceStatusValue, string> = {
   ok: "OPERATIVO",
+  degraded: "DEGRADADO",
   failing: "CON PROBLEMAS",
   unknown: "SIN VERIFICAR",
 }
@@ -95,6 +97,7 @@ export function ServiceStatusManager() {
   }
 
   const failingCount = rows.filter((r) => r.status === "failing").length
+  const degradedCount = rows.filter((r) => r.status === "degraded").length
 
   return (
     <div className="flex flex-col gap-6">
@@ -120,6 +123,13 @@ export function ServiceStatusManager() {
         <div className="flex items-center gap-2 rounded-sm border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
           {failingCount} servicio{failingCount !== 1 ? "s" : ""} con problemas en este momento.
+        </div>
+      )}
+
+      {degradedCount > 0 && (
+        <div className="flex items-center gap-2 rounded-sm border border-orange-500/40 bg-orange-500/5 px-4 py-3 text-sm text-orange-600">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          {degradedCount} servicio{degradedCount !== 1 ? "s" : ""} degradado{degradedCount !== 1 ? "s" : ""} (fallas parciales) en este momento.
         </div>
       )}
 

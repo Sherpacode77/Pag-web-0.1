@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import fs from "fs"
-import path from "path"
 import type { Product, ProductVariant, ProductSizeVariant } from "@/lib/data"
-import { products as staticProducts, getCatalogItemId } from "@/lib/data"
-import { isDbProductsEnabled, readProductsFromDb } from "@/lib/db-products"
+import { getCatalogItemId } from "@/lib/data"
+import { getAllProductsWithFallback } from "@/lib/db-products"
 import { isDbInventoryEnabled, getInventoryFromDb } from "@/lib/db-inventory"
 
 export const runtime = "nodejs"
 
-const PRODUCTS_FILE = path.join(process.cwd(), "lib", "products.json")
 const SITE_URL = (process.env.SITE_URL || "https://cerounobikes.com").replace(/\/+$/, "")
 const BRAND = "CERO.UNO"
 
@@ -33,20 +30,6 @@ const FEED_COLUMNS = [
 // (producto/variante disponible por defecto, pero sin conteo real todavia).
 // Meta exige un numero >= 1 para que el item se pueda mostrar/vender.
 const DEFAULT_QUANTITY = 999
-
-async function getAllProducts(): Promise<Product[]> {
-  if (isDbProductsEnabled()) {
-    try {
-      return await readProductsFromDb()
-    } catch {}
-  }
-  try {
-    const data = fs.readFileSync(PRODUCTS_FILE, "utf-8")
-    return JSON.parse(data) as Product[]
-  } catch {
-    return staticProducts
-  }
-}
 
 type InventoryRowLite = { color: string; size: string; available: boolean; quantity: number }
 type InventoryByProduct = Map<string, InventoryRowLite[]>
@@ -196,7 +179,7 @@ export async function GET(request: NextRequest) {
   }
 
   const [allProducts, inventoryByProduct] = await Promise.all([
-    getAllProducts(),
+    getAllProductsWithFallback(),
     getInventoryByProduct(),
   ])
 

@@ -5,7 +5,7 @@ export function isServiceStatusDbEnabled() {
   return hasDatabaseUrl()
 }
 
-export type ServiceStatusValue = "ok" | "failing" | "unknown"
+export type ServiceStatusValue = "ok" | "degraded" | "failing" | "unknown"
 
 export type ServiceStatusRow = {
   service_id: string

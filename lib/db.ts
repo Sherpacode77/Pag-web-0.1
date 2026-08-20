@@ -356,7 +356,7 @@ async function runSchemaSetup() {
     CREATE TABLE IF NOT EXISTS app_service_status (
       service_id           VARCHAR(64)   NOT NULL PRIMARY KEY,
       service_name         VARCHAR(120)  NOT NULL,
-      status                ENUM('ok','failing','unknown') NOT NULL DEFAULT 'unknown',
+      status                ENUM('ok','degraded','failing','unknown') NOT NULL DEFAULT 'unknown',
       last_checked_at       DATETIME      NULL,
       last_ok_at            DATETIME      NULL,
       last_failure_at       DATETIME      NULL,
@@ -366,6 +366,13 @@ async function runSchemaSetup() {
       consecutive_failures  INT           NOT NULL DEFAULT 0,
       updated_at            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  // Migración segura: agrega el estado "degraded" (naranja) para servicios con fallas parciales.
+  // MODIFY COLUMN es idempotente por naturaleza — no falla si ya incluye 'degraded'.
+  await pool.execute(`
+    ALTER TABLE app_service_status
+    MODIFY COLUMN status ENUM('ok','degraded','failing','unknown') NOT NULL DEFAULT 'unknown'
   `)
 
   await createIndexSafe(pool, "CREATE INDEX idx_app_products_slug ON app_products(slug)")

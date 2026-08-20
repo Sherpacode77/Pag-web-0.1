@@ -1,4 +1,5 @@
 import { hasDatabaseUrl, getDbPool } from "@/lib/db"
+import { getAllProductsWithFallback } from "@/lib/db-products"
 import {
   upsertServiceStatus,
   getServiceStatusById,
@@ -14,6 +15,7 @@ function getSiteUrl() {
 
 type CheckOutcome = {
   ok: boolean
+  degraded?: boolean
   errorType?: string
   errorMessage?: string
 }
@@ -49,6 +51,45 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
   } finally {
     clearTimeout(timer)
   }
+}
+
+function absoluteMediaUrl(mediaPath: string): string {
+  if (/^https?:\/\//i.test(mediaPath)) return mediaPath
+  return `${getSiteUrl()}${mediaPath.startsWith("/") ? mediaPath : `/${mediaPath}`}`
+}
+
+// Verifica que una URL de imagen/video responda correctamente. Usa HEAD
+// primero (mas liviano); si el servidor no lo soporta, reintenta con GET.
+async function isUrlReachable(url: string): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(url, { method: "HEAD", cache: "no-store" }, 8000)
+    if (res.ok) return true
+    if (res.status !== 405 && res.status !== 501) return false
+  } catch {
+    // sigue al intento con GET
+  }
+  try {
+    const res = await fetchWithTimeout(url, { method: "GET", cache: "no-store" }, 8000)
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+// Corre `isUrlReachable` sobre una lista de URLs con concurrencia limitada
+// para no saturar el CDN/servidor con demasiadas solicitudes simultaneas.
+async function checkUrlsReachability(urls: string[], concurrency = 6): Promise<Map<string, boolean>> {
+  const results = new Map<string, boolean>()
+  let index = 0
+  async function worker() {
+    while (index < urls.length) {
+      const current = urls[index]
+      index += 1
+      results.set(current, await isUrlReachable(current))
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, urls.length) }, worker))
+  return results
 }
 
 const CHECKS: ServiceCheck[] = [
@@ -121,9 +162,56 @@ const CHECKS: ServiceCheck[] = [
         return { ok: false, errorType: `http_${res.status}`, errorMessage: `El feed respondio ${res.status}` }
       }
       const text = await res.text()
-      if (!text.startsWith("id\t")) {
+      const lines = text.split("\n").filter((line) => line.trim().length > 0)
+      if (lines.length === 0 || !lines[0].startsWith("id\t")) {
         return { ok: false, errorType: "formato_invalido", errorMessage: "El feed no empieza con el encabezado esperado" }
       }
+
+      const header = lines[0].split("\t")
+      const imageLinkIndex = header.indexOf("image_link")
+      const imageUrls = new Set<string>()
+      if (imageLinkIndex !== -1) {
+        for (const line of lines.slice(1)) {
+          const value = line.split("\t")[imageLinkIndex]
+          if (value) imageUrls.add(value)
+        }
+      }
+
+      const videoUrls = new Set<string>()
+      try {
+        const products = await getAllProductsWithFallback()
+        for (const product of products) {
+          for (const video of product.videos ?? []) {
+            videoUrls.add(absoluteMediaUrl(video))
+          }
+        }
+      } catch {
+        // si falla la lectura de productos para videos, seguimos solo con imagenes
+      }
+
+      const [imageResults, videoResults] = await Promise.all([
+        checkUrlsReachability([...imageUrls]),
+        checkUrlsReachability([...videoUrls]),
+      ])
+
+      const brokenImages = [...imageResults.values()].filter((ok) => !ok).length
+      const brokenVideos = [...videoResults.values()].filter((ok) => !ok).length
+      const totalChecked = imageResults.size + videoResults.size
+
+      if (brokenImages > 0 || brokenVideos > 0) {
+        const parts: string[] = []
+        if (brokenImages > 0) parts.push(`${brokenImages} imagen${brokenImages === 1 ? "" : "es"}`)
+        if (brokenVideos > 0) parts.push(`${brokenVideos} video${brokenVideos === 1 ? "" : "s"}`)
+        const brokenTotal = brokenImages + brokenVideos
+        const percent = totalChecked > 0 ? Math.round((brokenTotal / totalChecked) * 100) : 0
+        return {
+          ok: false,
+          degraded: true,
+          errorType: "media_rota",
+          errorMessage: `${parts.join(" y ")} rota${brokenTotal === 1 ? "" : "s"} o inaccesible${brokenTotal === 1 ? "" : "s"} de ${totalChecked} archivos revisados (${percent}%)`,
+        }
+      }
+
       return { ok: true }
     },
   },
@@ -173,11 +261,17 @@ export async function runAllServiceChecks(): Promise<ServiceCheckRunResult[]> {
       const previous = await getServiceStatusById(check.id).catch(() => null)
 
       const isNoteOnly = outcome.ok && outcome.errorType === "no_configurada"
-      const status: ServiceStatusValue = isNoteOnly ? "unknown" : outcome.ok ? "ok" : "failing"
+      const status: ServiceStatusValue = isNoteOnly
+        ? "unknown"
+        : outcome.ok
+          ? "ok"
+          : outcome.degraded
+            ? "degraded"
+            : "failing"
 
       const now = new Date()
       const consecutiveFailures =
-        status === "failing" ? (previous?.consecutive_failures ?? 0) + 1 : 0
+        status === "failing" || status === "degraded" ? (previous?.consecutive_failures ?? 0) + 1 : 0
 
       await upsertServiceStatus({
         serviceId: check.id,
@@ -185,7 +279,11 @@ export async function runAllServiceChecks(): Promise<ServiceCheckRunResult[]> {
         status,
         lastOkAt: status === "ok" ? now : previous?.last_ok_at ? new Date(previous.last_ok_at) : null,
         lastFailureAt:
-          status === "failing" ? now : previous?.last_failure_at ? new Date(previous.last_failure_at) : null,
+          status === "failing" || status === "degraded"
+            ? now
+            : previous?.last_failure_at
+              ? new Date(previous.last_failure_at)
+              : null,
         errorType: outcome.errorType ?? null,
         errorMessage: outcome.errorMessage ?? null,
         responseTimeMs: outcome.responseTimeMs,
