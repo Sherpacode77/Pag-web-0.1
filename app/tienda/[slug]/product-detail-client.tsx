@@ -40,6 +40,7 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
   const [activeImage, setActiveImage] = useState(0)
   const [activeMediaType, setActiveMediaType] = useState<"image" | "video">("image")
   const [activeVideoIndex, setActiveVideoIndex] = useState(0)
+  const [isPortraitVideo, setIsPortraitVideo] = useState(false)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null)
 
@@ -133,6 +134,13 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
     }
   }, [selectedVariant, displayVideos.length, activeMediaType])
 
+  // Videos verticales (tipo reel) no deben forzarse al recuadro cuadrado de
+  // las fotos: se detecta la orientacion real al cargar metadata y se ajusta
+  // el contenedor para no recortar el video.
+  useEffect(() => {
+    setIsPortraitVideo(false)
+  }, [currentVideo])
+
   const selectedDesignName = selectedVariant?.images[activeImage]?.designName?.trim() || undefined
 
   const handleAddToCart = () => {
@@ -189,7 +197,13 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-16">
             {/* Images & Videos */}
             <div className="flex flex-col gap-4">
-              <div className="relative aspect-square overflow-hidden bg-secondary">
+              <div
+                className={
+                  activeMediaType === "video" && isPortraitVideo
+                    ? "relative mx-auto aspect-[9/16] w-full max-w-[420px] overflow-hidden bg-black"
+                    : "relative aspect-square overflow-hidden bg-secondary"
+                }
+              >
                 {activeMediaType === "image" ? (
                   <Image
                     src={assetUrl(displayImages[activeImage] || product.image || "/placeholder.svg")}
@@ -203,11 +217,15 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
                   <video
                     key={currentVideo}
                     src={assetUrl(currentVideo)}
-                    className="w-full h-full object-cover"
+                    className={`w-full h-full ${isPortraitVideo ? "object-contain" : "object-cover"}`}
                     controls
                     autoPlay
                     loop
                     playsInline
+                    onLoadedMetadata={(e) => {
+                      const el = e.currentTarget
+                      setIsPortraitVideo(el.videoHeight > el.videoWidth)
+                    }}
                   />
                 )}
                 {product.originalPrice && (

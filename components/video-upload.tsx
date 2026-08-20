@@ -217,10 +217,10 @@ export function VideoUpload({
               key={videoPath}
               className="relative rounded-lg overflow-hidden border-2 border-border bg-secondary group"
             >
-              <div className="relative aspect-square">
+              <div className="relative aspect-square bg-black">
                 <video
                   src={assetUrl(videoPath)}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   muted
                   playsInline
                 />
