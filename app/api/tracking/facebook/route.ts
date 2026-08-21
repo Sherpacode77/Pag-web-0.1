@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { getClientIp } from "@/lib/auth"
 import { sendFacebookCapiEvent, type FacebookCapiUserData } from "@/lib/facebook-capi"
 
 type FacebookTrackingPayload = {
@@ -9,7 +10,7 @@ type FacebookTrackingPayload = {
   userData?: FacebookCapiUserData
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as FacebookTrackingPayload
     if (!body.eventName) {
@@ -19,12 +20,20 @@ export async function POST(request: Request) {
       )
     }
 
+    // Meta exige al menos un parametro de informacion de cliente por evento.
+    // IP y user-agent los tomamos siempre del request (el navegador no puede
+    // falsificarlos ni omitirlos), fbp/fbc/email/telefono son los que manda
+    // el cliente cuando los tiene disponibles.
     const result = await sendFacebookCapiEvent({
       eventName: body.eventName,
       eventId: body.eventId,
       eventSourceUrl: body.eventSourceUrl,
       customData: body.customData,
-      userData: body.userData,
+      userData: {
+        ...body.userData,
+        clientIpAddress: body.userData?.clientIpAddress || getClientIp(request),
+        clientUserAgent: body.userData?.clientUserAgent || request.headers.get("user-agent"),
+      },
     })
 
     if (!result.ok) {

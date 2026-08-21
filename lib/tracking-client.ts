@@ -132,6 +132,11 @@ export function trackBeginCheckout(items: EcommerceItem[], eventId?: string) {
   }
 }
 
+function getCookie(name: string): string | undefined {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : undefined
+}
+
 export async function sendFacebookServerEvent(input: {
   eventName: string
   eventId?: string
@@ -139,6 +144,9 @@ export async function sendFacebookServerEvent(input: {
   userData?: Record<string, unknown>
 }) {
   try {
+    // _fbp/_fbc los pone el propio pixel del navegador -- reenviarlos mejora
+    // la calidad de coincidencia de Meta entre el evento del navegador y el
+    // de la Conversions API.
     await fetch("/api/tracking/facebook", {
       method: "POST",
       headers: {
@@ -149,7 +157,11 @@ export async function sendFacebookServerEvent(input: {
         eventId: input.eventId,
         eventSourceUrl: window.location.href,
         customData: input.customData,
-        userData: input.userData,
+        userData: {
+          ...input.userData,
+          fbp: getCookie("_fbp"),
+          fbc: getCookie("_fbc"),
+        },
       }),
     })
   } catch {
