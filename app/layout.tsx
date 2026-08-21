@@ -75,7 +75,7 @@ export const metadata: Metadata = {
   // Verificación de propiedad
   verification: {
     other: {
-      "facebook-domain-verification": "i7u5bxh7qmzOhs7730kswjapouiu6q",
+      "facebook-domain-verification": "i7u5bxh7qmz0hs7730kswjapouiu6q",
     },
   },
   
