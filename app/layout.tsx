@@ -72,11 +72,12 @@ export const metadata: Metadata = {
     creator: "@cerouno", // Cambiar por tu usuario de Twitter
   },
   
-  // Verificación de propiedad (agregar cuando tengas las cuentas)
-  // verification: {
-  //   google: "tu-codigo-de-verificacion",
-  //   yandex: "tu-codigo-yandex",
-  // },
+  // Verificación de propiedad
+  verification: {
+    other: {
+      "facebook-domain-verification": "i7u5bxh7qmzOhs7730kswjapouiu6q",
+    },
+  },
   
   // Robots
   robots: {
