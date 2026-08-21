@@ -375,6 +375,44 @@ async function runSchemaSetup() {
     MODIFY COLUMN status ENUM('ok','degraded','failing','unknown') NOT NULL DEFAULT 'unknown'
   `)
 
+  // 13. Atribucion de ventas cerradas por WhatsApp: se genera un codigo corto
+  // cuando un visitante llega desde un anuncio, y se agrega como referencia
+  // al mensaje de WhatsApp que se abre, para poder registrar despues a que
+  // campana corresponde la venta cerrada fuera del sitio.
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_whatsapp_referrals (
+      id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+      code          VARCHAR(10)   NOT NULL UNIQUE,
+      utm_source    VARCHAR(100)  NULL,
+      utm_campaign  VARCHAR(150)  NULL,
+      utm_medium    VARCHAR(100)  NULL,
+      fbclid        VARCHAR(255)  NULL,
+      gclid         VARCHAR(255)  NULL,
+      ttclid        VARCHAR(255)  NULL,
+      landing_page  VARCHAR(500)  NULL,
+      created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  // 14. Ventas registradas manualmente por el equipo cuando se cierran por
+  // WhatsApp en vez del checkout del sitio. referral_code es opcional --
+  // referencia a app_whatsapp_referrals.code, sin FK (el registro puede
+  // hacerse aunque no se tenga o encuentre el codigo).
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_whatsapp_sales (
+      id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+      referral_code  VARCHAR(10)    NULL,
+      channel        ENUM('meta','google','tiktok','organico','otro') NOT NULL DEFAULT 'otro',
+      campaign_name  VARCHAR(150)   NULL,
+      amount         DECIMAL(15,2)  NOT NULL,
+      customer_name  VARCHAR(200)   NULL,
+      note           TEXT           NULL,
+      sale_date      DATE           NOT NULL,
+      created_by     VARCHAR(100)   NULL,
+      created_at     DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   await createIndexSafe(pool, "CREATE INDEX idx_app_products_slug ON app_products(slug)")
   await createIndexSafe(pool, "CREATE UNIQUE INDEX uq_app_products_sku_prefix ON app_products(sku_prefix)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_customers_email ON app_customers(email)")
@@ -394,6 +432,8 @@ async function runSchemaSetup() {
   await createIndexSafe(pool, "CREATE INDEX idx_app_contact_status ON app_contact_messages(status)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_contact_created ON app_contact_messages(created_at)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_service_status_status ON app_service_status(status)")
+  await createIndexSafe(pool, "CREATE INDEX idx_app_whatsapp_sales_channel_date ON app_whatsapp_sales(channel, sale_date)")
+  await createIndexSafe(pool, "CREATE INDEX idx_app_whatsapp_sales_referral ON app_whatsapp_sales(referral_code)")
 }
 
 export async function ensureDbSchema() {

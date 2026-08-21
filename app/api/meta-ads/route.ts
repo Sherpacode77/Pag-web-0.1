@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   const accountId = searchParams.get("account") || accounts[0].id
   const since = searchParams.get("since") || ""
   const until = searchParams.get("until") || ""
+  const campaignId = searchParams.get("campaign") || null
 
   const account = accounts.find((a) => a.id === accountId)
   if (!account) {
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const report = await getAdsReport(account.id, account.label, since, until)
+    const report = await getAdsReport(account.id, account.label, since, until, campaignId)
     return NextResponse.json({ configured: true, accounts, report })
   } catch (error) {
     console.error("GET /api/meta-ads:", error)

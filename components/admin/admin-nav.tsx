@@ -25,7 +25,7 @@ export function AdminNav() {
     { href: "/admin/pedidos", label: "Pedidos", icon: Receipt },
     { href: "/admin/ofertas", label: "Ofertas", icon: Tag },
     { href: "/admin/cupones", label: "Cupones", icon: Ticket },
-    { href: "/admin/meta-ads", label: "Meta Ads", icon: TrendingUp },
+    { href: "/admin/ventas", label: "Ventas", icon: TrendingUp },
     { href: "/admin/trafico", label: "Tráfico", icon: BarChart3 },
     { href: "/admin/servicios", label: "Estado de Servicios", icon: Activity },
   ]

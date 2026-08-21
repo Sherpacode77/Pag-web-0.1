@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import Script from "next/script"
 import { usePathname } from "next/navigation"
+import { captureAdClickAttribution } from "@/lib/whatsapp-attribution"
 
 type AnalyticsWindow = Window & {
   dataLayer?: Array<Record<string, unknown>>
@@ -42,6 +43,8 @@ export function AnalyticsManager() {
         page_location: window.location.href,
       })
     }
+
+    captureAdClickAttribution()
   }, [pathname])
 
   return (

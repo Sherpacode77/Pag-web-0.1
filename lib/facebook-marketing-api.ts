@@ -82,13 +82,41 @@ export type AdsAccountSummary = {
   roas: number | null
 }
 
+// Porcentaje de cambio contra el periodo anterior, por metrica. null en una
+// metrica puntual significa que no se puede calcular (el valor anterior era
+// cero), no que haya empeorado o mejorado.
+export type PeriodComparison = {
+  spend: number | null
+  impressions: number | null
+  clicks: number | null
+  ctr: number | null
+  cpc: number | null
+  addToCart: number | null
+  initiateCheckout: number | null
+  purchases: number | null
+  purchaseValue: number | null
+  costPerPurchase: number | null
+  roas: number | null
+}
+
+export type ActiveCampaignOption = {
+  id: string
+  name: string
+}
+
 export type AdsReport = {
   accountId: string
   accountLabel: string
   since: string
   until: string
+  previousSince: string
+  previousUntil: string
+  selectedCampaignId: string | null
   summary: AdsAccountSummary
+  previousSummary: AdsAccountSummary | null
+  comparison: PeriodComparison | null
   campaigns: CampaignPerformance[]
+  activeCampaigns: ActiveCampaignOption[]
 }
 
 function num(value: string | undefined): number {
@@ -106,9 +134,11 @@ function sumActions(actions: FacebookActionValue[] | undefined, matchTypes: stri
     .reduce((sum, a) => sum + num(a.value), 0)
 }
 
-function buildSummary(rows: { row: RawInsightsRow; derived: Omit<CampaignPerformance, "campaignId" | "campaignName" | "status" | "objective"> }[]): AdsAccountSummary {
-  const totals = rows.reduce(
-    (acc, { derived }) => ({
+type DerivedRow = Omit<CampaignPerformance, "campaignId" | "campaignName" | "status" | "objective">
+
+function buildSummary(derivedRows: DerivedRow[]): AdsAccountSummary {
+  const totals = derivedRows.reduce(
+    (acc, derived) => ({
       spend: acc.spend + derived.spend,
       impressions: acc.impressions + derived.impressions,
       reach: acc.reach + derived.reach,
@@ -132,7 +162,7 @@ function buildSummary(rows: { row: RawInsightsRow; derived: Omit<CampaignPerform
   }
 }
 
-function deriveRow(row: RawInsightsRow) {
+function deriveRow(row: RawInsightsRow): DerivedRow {
   const spend = num(row.spend)
   const impressions = num(row.impressions)
   const clicks = num(row.clicks)
@@ -157,6 +187,45 @@ function deriveRow(row: RawInsightsRow) {
     costPerPurchase: purchases > 0 ? spend / purchases : null,
     roas: spend > 0 && purchaseValue > 0 ? purchaseValue / spend : null,
   }
+}
+
+// null cuando el valor anterior es 0 -- no tiene sentido reportar un
+// porcentaje de cambio contra una base de cero (seria +Infinity%).
+function percentChange(current: number, previous: number): number | null {
+  if (!previous) return null
+  return ((current - previous) / previous) * 100
+}
+
+function buildComparison(current: AdsAccountSummary, previous: AdsAccountSummary): PeriodComparison {
+  return {
+    spend: percentChange(current.spend, previous.spend),
+    impressions: percentChange(current.impressions, previous.impressions),
+    clicks: percentChange(current.clicks, previous.clicks),
+    ctr: percentChange(current.ctr, previous.ctr),
+    cpc: percentChange(current.cpc, previous.cpc),
+    addToCart: percentChange(current.addToCart, previous.addToCart),
+    initiateCheckout: percentChange(current.initiateCheckout, previous.initiateCheckout),
+    purchases: percentChange(current.purchases, previous.purchases),
+    purchaseValue: percentChange(current.purchaseValue, previous.purchaseValue),
+    costPerPurchase:
+      current.costPerPurchase !== null && previous.costPerPurchase !== null
+        ? percentChange(current.costPerPurchase, previous.costPerPurchase)
+        : null,
+    roas: current.roas !== null && previous.roas !== null ? percentChange(current.roas, previous.roas) : null,
+  }
+}
+
+// Rango de igual longitud inmediatamente anterior a [since, until].
+function getPreviousPeriod(since: string, until: string): { previousSince: string; previousUntil: string } {
+  const sinceDate = new Date(`${since}T00:00:00Z`)
+  const untilDate = new Date(`${until}T00:00:00Z`)
+  const daysInRange = Math.round((untilDate.getTime() - sinceDate.getTime()) / 86400000) + 1
+
+  const previousUntilDate = new Date(sinceDate.getTime() - 86400000)
+  const previousSinceDate = new Date(previousUntilDate.getTime() - (daysInRange - 1) * 86400000)
+
+  const toISO = (d: Date) => d.toISOString().slice(0, 10)
+  return { previousSince: toISO(previousSinceDate), previousUntil: toISO(previousUntilDate) }
 }
 
 const INSIGHTS_FIELDS = [
@@ -195,7 +264,7 @@ async function fetchInsightsRows(accountId: string, since: string, until: string
   return data.data ?? []
 }
 
-type CampaignStatusInfo = { status: string; objective: string }
+type CampaignStatusInfo = { name: string; status: string; objective: string }
 
 async function fetchCampaignStatuses(accountId: string): Promise<Map<string, CampaignStatusInfo>> {
   const token = process.env.FACEBOOK_MARKETING_ACCESS_TOKEN
@@ -208,18 +277,27 @@ async function fetchCampaignStatuses(accountId: string): Promise<Map<string, Cam
 
   const res = await fetch(url.toString(), { cache: "no-store" })
   const data = (await res.json()) as {
-    data?: { id: string; status: string; objective: string }[]
+    data?: { id: string; name: string; status: string; objective: string }[]
     error?: { message: string }
   }
 
   if (!res.ok || data.error || !data.data) return new Map()
 
-  return new Map(data.data.map((c) => [c.id, { status: c.status, objective: c.objective }]))
+  return new Map(data.data.map((c) => [c.id, { name: c.name, status: c.status, objective: c.objective }]))
 }
 
-export async function getAdsReport(accountId: string, accountLabel: string, since: string, until: string): Promise<AdsReport> {
-  const [rows, statusMap] = await Promise.all([
+export async function getAdsReport(
+  accountId: string,
+  accountLabel: string,
+  since: string,
+  until: string,
+  campaignId?: string | null
+): Promise<AdsReport> {
+  const { previousSince, previousUntil } = getPreviousPeriod(since, until)
+
+  const [rows, previousRows, statusMap] = await Promise.all([
     fetchInsightsRows(accountId, since, until),
+    fetchInsightsRows(accountId, previousSince, previousUntil),
     fetchCampaignStatuses(accountId),
   ])
 
@@ -235,12 +313,37 @@ export async function getAdsReport(accountId: string, accountLabel: string, sinc
     }))
     .sort((a, b) => b.spend - a.spend)
 
+  const activeCampaigns: ActiveCampaignOption[] = Array.from(statusMap.entries())
+    .filter(([, info]) => info.status === "ACTIVE")
+    .map(([id, info]) => ({ id, name: info.name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  // Si se selecciono una campana especifica, el resumen refleja solo esa
+  // campana (no el total de la cuenta) -- tanto para el periodo actual como
+  // el anterior, para que la comparacion siga siendo correcta.
+  const currentDerived = campaignId
+    ? enriched.filter(({ row }) => row.campaign_id === campaignId).map(({ derived }) => derived)
+    : enriched.map(({ derived }) => derived)
+
+  const previousDerived = (
+    campaignId ? previousRows.filter((row) => row.campaign_id === campaignId) : previousRows
+  ).map(deriveRow)
+
+  const summary = buildSummary(currentDerived)
+  const previousSummary = previousRows.length > 0 ? buildSummary(previousDerived) : null
+
   return {
     accountId,
     accountLabel,
     since,
     until,
-    summary: buildSummary(enriched),
+    previousSince,
+    previousUntil,
+    selectedCampaignId: campaignId ?? null,
+    summary,
+    previousSummary,
+    comparison: previousSummary ? buildComparison(summary, previousSummary) : null,
     campaigns,
+    activeCampaigns,
   }
 }

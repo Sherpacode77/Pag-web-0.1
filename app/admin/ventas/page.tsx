@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { AdminNav } from "@/components/admin/admin-nav"
-import { MetaAdsDashboard } from "@/components/admin/meta-ads-dashboard"
+import { VentasDashboard } from "@/components/admin/ventas-dashboard"
 
-export default function AdminMetaAdsPage() {
+export default function AdminVentasPage() {
   const [checking, setChecking] = useState(true)
   const router = useRouter()
 
@@ -41,7 +41,7 @@ export default function AdminMetaAdsPage() {
     <div className="min-h-screen bg-background">
       <AdminNav />
       <main className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-        <MetaAdsDashboard />
+        <VentasDashboard />
       </main>
     </div>
   )

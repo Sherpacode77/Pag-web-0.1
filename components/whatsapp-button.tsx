@@ -1,10 +1,21 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { getWhatsAppReferralCode } from "@/lib/whatsapp-attribution"
 
 export function WhatsAppButton() {
+  const [referralCode, setReferralCode] = useState<string | null>(null)
+
+  useEffect(() => {
+    setReferralCode(getWhatsAppReferralCode())
+  }, [])
+
   const whatsappNumber = "+573114755825"
-  const whatsappUrl = `https://wa.me/573114755825`
+  const message = referralCode
+    ? `Hola! Quiero más información (código: ${referralCode})`
+    : "Hola! Quiero más información"
+  const whatsappUrl = `https://wa.me/573114755825?text=${encodeURIComponent(message)}`
 
   return (
     <Link
