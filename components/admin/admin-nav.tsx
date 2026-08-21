@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LogOut, Package, Boxes, Tag, Receipt, Ticket, Activity, TrendingUp } from "lucide-react"
+import { LogOut, Package, Boxes, Tag, Receipt, Ticket, Activity, TrendingUp, BarChart3 } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
 
 export function AdminNav() {
@@ -26,6 +26,7 @@ export function AdminNav() {
     { href: "/admin/ofertas", label: "Ofertas", icon: Tag },
     { href: "/admin/cupones", label: "Cupones", icon: Ticket },
     { href: "/admin/meta-ads", label: "Meta Ads", icon: TrendingUp },
+    { href: "/admin/trafico", label: "Tráfico", icon: BarChart3 },
     { href: "/admin/servicios", label: "Estado de Servicios", icon: Activity },
   ]
 
