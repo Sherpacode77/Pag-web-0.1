@@ -57,6 +57,10 @@ function formatDuration(seconds: number): string {
   return `${m}m ${s}s`
 }
 
+function formatCop(value: number): string {
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value)
+}
+
 const CHANNEL_LABEL: Record<string, string> = {
   "Organic Search": "Búsqueda orgánica",
   "Paid Search": "Búsqueda pagada",
@@ -129,6 +133,10 @@ export function SiteTrafficDashboard() {
       { label: "Tasa de rebote", value: formatPercent(s.bounceRate) },
       { label: "Tasa de interacción", value: formatPercent(s.engagementRate) },
       { label: "Eventos totales", value: formatNumber(s.eventCount) },
+      { label: "Carritos iniciados", value: formatNumber(s.cartsStarted) },
+      { label: "Ventas generadas", value: formatNumber(report.sales.salesCount) },
+      { label: "Productos vendidos", value: formatNumber(report.sales.unitsSold) },
+      { label: "Ingresos por ventas", value: formatCop(report.sales.revenue) },
     ]
   }, [report])
 
@@ -324,6 +332,11 @@ export function SiteTrafficDashboard() {
           </div>
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        Estos datos excluyen las visitas al panel de administración (/admin) — solo reflejan el comportamiento de clientes
+        en la tienda. Ventas, productos vendidos e ingresos vienen de los pedidos reales del sitio, no de Google Analytics.
+      </p>
     </div>
   )
 }

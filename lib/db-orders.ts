@@ -297,3 +297,43 @@ export async function listOrdersWithItems(limit = 200): Promise<OrderWithItems[]
     items: itemsByOrder.get(order.id) ?? [],
   }))
 }
+
+export type SalesStats = {
+  salesCount: number
+  unitsSold: number
+  revenue: number
+}
+
+// Ventas reales confirmadas (pedidos que pasaron a "paid") dentro de un rango
+// de fechas, usando app_order_status_history (el momento exacto de la
+// transicion) en vez de created_at/updated_at de app_orders, que no reflejan
+// cuando el pago se confirmo realmente.
+export async function getSalesStatsForDateRange(since: string, until: string): Promise<SalesStats> {
+  await ensureDbSchema()
+  const pool = getDbPool()
+
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT
+       COUNT(*) AS sales_count,
+       COALESCE(SUM(oi.total_quantity), 0) AS units_sold,
+       COALESCE(SUM(oi.total_subtotal), 0) AS revenue
+     FROM (
+       SELECT DISTINCT order_id
+       FROM app_order_status_history
+       WHERE to_status = 'paid' AND created_at BETWEEN ? AND ?
+     ) paid_orders
+     JOIN (
+       SELECT order_id, SUM(quantity) AS total_quantity, SUM(subtotal) AS total_subtotal
+       FROM app_order_items
+       GROUP BY order_id
+     ) oi ON oi.order_id = paid_orders.order_id`,
+    [`${since} 00:00:00`, `${until} 23:59:59`]
+  )
+
+  const row = rows[0]
+  return {
+    salesCount: Number(row?.sales_count ?? 0),
+    unitsSold: Number(row?.units_sold ?? 0),
+    revenue: Number(row?.revenue ?? 0),
+  }
+}

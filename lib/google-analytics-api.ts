@@ -1,4 +1,5 @@
 import { BetaAnalyticsDataClient } from "@google-analytics/data"
+import { getSalesStatsForDateRange } from "@/lib/db-orders"
 
 export function isGoogleAnalyticsConfigured() {
   return Boolean(
@@ -26,6 +27,18 @@ function getPropertyPath(): string {
   return `properties/${process.env.GOOGLE_ANALYTICS_PROPERTY_ID}`
 }
 
+// Excluye el panel de administracion de todos los reportes -- solo interesa
+// el comportamiento real de clientes en la tienda, no el trafico del equipo
+// gestionando el catalogo/pedidos.
+const EXCLUDE_ADMIN_FILTER = {
+  notExpression: {
+    filter: {
+      fieldName: "pagePath",
+      stringFilter: { matchType: "BEGINS_WITH" as const, value: "/admin" },
+    },
+  },
+}
+
 export type TrafficSummary = {
   activeUsers: number
   newUsers: number
@@ -35,6 +48,7 @@ export type TrafficSummary = {
   bounceRate: number
   engagementRate: number
   eventCount: number
+  cartsStarted: number
 }
 
 export type ChannelRow = {
@@ -58,6 +72,11 @@ export type TrafficReport = {
   summary: TrafficSummary
   channels: ChannelRow[]
   topPages: PageRow[]
+  sales: {
+    salesCount: number
+    unitsSold: number
+    revenue: number
+  }
 }
 
 function num(value: string | null | undefined): number {
@@ -81,14 +100,15 @@ export async function getTrafficReport(since: string, until: string): Promise<Tr
   const property = getPropertyPath()
   const dateRanges = [{ startDate: since, endDate: until }]
 
-  const [summaryResp, channelResp, pagesResp] = await Promise.all([
-    client.runReport({ property, dateRanges, metrics: SUMMARY_METRICS }),
+  const [summaryResp, channelResp, pagesResp, cartsResp, sales] = await Promise.all([
+    client.runReport({ property, dateRanges, metrics: SUMMARY_METRICS, dimensionFilter: EXCLUDE_ADMIN_FILTER }),
     client.runReport({
       property,
       dateRanges,
       dimensions: [{ name: "sessionDefaultChannelGroup" }],
       metrics: [{ name: "sessions" }, { name: "activeUsers" }, { name: "bounceRate" }, { name: "averageSessionDuration" }],
       orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      dimensionFilter: EXCLUDE_ADMIN_FILTER,
       limit: 10,
     }),
     client.runReport({
@@ -97,8 +117,18 @@ export async function getTrafficReport(since: string, until: string): Promise<Tr
       dimensions: [{ name: "pagePath" }, { name: "pageTitle" }],
       metrics: [{ name: "screenPageViews" }, { name: "averageSessionDuration" }],
       orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+      dimensionFilter: EXCLUDE_ADMIN_FILTER,
       limit: 10,
     }),
+    client.runReport({
+      property,
+      dateRanges,
+      metrics: [{ name: "eventCount" }],
+      dimensionFilter: {
+        filter: { fieldName: "eventName", stringFilter: { matchType: "EXACT", value: "add_to_cart" } },
+      },
+    }),
+    getSalesStatsForDateRange(since, until),
   ])
 
   const summaryValues = summaryResp[0].rows?.[0]?.metricValues ?? []
@@ -111,6 +141,7 @@ export async function getTrafficReport(since: string, until: string): Promise<Tr
     bounceRate: num(summaryValues[5]?.value),
     engagementRate: num(summaryValues[6]?.value),
     eventCount: num(summaryValues[7]?.value),
+    cartsStarted: num(cartsResp[0].rows?.[0]?.metricValues?.[0]?.value),
   }
 
   const channels: ChannelRow[] = (channelResp[0].rows ?? []).map((row) => ({
@@ -128,5 +159,5 @@ export async function getTrafficReport(since: string, until: string): Promise<Tr
     averageSessionDuration: num(row.metricValues?.[1]?.value),
   }))
 
-  return { since, until, summary, channels, topPages }
+  return { since, until, summary, channels, topPages, sales }
 }
