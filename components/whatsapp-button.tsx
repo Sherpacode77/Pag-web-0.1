@@ -11,11 +11,11 @@ export function WhatsAppButton() {
     setReferralCode(getWhatsAppReferralCode())
   }, [])
 
-  const whatsappNumber = "+573114755825"
+  const whatsappNumber = "+573114515672"
   const message = referralCode
     ? `Hola! Quiero más información (código: ${referralCode})`
     : "Hola! Quiero más información"
-  const whatsappUrl = `https://wa.me/573114755825?text=${encodeURIComponent(message)}`
+  const whatsappUrl = `https://wa.me/573114515672?text=${encodeURIComponent(message)}`
 
   return (
     <Link

@@ -50,10 +50,10 @@ export function Footer() {
             <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
               <Phone className="h-3.5 w-3.5 text-primary flex-shrink-0" />
               <a
-                href="tel:+573114755825"
+                href="tel:+573114515672"
                 className="hover:text-primary transition-colors"
               >
-                311 475 5825
+                311 451 5672
               </a>
             </div>
             {/* Social Icons */}
@@ -74,7 +74,7 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="https://wa.me/573114755825"
+                href="https://wa.me/573114515672"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"

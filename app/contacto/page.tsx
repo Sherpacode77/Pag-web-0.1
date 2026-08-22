@@ -93,7 +93,7 @@ export default function ContactoPage() {
                 </h2>
                 <div className="flex flex-col gap-6">
                   <a
-                    href="https://wa.me/573114755825"
+                    href="https://wa.me/573114515672"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
@@ -106,7 +106,7 @@ export default function ContactoPage() {
                         WhatsApp
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        +57 311 475 5825
+                        +57 311 451 5672
                       </p>
                       <p className="mt-1 text-xs text-primary">
                         Respuesta en menos de 2 horas
@@ -130,7 +130,7 @@ export default function ContactoPage() {
                     </div>
                   </a>
                   <a
-                    href="tel:+573114755825"
+                    href="tel:+573114515672"
                     className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
                   >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
@@ -141,7 +141,7 @@ export default function ContactoPage() {
                         Telefono
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        +57 311 475 5825
+                        +57 311 451 5672
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {PICKUP_LOCATION.hours}
@@ -211,7 +211,7 @@ export default function ContactoPage() {
                       </svg>
                     </a>
                     <a
-                      href="https://wa.me/573114755825"
+                      href="https://wa.me/573114515672"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex h-10 w-10 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"

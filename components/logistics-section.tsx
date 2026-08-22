@@ -17,7 +17,7 @@ export function LogisticsSection() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const message = `Hola! Quiero cotizar logistica:%0ANombre: ${formData.nombre}%0ATipo: ${formData.tipo}%0ACiclistas: ${formData.ciclistas}%0AFecha: ${formData.fecha}`
-    window.open(`https://wa.me/573114755825?text=${message}`, "_blank")
+    window.open(`https://wa.me/573114515672?text=${message}`, "_blank")
   }
 
   return (

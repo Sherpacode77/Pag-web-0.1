@@ -7,7 +7,7 @@ import {
 } from "@/lib/db-service-status"
 
 // Debe coincidir con el numero real usado en components/whatsapp-button.tsx.
-const WHATSAPP_NUMBER = "573114755825"
+const WHATSAPP_NUMBER = "573114515672"
 
 function getSiteUrl() {
   return (process.env.SITE_URL || "https://cerounobikes.com").replace(/\/+$/, "")
