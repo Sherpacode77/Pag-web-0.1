@@ -1,17 +1,35 @@
 "use client"
 
-import React from "react"
-
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 
 export function NewsletterSection() {
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setSubmitted(true)
-    setEmail("")
+    setError(null)
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/welcome-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || "No se pudo completar la suscripción")
+        return
+      }
+      setSubmitted(true)
+      setEmail("")
+    } catch {
+      setError("Error de conexión, intenta de nuevo")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -50,12 +68,14 @@ export function NewsletterSection() {
             />
             <button
               type="submit"
-              className="bg-primary text-primary-foreground px-8 py-3 text-sm font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors whitespace-nowrap"
+              disabled={submitting}
+              className="bg-primary text-primary-foreground px-8 py-3 text-sm font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors whitespace-nowrap disabled:opacity-50"
             >
-              Suscribirme
+              {submitting ? "Enviando..." : "Suscribirme"}
             </button>
           </form>
         )}
+        {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
       </div>
     </section>
   )

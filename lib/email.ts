@@ -123,7 +123,7 @@ function buildStoreEmailHtml(order: OrderWithItems): string {
   const addr = order.shipping_address
   const deliveryInfo =
     addr?.delivery_method === "envio"
-      ? `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.city, addr.department].filter(Boolean).join(", ")}`
+      ? `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.neighborhood, addr.city, addr.department].filter(Boolean).join(", ")}`
       : "Retiro en punto de venta"
 
   return buildEmailShell(`
@@ -235,6 +235,67 @@ export async function sendContactFormEmail(data: ContactFormData): Promise<void>
 
   if (error) {
     throw new Error(error.message)
+  }
+}
+
+function buildWelcomeCouponEmailHtml(couponCode: string, activationUrl: string): string {
+  return buildEmailShell(`
+    <p style="margin:0 0 4px;color:${BRAND.text};font-size:16px;font-weight:700;">¡Bienvenido a la comunidad CERO.UNO!</p>
+    <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.6;">
+      Tu cupón de descuento para tu primera aventura ya está listo. Solo falta un paso para activarlo.
+    </p>
+    <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:24px;">
+      <tr>
+        <td style="background-color:${BRAND.bg};border:1px dashed ${BRAND.accent};border-radius:8px;padding:18px;text-align:center;">
+          <span style="display:block;color:${BRAND.muted};font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Tu código</span>
+          <span style="display:block;color:${BRAND.accent};font-size:22px;font-weight:700;letter-spacing:1px;">${couponCode}</span>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0 0 20px;color:${BRAND.muted};font-size:14px;line-height:1.6;">
+      Para activarlo, completa un formulario cortico con tus datos de contacto — toma menos de un minuto.
+    </p>
+    <table role="presentation" width="100%" style="border-collapse:collapse;">
+      <tr>
+        <td align="center">
+          <a href="${activationUrl}" style="display:inline-block;background-color:${BRAND.accent};color:#FFFFFF;text-decoration:none;font-weight:700;font-size:14px;padding:14px 28px;border-radius:6px;">
+            Activar mi cupón
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:24px 0 0;color:${BRAND.muted};font-size:12px;line-height:1.6;">
+      Si el botón no funciona, copia y pega este link en tu navegador:<br/>
+      <a href="${activationUrl}" style="color:${BRAND.muted};">${activationUrl}</a>
+    </p>
+  `)
+}
+
+// Disparado por el formulario "10% OFF" al suscribirse — el cupón se crea
+// inactivo (ver lib/db-welcome-coupon.ts) y este correo es la única forma
+// de llegar al link de activación.
+export async function sendWelcomeCouponEmail(
+  to: string,
+  couponCode: string,
+  activationUrl: string
+): Promise<void> {
+  const resend = getClient()
+  if (!resend) {
+    console.error("sendWelcomeCouponEmail: RESEND_API_KEY no configurado, se omite el envío")
+    return
+  }
+
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "CERO.UNO <onboarding@resend.dev>"
+
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to,
+    subject: "Tu cupón de bienvenida CERO.UNO — falta un paso para activarlo",
+    html: buildWelcomeCouponEmailHtml(couponCode, activationUrl),
+  })
+
+  if (error) {
+    console.error("sendWelcomeCouponEmail: fallo enviando email", error)
   }
 }
 

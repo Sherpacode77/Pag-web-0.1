@@ -459,6 +459,28 @@ async function runSchemaSetup() {
   `)
   await createIndexSafe(pool, "CREATE INDEX idx_app_offers_active ON app_offers(is_active)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_offers_type ON app_offers(offer_type, discount_type)")
+
+  // 16. Leads del cupon de bienvenida (suscripcion "10% OFF en tu primera
+  // aventura"). El cupon asociado se crea inactivo y solo se activa cuando
+  // el lead completa el formulario corto (nombre, cedula, WhatsApp, consentimiento)
+  // desde el link del correo -- ver lib/db-welcome-coupon.ts. Los UNIQUE en
+  // email y document garantizan un solo cupon por persona a nivel de BD.
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_welcome_coupon_leads (
+      id                BIGINT AUTO_INCREMENT PRIMARY KEY,
+      email             VARCHAR(255)  NOT NULL UNIQUE,
+      document          VARCHAR(50)   NULL UNIQUE,
+      full_name         VARCHAR(200)  NULL,
+      whatsapp          VARCHAR(30)   NULL,
+      data_consent_at   DATETIME      NULL,
+      coupon_id         BIGINT        NOT NULL,
+      activation_token  VARCHAR(64)   NOT NULL UNIQUE,
+      activated_at      DATETIME      NULL,
+      created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (coupon_id) REFERENCES app_coupons(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await createIndexSafe(pool, "CREATE INDEX idx_welcome_leads_token ON app_welcome_coupon_leads(activation_token)")
 }
 
 export async function ensureDbSchema() {

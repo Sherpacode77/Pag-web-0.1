@@ -27,6 +27,7 @@ export type ShippingAddress = {
   delivery_method: "envio" | "retiro"
   address_line?: string | null
   apartment?: string | null
+  neighborhood?: string | null
   city?: string | null
   department?: string | null
   postal_code?: string | null

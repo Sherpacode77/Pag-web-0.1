@@ -18,6 +18,7 @@ const orderItemSchema = z.object({
   variant_size_name: z.string().trim().max(20).optional().nullable(),
   variant_design_name: z.string().trim().max(100).optional().nullable(),
   unit_price: z.number().finite().nonnegative(),
+  original_unit_price: z.number().finite().nonnegative().optional(),
   quantity: z.number().int().positive().max(100),
 })
 
@@ -25,6 +26,7 @@ const shippingAddressSchema = z.object({
   delivery_method: z.enum(["envio", "retiro"]),
   address_line: z.string().trim().max(400).optional().nullable(),
   apartment: z.string().trim().max(100).optional().nullable(),
+  neighborhood: z.string().trim().max(150).optional().nullable(),
   city: z.string().trim().max(100).optional().nullable(),
   department: z.string().trim().max(100).optional().nullable(),
   postal_code: z.string().trim().max(20).optional().nullable(),
@@ -86,6 +88,15 @@ export async function POST(request: NextRequest) {
       (sum, item) => sum + item.unit_price * item.quantity,
       0
     )
+    // Subtotal "de lista" antes de cualquier oferta activa de producto —
+    // se usa solo para topar el descuento combinado (oferta + cupón), nunca
+    // para el subtotal real del pedido.
+    const originalSubtotal = orderInput.items.reduce(
+      (sum, item) => sum + (item.original_unit_price ?? item.unit_price) * item.quantity,
+      0
+    )
+    const offerDiscountAmount = Math.max(0, originalSubtotal - subtotal)
+
     const freeShippingProductIds = await getActiveFreeShippingProductIds()
     const freeShippingOverride = orderInput.items.some((item) => freeShippingProductIds.has(item.product_id))
     const shipping_cost = calculateShippingCost(
@@ -104,6 +115,19 @@ export async function POST(request: NextRequest) {
       }
       discount = result.discountAmount
       appliedCouponId = result.coupon.id
+    }
+
+    // Tope de protección de margen: ningún cupón, combinado con una oferta de
+    // producto ya aplicada, puede superar el 30% de descuento total sobre el
+    // precio de lista. Solo entra en juego cuando SÍ hay oferta de por medio
+    // (offerDiscountAmount > 0) -- un cupón usado solo, sin ninguna oferta
+    // activa, respeta su valor tal cual (ej. un cupón manual de 40% sin
+    // ofertas no se topa). Se reduce el cupón (nunca la oferta) para que el
+    // combinado quede exactamente en el tope, sin bloquear la compra.
+    const MAX_COMBINED_DISCOUNT_PCT = 0.3
+    const maxCombinedDiscount = originalSubtotal * MAX_COMBINED_DISCOUNT_PCT
+    if (offerDiscountAmount > 0 && offerDiscountAmount + discount > maxCombinedDiscount) {
+      discount = Math.max(0, Math.round(maxCombinedDiscount - offerDiscountAmount))
     }
 
     const total = subtotal - discount + shipping_cost

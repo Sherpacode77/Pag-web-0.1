@@ -12,6 +12,7 @@ export type CheckoutFormData = {
   document: string
   address: string
   apartment: string
+  neighborhood: string
   city: string
   department: string
   postalCode: string
@@ -56,6 +57,7 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
     document: "",
     address: "",
     apartment: "",
+    neighborhood: "",
     city: "",
     department: "Bogotá D.C.",
     postalCode: "",
@@ -210,9 +212,17 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
 
               <input
                 type="text"
-                placeholder="Casa, apartamento, etc. (opcional)"
+                placeholder="Detalles de la dirección: Casa, apartamento, etc. (opcional)"
                 value={form.apartment}
                 onChange={(e) => update("apartment", e.target.value)}
+                className={inputClass}
+              />
+
+              <input
+                type="text"
+                placeholder="Referencias adicionales: Barrio, en frente de, etc. (opcional)"
+                value={form.neighborhood}
+                onChange={(e) => update("neighborhood", e.target.value)}
                 className={inputClass}
               />
 

@@ -34,6 +34,7 @@ type ShippingAddress = {
   delivery_method: "envio" | "retiro"
   address_line: string | null
   apartment: string | null
+  neighborhood: string | null
   city: string | null
   department: string | null
   postal_code: string | null
@@ -302,6 +303,7 @@ export default function AdminPedidosPage() {
                                       {[
                                         order.shipping_address?.address_line,
                                         order.shipping_address?.apartment,
+                                        order.shipping_address?.neighborhood,
                                         order.shipping_address?.city,
                                         order.shipping_address?.department,
                                         order.shipping_address?.postal_code,

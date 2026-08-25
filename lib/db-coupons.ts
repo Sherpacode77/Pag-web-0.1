@@ -29,6 +29,7 @@ export type CreateCouponInput = {
   max_discount_amount?: number | null
   max_uses?: number | null
   valid_until?: string | null
+  is_active?: boolean
 }
 
 function normalizeCode(code: string): string {
@@ -54,7 +55,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<Coupon> {
     `INSERT INTO app_coupons
        (code, description, discount_type, discount_value, min_order_amount,
         max_discount_amount, max_uses, applies_to, valid_until, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'all', ?, 1, NOW(), NOW())`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'all', ?, ?, NOW(), NOW())`,
     [
       code,
       input.description ?? null,
@@ -64,6 +65,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<Coupon> {
       input.max_discount_amount ?? null,
       input.max_uses ?? null,
       input.valid_until ?? null,
+      input.is_active === false ? 0 : 1,
     ]
   )
 
@@ -97,6 +99,27 @@ export async function getCouponByCode(code: string): Promise<Coupon | null> {
     [normalizeCode(code)]
   )
   return (rows[0] as Coupon) ?? null
+}
+
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // sin 0/O/1/I para evitar confusion visual
+
+function randomCodeSuffix(length = 6): string {
+  let suffix = ""
+  for (let i = 0; i < length; i++) {
+    suffix += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]
+  }
+  return suffix
+}
+
+// Genera un codigo de cupon unico con el prefijo dado (ej. "BIENVENIDA-XZ7K2M"),
+// reintentando en el caso improbable de colision con uno ya existente.
+export async function generateUniqueCouponCode(prefix: string): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = `${prefix}-${randomCodeSuffix()}`
+    const existing = await getCouponByCode(code)
+    if (!existing) return code
+  }
+  throw new Error("No se pudo generar un codigo de cupon unico")
 }
 
 // Trae el cupón junto con la hora actual DEL SERVIDOR DE BASE DE DATOS — el

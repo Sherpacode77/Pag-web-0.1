@@ -68,6 +68,7 @@ export function CartSidebar() {
         variant_size_name: item.variantSizeName ?? null,
         variant_design_name: item.variantDesignName ?? null,
         unit_price: item.product.price,
+        original_unit_price: item.product.originalPrice ?? item.product.price,
         quantity: item.quantity,
       }))
 
@@ -86,6 +87,7 @@ export function CartSidebar() {
             delivery_method: form.deliveryMethod,
             address_line: form.deliveryMethod === "envio" ? form.address : null,
             apartment: form.deliveryMethod === "envio" ? form.apartment : null,
+            neighborhood: form.deliveryMethod === "envio" ? form.neighborhood : null,
             city: form.deliveryMethod === "envio" ? form.city : null,
             department: form.deliveryMethod === "envio" ? form.department : null,
             postal_code: form.deliveryMethod === "envio" ? form.postalCode : null,
