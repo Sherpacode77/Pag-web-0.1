@@ -3,6 +3,7 @@
 import { useState, useRef } from "react"
 import { Upload, X, Loader2, Video, Play } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
+import { detectMp4VideoCodec, isHevcCodec, HEVC_ERROR_MESSAGE } from "@/lib/video-codec"
 
 interface VideoUploadProps {
   value: string[]
@@ -132,6 +133,13 @@ export function VideoUpload({
         // Validar tamaño (50MB)
         if (file.size > 50 * 1024 * 1024) {
           setError(`${file.name} es demasiado grande (máx 50MB)`)
+          continue
+        }
+
+        // Validar codec (HEVC/H.265 no es compatible con la mayoría de navegadores)
+        const codec = detectMp4VideoCodec(new Uint8Array(await file.arrayBuffer()))
+        if (isHevcCodec(codec)) {
+          setError(`${file.name}: ${HEVC_ERROR_MESSAGE}`)
           continue
         }
 

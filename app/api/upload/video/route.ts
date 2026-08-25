@@ -3,6 +3,7 @@ import { ensureAdminSession } from "@/lib/auth"
 import { writeFile, mkdir, readdir, unlink } from "fs/promises"
 import { existsSync } from "fs"
 import path from "path"
+import { detectMp4VideoCodec, isHevcCodec, HEVC_ERROR_MESSAGE } from "@/lib/video-codec"
 
 export const runtime = "nodejs"
 
@@ -39,6 +40,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+
+    const codec = detectMp4VideoCodec(buffer)
+    if (isHevcCodec(codec)) {
+      return NextResponse.json({ error: HEVC_ERROR_MESSAGE }, { status: 400 })
+    }
+
     const uploadDir = path.join(process.cwd(), "public", "videos", "products")
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true })
@@ -48,9 +57,6 @@ export async function POST(request: NextRequest) {
     const originalName = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, "_")
     const fileName = `${timestamp}-${originalName}`
     const relativePath = `/videos/products/${fileName}`
-
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
 
     const filePath = path.join(uploadDir, fileName)
     await writeFile(filePath, buffer)
