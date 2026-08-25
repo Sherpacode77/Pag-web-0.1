@@ -3,6 +3,7 @@ import type { Product, ProductVariant, ProductSizeVariant } from "@/lib/data"
 import { getCatalogItemId } from "@/lib/data"
 import { getAllProductsWithFallback } from "@/lib/db-products"
 import { isDbInventoryEnabled, getInventoryFromDb } from "@/lib/db-inventory"
+import { applyActiveOffers } from "@/lib/db-offers"
 
 export const runtime = "nodejs"
 
@@ -178,10 +179,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const [allProducts, inventoryByProduct] = await Promise.all([
+  const [rawProducts, inventoryByProduct] = await Promise.all([
     getAllProductsWithFallback(),
     getInventoryByProduct(),
   ])
+  const allProducts = await applyActiveOffers(rawProducts)
 
   const lines = [FEED_COLUMNS.join("\t")]
   for (const product of allProducts) {

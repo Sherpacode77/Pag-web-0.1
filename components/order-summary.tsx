@@ -25,7 +25,8 @@ export function OrderSummary({ items, deliveryMethod, onCouponChange, missingFie
   const [appliedDiscount, setAppliedDiscount] = useState(0)
 
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
-  const shippingCost = calculateShippingCost(subtotal, deliveryMethod)
+  const freeShippingOverride = items.some((item) => item.product.freeShipping)
+  const shippingCost = calculateShippingCost(subtotal, deliveryMethod, freeShippingOverride)
   const offerSavings = items.reduce((sum, item) => {
     if (!item.product.originalPrice) return sum
     return sum + (item.product.originalPrice - item.product.price) * item.quantity

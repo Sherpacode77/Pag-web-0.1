@@ -434,6 +434,31 @@ async function runSchemaSetup() {
   await createIndexSafe(pool, "CREATE INDEX idx_app_service_status_status ON app_service_status(status)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_whatsapp_sales_channel_date ON app_whatsapp_sales(channel, sale_date)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_whatsapp_sales_referral ON app_whatsapp_sales(referral_code)")
+
+  // 15. Ofertas (referencia unica con % o envio gratis, o combos de varios
+  // productos mostrados como vitrina informativa). "products" guarda
+  // [{productId, variantColors[], quantity}] como JSON -- no hay tabla
+  // normalizada porque la cantidad de productos por oferta es variable y no
+  // se necesita hacer queries relacionales sobre ese contenido.
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_offers (
+      id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+      name           VARCHAR(200)  NOT NULL,
+      description    TEXT          NULL,
+      offer_type     ENUM('single','bundle') NOT NULL,
+      discount_type  ENUM('percentage','free_shipping') NOT NULL,
+      discount_value DECIMAL(5,2)  NULL,
+      cover_image    VARCHAR(500)  NULL,
+      products       JSON          NOT NULL,
+      is_active      TINYINT(1)    NOT NULL DEFAULT 1,
+      valid_from     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      valid_until    DATETIME      NULL,
+      created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await createIndexSafe(pool, "CREATE INDEX idx_app_offers_active ON app_offers(is_active)")
+  await createIndexSafe(pool, "CREATE INDEX idx_app_offers_type ON app_offers(offer_type, discount_type)")
 }
 
 export async function ensureDbSchema() {

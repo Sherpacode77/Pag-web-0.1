@@ -46,6 +46,26 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
 
   const hasInventoryData = Object.keys(inventoryMap).length > 0
 
+  // Sello de oferta: solo se muestra si la variante seleccionada está
+  // incluida en la oferta activa (lista vacía en activeOfferVariantColors =
+  // aplica a todas las variantes). Ver lib/db-offers.ts applyActiveOffers.
+  const offerVariantColors = product.activeOfferVariantColors ?? []
+  const offerAppliesToSelection =
+    offerVariantColors.length === 0 ||
+    !product.hasVariants ||
+    !selectedVariant ||
+    offerVariantColors.includes(selectedVariant.color)
+  const offerDiscountPct = product.originalPrice
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : null
+  const sealLabel = !offerAppliesToSelection
+    ? null
+    : offerDiscountPct !== null
+    ? `-${offerDiscountPct}% OFF`
+    : product.freeShipping
+    ? "ENVÍO GRATIS"
+    : null
+
   // Variantes de color ajustadas según inventario real, agregando el stock/
   // disponibilidad de todas las tallas de cada color:
   // - ninguna talla disponible → color se oculta completamente
@@ -261,9 +281,9 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
                     }}
                   />
                 )}
-                {product.originalPrice && (
-                  <span className="absolute top-4 left-4 bg-primary text-primary-foreground px-3 py-1 text-xs font-bold uppercase tracking-wider">
-                    Oferta
+                {sealLabel && (
+                  <span className="absolute top-4 left-4 -rotate-3 border-2 border-white/80 bg-red-600 px-4 py-2 text-sm font-black uppercase tracking-wider text-white shadow-lg sm:text-base">
+                    {sealLabel}
                   </span>
                 )}
               </div>

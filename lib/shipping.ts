@@ -14,8 +14,10 @@ export const PICKUP_LOCATION = {
 
 export function calculateShippingCost(
   subtotal: number,
-  deliveryMethod: "envio" | "retiro" = "envio"
+  deliveryMethod: "envio" | "retiro" = "envio",
+  freeShippingOverride = false
 ): number {
   if (deliveryMethod === "retiro") return 0
+  if (freeShippingOverride) return 0
   return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_COST
 }

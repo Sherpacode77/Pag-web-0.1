@@ -12,6 +12,7 @@ import {
   readProductsFromDb,
   updateProductInDb,
 } from "@/lib/db-products"
+import { applyActiveOffers } from "@/lib/db-offers"
 import {
   reconcileInventoryForProduct,
   isDbInventoryEnabled,
@@ -165,12 +166,18 @@ export async function GET(request: NextRequest) {
       }
 
       let productsData = await readProductsFromDb()
-      if (publicOnly) productsData = await filterProductsByAvailability(productsData)
+      if (publicOnly) {
+        productsData = await filterProductsByAvailability(productsData)
+        productsData = await applyActiveOffers(productsData)
+      }
       return NextResponse.json(productsData)
     }
 
     let productsData = readProducts()
-    if (publicOnly) productsData = await filterProductsByAvailability(productsData)
+    if (publicOnly) {
+      productsData = await filterProductsByAvailability(productsData)
+      productsData = await applyActiveOffers(productsData)
+    }
 
     if (id) {
       const product = productsData.find((item) => String(item.id) === id)

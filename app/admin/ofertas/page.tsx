@@ -3,120 +3,150 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Tag, Percent, TrendingDown, Check, X, Pencil } from "lucide-react"
+import { Tag, Percent, Archive, Pencil, Trash2, Plus, Package } from "lucide-react"
 import { toast } from "sonner"
 import { AdminNav } from "@/components/admin/admin-nav"
+import { OfferModal, emptyOfferDraft, type OfferFormState } from "@/components/admin/offer-modal"
 import { assetUrl } from "@/lib/assets"
 import { formatPrice } from "@/lib/data"
 import type { Product } from "@/lib/data"
-
-type OfferDraft = { productId: string; mode: "discount" | "price"; value: string }
+import type { Offer } from "@/lib/db-offers"
 
 export default function AdminOfertas() {
+  const [offers, setOffers] = useState<Offer[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState<string | null>(null)
-  const [draft, setDraft] = useState<OfferDraft | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [modal, setModal] = useState<{ isEdit: boolean; draft: OfferFormState } | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     async function bootstrap() {
       const res = await fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
       if (!res.ok) { router.push("/admin"); return }
-      await fetchProducts()
+      await Promise.all([fetchOffers(), fetchProducts()])
+      setLoading(false)
     }
     bootstrap()
   }, [router])
 
+  async function fetchOffers() {
+    try {
+      const res = await fetch("/api/offers", { credentials: "include", cache: "no-store" })
+      if (res.status === 401) { router.push("/admin"); return }
+      const data = await res.json()
+      setOffers(Array.isArray(data) ? data : [])
+    } catch {
+      toast.error("Error al cargar ofertas")
+    }
+  }
+
   async function fetchProducts() {
     try {
-      const res = await fetch("/api/products", { cache: "no-store" })
-      if (res.status === 401) { router.push("/admin"); return }
+      const res = await fetch("/api/products", { credentials: "include", cache: "no-store" })
       const data = await res.json()
       setProducts(Array.isArray(data) ? data : [])
     } catch {
       toast.error("Error al cargar productos")
-    } finally {
-      setLoading(false)
     }
   }
 
-  async function activateOffer(product: Product) {
-    if (!draft || draft.productId !== product.id) return
-    const basePrice = product.originalPrice ?? product.price
-    let newPrice: number
+  function openCreateModal() {
+    setModal({ isEdit: false, draft: emptyOfferDraft() })
+  }
 
-    if (draft.mode === "discount") {
-      const pct = parseFloat(draft.value)
-      if (isNaN(pct) || pct <= 0 || pct >= 100) {
-        toast.error("Ingresa un descuento entre 1% y 99%")
-        return
-      }
-      newPrice = Math.round(basePrice * (1 - pct / 100))
-    } else {
-      newPrice = parseInt(draft.value.replace(/\D/g, ""), 10)
-      if (isNaN(newPrice) || newPrice <= 0 || newPrice >= basePrice) {
-        toast.error("El precio de oferta debe ser menor al precio actual")
-        return
-      }
+  function openEditModal(offer: Offer) {
+    setModal({
+      isEdit: true,
+      draft: {
+        id: offer.id,
+        name: offer.name,
+        description: offer.description ?? "",
+        offer_type: offer.offer_type,
+        discount_type: offer.discount_type,
+        discount_value: offer.discount_value,
+        cover_image: offer.cover_image ?? "",
+        products: offer.products,
+        valid_until: offer.valid_until ? offer.valid_until.slice(0, 10) : "",
+      },
+    })
+  }
+
+  async function saveOffer() {
+    if (!modal) return
+    const { draft, isEdit } = modal
+
+    const payload = {
+      name: draft.name.trim(),
+      description: draft.description.trim() || null,
+      offer_type: draft.offer_type,
+      discount_type: draft.discount_type,
+      discount_value: draft.discount_type === "percentage" ? draft.discount_value : null,
+      cover_image: draft.offer_type === "bundle" ? draft.cover_image : null,
+      products: draft.products.filter((p) => p.productId),
+      valid_until: draft.valid_until || null,
     }
 
-    setSaving(product.id)
     try {
-      const res = await fetch("/api/products", {
-        method: "PUT",
+      const res = await fetch(isEdit ? `/api/offers/${draft.id}` : "/api/offers", {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ...product, price: newPrice, originalPrice: basePrice }),
+        body: JSON.stringify(payload),
       })
-      if (!res.ok) throw new Error()
-      setProducts((prev) =>
-        prev.map((p) => p.id === product.id ? { ...p, price: newPrice, originalPrice: basePrice } : p)
-      )
-      setDraft(null)
-      toast.success("Oferta activada correctamente")
-    } catch {
-      toast.error("Error al guardar la oferta")
-    } finally {
-      setSaving(null)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Error al guardar la oferta")
+      }
+      toast.success(isEdit ? "Oferta actualizada" : "Oferta creada")
+      setModal(null)
+      await fetchOffers()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar la oferta")
+      throw err
     }
   }
 
-  async function deactivateOffer(product: Product) {
-    if (!product.originalPrice) return
-    setSaving(product.id)
+  async function toggleActive(offer: Offer) {
+    setSaving(true)
     try {
-      const res = await fetch("/api/products", {
-        method: "PUT",
+      const res = await fetch(`/api/offers/${offer.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ...product, price: product.originalPrice, originalPrice: undefined }),
+        body: JSON.stringify({ is_active: !offer.is_active }),
       })
       if (!res.ok) throw new Error()
-      const restoredPrice = product.originalPrice
-      setProducts((prev) =>
-        prev.map((p) => p.id === product.id ? { ...p, price: restoredPrice, originalPrice: undefined } : p)
-      )
-      setDraft(null)
-      toast.success("Oferta desactivada — precio restaurado")
+      toast.success(offer.is_active ? "Oferta desactivada" : "Oferta activada")
+      await fetchOffers()
     } catch {
-      toast.error("Error al desactivar la oferta")
+      toast.error("Error al actualizar la oferta")
     } finally {
-      setSaving(null)
+      setSaving(false)
     }
   }
 
-  const activeOffers = products.filter((p) => p.originalPrice && p.originalPrice > p.price)
-  const withoutOffer = products.filter((p) => !p.originalPrice || p.originalPrice <= p.price)
-  const avgDiscount =
-    activeOffers.length > 0
-      ? Math.round(
-          activeOffers.reduce(
-            (sum, p) => sum + ((p.originalPrice! - p.price) / p.originalPrice!) * 100,
-            0
-          ) / activeOffers.length
-        )
-      : 0
+  async function removeOffer(offer: Offer) {
+    if (!confirm(`¿Eliminar la oferta "${offer.name}" permanentemente?`)) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/offers/${offer.id}`, { method: "DELETE", credentials: "include" })
+      if (!res.ok) throw new Error()
+      toast.success("Oferta eliminada")
+      await fetchOffers()
+    } catch {
+      toast.error("Error al eliminar la oferta")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const activeOffers = offers.filter((o) => o.is_active)
+  const avgDiscount = (() => {
+    const withPct = activeOffers.filter((o) => o.discount_type === "percentage" && o.discount_value)
+    if (withPct.length === 0) return 0
+    return Math.round(withPct.reduce((sum, o) => sum + Number(o.discount_value), 0) / withPct.length)
+  })()
 
   if (loading) {
     return (
@@ -134,7 +164,6 @@ export default function AdminOfertas() {
       <AdminNav />
 
       <main className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-
         {/* KPI Cards */}
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           <div className="bg-card border border-border rounded-lg p-4 flex items-center gap-3">
@@ -157,275 +186,160 @@ export default function AdminOfertas() {
           </div>
           <div className="bg-card border border-border rounded-lg p-4 flex items-center gap-3">
             <div className="p-2 bg-secondary rounded-lg">
-              <TrendingDown className="h-6 w-6 text-muted-foreground" />
+              <Archive className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{withoutOffer.length}</p>
-              <p className="text-sm text-muted-foreground">Sin oferta activa</p>
+              <p className="text-2xl font-bold">{offers.length - activeOffers.length}</p>
+              <p className="text-sm text-muted-foreground">Inactivas (historial)</p>
             </div>
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold uppercase tracking-wider mb-6">Gestión de Ofertas</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold uppercase tracking-wider">Gestión de Ofertas</h1>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-bold hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" />
+            Crear oferta
+          </button>
+        </div>
 
-        {/* Tabla de productos */}
+        {/* Tabla de ofertas */}
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-secondary/50 border-b border-border">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Producto</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider">Precio normal</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider">Precio oferta</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Oferta</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider">Tipo</th>
                   <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider">Descuento</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Productos</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider">Vigencia</th>
                   <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider">Estado</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider">Acción</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {products.map((product) => {
-                  const isActive = !!(product.originalPrice && product.originalPrice > product.price)
-                  const discount = isActive
-                    ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
-                    : null
-                  const isSaving = saving === product.id
-                  const isDrafting = draft?.productId === product.id
+                {offers.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                      Aún no has creado ninguna oferta.
+                    </td>
+                  </tr>
+                ) : (
+                  offers.map((offer) => {
+                    const includedProducts = offer.products
+                      .map((p) => products.find((prod) => prod.id === p.productId))
+                      .filter((p): p is Product => !!p)
 
-                  return (
-                    <tr key={product.id} className={`hover:bg-secondary/20 ${isActive ? "bg-primary/5" : ""}`}>
-                      {/* Producto */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden bg-secondary rounded">
-                            <Image
-                              src={assetUrl(product.image || "/placeholder.svg")}
-                              alt={product.name}
-                              fill
-                              className="object-cover"
-                            />
+                    return (
+                      <tr key={offer.id} className={`hover:bg-secondary/20 ${offer.is_active ? "bg-primary/5" : ""}`}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {offer.offer_type === "bundle" && offer.cover_image ? (
+                              <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden bg-secondary rounded">
+                                <Image src={assetUrl(offer.cover_image)} alt={offer.name} fill className="object-cover" />
+                              </div>
+                            ) : includedProducts[0] ? (
+                              <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden bg-secondary rounded">
+                                <Image
+                                  src={assetUrl(includedProducts[0].image || "/placeholder.svg")}
+                                  alt={offer.name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            ) : null}
+                            <p className="font-medium">{offer.name}</p>
                           </div>
-                          <div>
-                            <p className="font-medium">{product.name}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{product.category}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Precio normal */}
-                      <td className="px-4 py-3 text-right">
-                        <span className={isActive ? "line-through text-muted-foreground text-xs" : "font-semibold"}>
-                          {formatPrice(product.originalPrice ?? product.price)}
-                        </span>
-                      </td>
-
-                      {/* Precio oferta */}
-                      <td className="px-4 py-3 text-right">
-                        {isActive ? (
-                          <span className="font-bold text-primary">{formatPrice(product.price)}</span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </td>
-
-                      {/* Descuento % */}
-                      <td className="px-4 py-3 text-center">
-                        {discount !== null ? (
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            {offer.offer_type === "bundle" ? (
+                              <>
+                                <Package className="h-3.5 w-3.5" /> Combo
+                              </>
+                            ) : (
+                              "Referencia única"
+                            )}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-                            -{discount}%
+                            {offer.discount_type === "free_shipping"
+                              ? "Envío gratis"
+                              : `-${Math.round(Number(offer.discount_value))}%`}
                           </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </td>
-
-                      {/* Estado */}
-                      <td className="px-4 py-3 text-center">
-                        {isActive ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-500/10 text-green-600 border border-green-500/20">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                            ACTIVA
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary text-muted-foreground">
-                            Sin oferta
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Acciones */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          {isActive ? (
-                            <>
-                              <button
-                                onClick={() =>
-                                  setDraft(
-                                    isDrafting
-                                      ? null
-                                      : { productId: product.id, mode: "discount", value: String(discount) }
-                                  )
-                                }
-                                disabled={isSaving}
-                                className="p-1.5 hover:bg-secondary rounded text-muted-foreground hover:text-foreground"
-                                title="Editar descuento"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => deactivateOffer(product)}
-                                disabled={isSaving}
-                                className="px-3 py-1.5 text-xs font-medium rounded border border-border hover:bg-secondary text-muted-foreground disabled:opacity-50"
-                              >
-                                {isSaving ? "Guardando..." : "Desactivar"}
-                              </button>
-                            </>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-xs text-muted-foreground max-w-[220px] truncate">
+                            {includedProducts.map((p) => p.name).join(", ") || "—"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs text-muted-foreground">
+                          {offer.valid_until ? new Date(offer.valid_until).toLocaleDateString("es-CO") : "Sin vencimiento"}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {offer.is_active ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-500/10 text-green-600 border border-green-500/20">
+                              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                              ACTIVA
+                            </span>
                           ) : (
-                            <button
-                              onClick={() =>
-                                setDraft(
-                                  isDrafting
-                                    ? null
-                                    : { productId: product.id, mode: "discount", value: "" }
-                                )
-                              }
-                              disabled={isSaving}
-                              className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
-                                isDrafting
-                                  ? "bg-secondary text-muted-foreground border border-border"
-                                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-                              }`}
-                            >
-                              {isDrafting ? "Cancelar" : "Crear oferta"}
-                            </button>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary text-muted-foreground">
+                              Inactiva
+                            </span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openEditModal(offer)}
+                              disabled={saving}
+                              className="p-1.5 hover:bg-secondary rounded text-muted-foreground hover:text-foreground"
+                              title="Editar"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => toggleActive(offer)}
+                              disabled={saving}
+                              className="px-3 py-1.5 text-xs font-medium rounded border border-border hover:bg-secondary text-muted-foreground disabled:opacity-50"
+                            >
+                              {offer.is_active ? "Desactivar" : "Activar"}
+                            </button>
+                            <button
+                              onClick={() => removeOffer(offer)}
+                              disabled={saving}
+                              className="p-1.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
-
-        {/* Panel inline de configuración de oferta */}
-        {draft && (() => {
-          const product = products.find((p) => p.id === draft.productId)
-          if (!product) return null
-          const basePrice = product.originalPrice ?? product.price
-          const discountVal = parseFloat(draft.value)
-          const priceVal = parseInt(draft.value.replace(/\D/g, ""), 10)
-          const previewPrice =
-            draft.mode === "discount" && !isNaN(discountVal) && discountVal > 0 && discountVal < 100
-              ? Math.round(basePrice * (1 - discountVal / 100))
-              : draft.mode === "price" && !isNaN(priceVal) && priceVal > 0 && priceVal < basePrice
-              ? priceVal
-              : null
-
-          return (
-            <div className="mt-4 bg-card border border-primary/40 rounded-lg p-5 shadow-sm">
-              <div className="flex items-start justify-between mb-5">
-                <div>
-                  <h3 className="font-bold text-sm uppercase tracking-wider">
-                    {product.originalPrice ? "Editar oferta:" : "Nueva oferta:"} {product.name}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Precio base: <strong>{formatPrice(basePrice)}</strong>
-                  </p>
-                </div>
-                <button onClick={() => setDraft(null)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-end gap-4">
-                {/* Selector de modo */}
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1.5 font-medium">Modo</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setDraft({ ...draft, mode: "discount", value: "" })}
-                      className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
-                        draft.mode === "discount"
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "border-border hover:bg-secondary"
-                      }`}
-                    >
-                      % Descuento
-                    </button>
-                    <button
-                      onClick={() => setDraft({ ...draft, mode: "price", value: "" })}
-                      className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
-                        draft.mode === "price"
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "border-border hover:bg-secondary"
-                      }`}
-                    >
-                      Precio final
-                    </button>
-                  </div>
-                </div>
-
-                {/* Input */}
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1.5 font-medium">
-                    {draft.mode === "discount" ? "Porcentaje de descuento" : "Precio con oferta (COP)"}
-                  </p>
-                  {draft.mode === "discount" ? (
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min={1}
-                        max={99}
-                        placeholder="Ej: 20"
-                        value={draft.value}
-                        onChange={(e) => setDraft({ ...draft, value: e.target.value })}
-                        className="w-28 pl-3 pr-8 py-2 border border-input rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">%</span>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                      <input
-                        type="text"
-                        placeholder="Ej: 144000"
-                        value={draft.value}
-                        onChange={(e) => setDraft({ ...draft, value: e.target.value })}
-                        className="w-44 pl-7 pr-3 py-2 border border-input rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Preview */}
-                {previewPrice && (
-                  <div className="flex flex-col">
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Vista previa</p>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-secondary rounded">
-                      <span className="text-xs line-through text-muted-foreground">{formatPrice(basePrice)}</span>
-                      <span className="font-bold text-primary">{formatPrice(previewPrice)}</span>
-                      <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">
-                        -{Math.round(((basePrice - previewPrice) / basePrice) * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Botón aplicar */}
-                <button
-                  onClick={() => activateOffer(product)}
-                  disabled={saving === product.id || !previewPrice}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  {saving === product.id ? "Guardando..." : "Aplicar oferta"}
-                </button>
-              </div>
-            </div>
-          )
-        })()}
       </main>
+
+      {modal && (
+        <OfferModal
+          offer={modal.draft}
+          isEdit={modal.isEdit}
+          products={products}
+          onClose={() => setModal(null)}
+          onSave={saveOffer}
+          onChange={(draft) => setModal({ ...modal, draft })}
+        />
+      )}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import fs from "fs"
 import path from "path"
 import { isDbProductsEnabled, getProductBySlugFromDb, readProductsFromDb } from "@/lib/db-products"
 import { isDbInventoryEnabled, getInventoryFromDb } from "@/lib/db-inventory"
+import { applyActiveOffers } from "@/lib/db-offers"
 import { products as staticProducts } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
 import { ProductDetailClient } from "./product-detail-client"
@@ -88,11 +89,13 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const [product, allProducts] = await Promise.all([getProduct(slug), getAllProducts()])
+  const [rawProduct, rawAllProducts] = await Promise.all([getProduct(slug), getAllProducts()])
 
-  if (!product) {
+  if (!rawProduct) {
     notFound()
   }
+
+  const [product, ...allProducts] = await applyActiveOffers([rawProduct, ...rawAllProducts])
 
   // Construir mapa de inventario por combinación color+talla. Clave: "<color>|<talla>",
   // usando "_" cuando el producto no tiene esa dimensión (ej. sin color: "_|m").

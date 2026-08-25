@@ -40,6 +40,10 @@ export interface Product {
   featured: boolean
   bestSeller: boolean
   specs: { label: string; value: string }[]
+  // Campos calculados al leer productos para el publico a partir de ofertas
+  // activas (ver lib/db-offers.ts applyActiveOffers) -- nunca se persisten.
+  freeShipping?: boolean
+  activeOfferVariantColors?: string[]
 }
 
 export interface BlogPost {

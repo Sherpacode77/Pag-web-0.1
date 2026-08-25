@@ -2,15 +2,19 @@ import type { Metadata } from "next"
 import fs from "fs"
 import path from "path"
 import Link from "next/link"
-import { Tag } from "lucide-react"
+import Image from "next/image"
+import { Tag, Package } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { ProductCard } from "@/components/product-card"
 import { products as staticProducts } from "@/lib/data"
 import { isDbProductsEnabled, readProductsFromDb } from "@/lib/db-products"
 import { filterProductsByAvailability } from "@/lib/db-inventory"
+import { applyActiveOffers, getActiveBundleOffers } from "@/lib/db-offers"
 import type { Product } from "@/lib/data"
 import { SectionDivider } from "@/components/section-divider"
+import { assetUrl } from "@/lib/assets"
+import { formatPrice } from "@/lib/data"
 
 export const metadata: Metadata = {
   title: "Ofertas | CERO.UNO",
@@ -36,8 +40,11 @@ async function getAllProducts(): Promise<Product[]> {
 }
 
 export default async function OfertasPage() {
-  const allProducts = await filterProductsByAvailability(await getAllProducts())
-  const offers = allProducts.filter((p) => p.originalPrice && p.originalPrice > p.price)
+  const availableProducts = await filterProductsByAvailability(await getAllProducts())
+  const allProducts = await applyActiveOffers(availableProducts)
+  const offers = allProducts.filter((p) => (p.originalPrice && p.originalPrice > p.price) || p.freeShipping)
+  const productsById = new Map(allProducts.map((p) => [p.id, p]))
+  const bundles = await getActiveBundleOffers()
 
   return (
     <>
@@ -53,8 +60,8 @@ export default async function OfertasPage() {
               Ofertas
             </h1>
             <p className="mt-4 text-sm opacity-80 max-w-md mx-auto">
-              {offers.length > 0
-                ? `${offers.length} producto${offers.length > 1 ? "s" : ""} con descuento — aprovecha mientras dure el stock`
+              {offers.length > 0 || bundles.length > 0
+                ? "Aprovecha mientras dure el stock"
                 : "Pronto tendremos nuevas promociones para ti"}
             </p>
           </div>
@@ -63,7 +70,7 @@ export default async function OfertasPage() {
         <div className="section-light relative bg-background px-4 py-12 lg:px-8">
           <SectionDivider />
           <div className="mx-auto max-w-7xl">
-          {offers.length === 0 ? (
+          {offers.length === 0 && bundles.length === 0 ? (
             /* Estado vacío */
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="p-4 bg-secondary rounded-full mb-5">
@@ -82,23 +89,96 @@ export default async function OfertasPage() {
             </div>
           ) : (
             <>
-              {/* Grid de ofertas */}
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-                {offers.map((product) => {
-                  const discount = Math.round(
-                    ((product.originalPrice! - product.price) / product.originalPrice!) * 100
-                  )
-                  return (
-                    <div key={product.id} className="relative">
-                      {/* Badge de descuento en esquina superior derecha */}
-                      <span className="absolute top-3 right-3 z-10 bg-foreground text-background px-2 py-1 text-xs font-black">
-                        -{discount}%
-                      </span>
-                      <ProductCard product={product} />
-                    </div>
-                  )
-                })}
-              </div>
+              {/* Combos */}
+              {bundles.length > 0 && (
+                <div className="mb-14">
+                  <h2 className="text-lg font-bold uppercase tracking-wider mb-5 flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    Combos
+                  </h2>
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    {bundles.map((bundle) => {
+                      const includedProducts = bundle.products
+                        .map((entry) => ({ entry, product: productsById.get(entry.productId) }))
+                        .filter((x): x is { entry: typeof bundle.products[number]; product: Product } => !!x.product)
+
+                      return (
+                        <div key={bundle.id} className="bg-card border border-border rounded-lg overflow-hidden">
+                          <div className="relative aspect-video bg-secondary">
+                            <Image
+                              src={assetUrl(bundle.cover_image || "/placeholder.svg")}
+                              alt={bundle.name}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 768px) 100vw, 50vw"
+                            />
+                            <span className="absolute top-3 right-3 bg-foreground text-background px-2 py-1 text-xs font-black uppercase">
+                              {bundle.discount_type === "free_shipping"
+                                ? "Envío gratis"
+                                : `-${Math.round(Number(bundle.discount_value))}%`}
+                            </span>
+                          </div>
+                          <div className="p-5">
+                            <h3 className="font-bold uppercase tracking-wider">{bundle.name}</h3>
+                            {bundle.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{bundle.description}</p>
+                            )}
+                            <div className="flex flex-wrap gap-3 mt-4">
+                              {includedProducts.map(({ entry, product }) => (
+                                <Link
+                                  key={`${bundle.id}-${entry.productId}`}
+                                  href={`/tienda/${product.slug}`}
+                                  className="flex items-center gap-2 pr-3 bg-secondary/50 hover:bg-secondary rounded-md transition-colors"
+                                >
+                                  <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
+                                    <Image
+                                      src={assetUrl(product.image || "/placeholder.svg")}
+                                      alt={product.name}
+                                      fill
+                                      className="object-cover"
+                                      sizes="48px"
+                                    />
+                                  </div>
+                                  <div className="py-1.5">
+                                    <p className="text-xs font-medium">
+                                      {product.name}
+                                      {entry.quantity && entry.quantity > 1 ? ` x${entry.quantity}` : ""}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">{formatPrice(product.price)}</p>
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    Agrega cada producto del combo a tu carrito por separado para aprovechar la promoción.
+                  </p>
+                </div>
+              )}
+
+              {/* Grid de ofertas individuales */}
+              {offers.length > 0 && (
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+                  {offers.map((product) => {
+                    const discount = product.originalPrice
+                      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+                      : null
+                    return (
+                      <div key={product.id} className="relative">
+                        {/* Badge de descuento/envío gratis en esquina superior derecha */}
+                        <span className="absolute top-3 right-3 z-10 bg-foreground text-background px-2 py-1 text-xs font-black uppercase">
+                          {discount !== null ? `-${discount}%` : "Envío gratis"}
+                        </span>
+                        <ProductCard product={product} />
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* Footer de sección */}
               <p className="text-center text-xs text-muted-foreground mt-10">

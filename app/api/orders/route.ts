@@ -5,6 +5,7 @@ import { hasDatabaseUrl } from "@/lib/db"
 import { createOrder, listOrdersWithItems } from "@/lib/db-orders"
 import { subscribeToNewsletter } from "@/lib/db-newsletter"
 import { validateCoupon, incrementCouponUsage } from "@/lib/db-coupons"
+import { getActiveFreeShippingProductIds } from "@/lib/db-offers"
 import { calculateShippingCost } from "@/lib/shipping"
 
 const orderItemSchema = z.object({
@@ -85,7 +86,13 @@ export async function POST(request: NextRequest) {
       (sum, item) => sum + item.unit_price * item.quantity,
       0
     )
-    const shipping_cost = calculateShippingCost(subtotal, orderInput.shipping_address.delivery_method)
+    const freeShippingProductIds = await getActiveFreeShippingProductIds()
+    const freeShippingOverride = orderInput.items.some((item) => freeShippingProductIds.has(item.product_id))
+    const shipping_cost = calculateShippingCost(
+      subtotal,
+      orderInput.shipping_address.delivery_method,
+      freeShippingOverride
+    )
 
     let discount = 0
     let appliedCouponId: number | null = null

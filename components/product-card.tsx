@@ -29,6 +29,11 @@ function getDefaultVariant(product: Product) {
 export function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart()
 
+  const discountPct = product.originalPrice
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : null
+  const offerLabel = discountPct !== null ? `-${discountPct}%` : product.freeShipping ? "Envío gratis" : null
+
   return (
     <div className="group relative flex flex-col">
       <Link
@@ -42,12 +47,12 @@ export function ProductCard({ product }: { product: Product }) {
           className="object-cover transition-transform duration-500 group-hover:scale-105"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         />
-        {product.originalPrice && (
-          <span className="absolute top-3 left-3 bg-primary text-primary-foreground px-2 py-1 text-xs font-bold uppercase tracking-wider">
-            Oferta
+        {offerLabel && (
+          <span className="absolute top-3 left-3 bg-red-600 text-white px-2 py-1 text-xs font-bold uppercase tracking-wider">
+            {offerLabel}
           </span>
         )}
-        {product.bestSeller && !product.originalPrice && (
+        {product.bestSeller && !offerLabel && (
           <span className="absolute top-3 left-3 bg-foreground text-background px-2 py-1 text-xs font-bold uppercase tracking-wider">
             Top Ventas
           </span>
