@@ -223,9 +223,9 @@ export default function AdminPedidosPage() {
           </div>
         ) : (
           <div className="bg-card border border-border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="max-h-[70vh] overflow-auto">
               <table className="w-full">
-                <thead className="bg-secondary/50 border-b border-border">
+                <thead className="sticky top-0 z-10 bg-secondary border-b border-border">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Pedido</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Cliente</th>
