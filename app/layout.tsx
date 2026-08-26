@@ -4,6 +4,7 @@ import { Inter, Geist_Mono } from "next/font/google"
 import { WhatsAppButton } from "@/components/whatsapp-button"
 import { OrganizationSchema } from "@/components/product-schema"
 import { AnalyticsManager } from "@/components/analytics-manager"
+import { ChunkErrorReload } from "@/components/chunk-error-reload"
 import { assetOrigin } from "@/lib/assets"
 import { Toaster } from "@/components/ui/sonner"
 import { CartProvider } from "@/lib/cart-context"
@@ -120,6 +121,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AnalyticsManager />
+        <ChunkErrorReload />
         <CartProvider>
           {children}
         </CartProvider>
