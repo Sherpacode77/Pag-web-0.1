@@ -6,6 +6,7 @@ import { createOrder, listOrdersWithItems } from "@/lib/db-orders"
 import { subscribeToNewsletter } from "@/lib/db-newsletter"
 import { validateCoupon, incrementCouponUsage } from "@/lib/db-coupons"
 import { getActiveFreeShippingProductIds } from "@/lib/db-offers"
+import { getWhatsAppReferralByCode } from "@/lib/db-whatsapp"
 import { calculateShippingCost } from "@/lib/shipping"
 
 const orderItemSchema = z.object({
@@ -43,6 +44,7 @@ const createOrderSchema = z
     shipping_address: shippingAddressSchema,
     newsletter_opt_in: z.boolean().optional().default(false),
     coupon_code: z.string().trim().max(30).optional().nullable(),
+    referral_code: z.string().trim().max(10).optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (data.shipping_address.delivery_method === "envio") {
@@ -82,7 +84,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { newsletter_opt_in, coupon_code, ...orderInput } = parsed.data
+    const { newsletter_opt_in, coupon_code, referral_code, ...orderInput } = parsed.data
+
+    let ad_campaign: string | null = null
+    if (referral_code) {
+      const referral = await getWhatsAppReferralByCode(referral_code)
+      ad_campaign = referral?.utm_campaign ?? referral?.utm_source ?? null
+    }
 
     const subtotal = orderInput.items.reduce(
       (sum, item) => sum + item.unit_price * item.quantity,
@@ -132,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     const total = subtotal - discount + shipping_cost
 
-    const order = await createOrder({ ...orderInput, subtotal, shipping_cost, discount, total })
+    const order = await createOrder({ ...orderInput, subtotal, shipping_cost, discount, total, ad_campaign })
 
     if (appliedCouponId !== null) {
       try {

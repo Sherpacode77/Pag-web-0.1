@@ -114,6 +114,28 @@ export async function filterProductsByAvailability<T extends { id: string }>(
   }
 }
 
+// Resuelve el SKU exacto de una combinacion producto+color+talla -- usado
+// al armar las filas de Google Sheets (ver lib/order-sheet-sync.ts). NULL-safe
+// (<=>) por la misma razon que reconcileInventoryForProduct: color/talla
+// pueden ser NULL para productos sin esa dimension.
+export async function getSkuForProductVariant(
+  productId: string,
+  color: string | null,
+  size: string | null
+): Promise<string | null> {
+  await ensureDbSchema()
+  const pool = getDbPool()
+
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT sku FROM app_inventory
+     WHERE product_id = ? AND variant_color <=> ? AND variant_size <=> ?
+     LIMIT 1`,
+    [productId, color, size]
+  )
+
+  return (rows[0] as { sku: string } | undefined)?.sku ?? null
+}
+
 export async function getInventoryFromDb(filters: InventoryFilters = {}): Promise<InventoryRow[]> {
   await ensureDbSchema()
   const pool = getDbPool()

@@ -6,6 +6,7 @@ import { X, Minus, Plus, ShoppingBag } from "lucide-react"
 import { useCart, getCartItemKey } from "@/lib/cart-context"
 import { formatPrice, getCatalogItemId } from "@/lib/data"
 import { trackBeginCheckout, sendFacebookServerEvent } from "@/lib/tracking-client"
+import { getWhatsAppReferralCode } from "@/lib/whatsapp-attribution"
 import { assetUrl } from "@/lib/assets"
 import { FreeShippingBar } from "@/components/free-shipping-bar"
 import { CheckoutForm, type CheckoutFormData } from "@/components/checkout-form"
@@ -83,6 +84,7 @@ export function CartSidebar() {
           customer_document: form.document,
           newsletter_opt_in: form.newsletterOptIn,
           coupon_code: couponCode,
+          referral_code: getWhatsAppReferralCode(),
           shipping_address: {
             delivery_method: form.deliveryMethod,
             address_line: form.deliveryMethod === "envio" ? form.address : null,

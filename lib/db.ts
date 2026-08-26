@@ -222,6 +222,14 @@ async function runSchemaSetup() {
     MODIFY COLUMN customer_email VARCHAR(255) NULL
   `)
 
+  // Nombre de campaña de Meta resuelto desde app_whatsapp_referrals (via el
+  // codigo corto guardado en localStorage por captureAdClickAttribution, ver
+  // lib/whatsapp-attribution.ts) -- NULL si el pedido no vino de un anuncio.
+  await pool.execute(`
+    ALTER TABLE app_orders
+    ADD COLUMN IF NOT EXISTS ad_campaign VARCHAR(150) NULL
+  `)
+
   // 7. Sin dependencias FK
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS app_newsletter_subscribers (

@@ -1,5 +1,6 @@
 import type { RowDataPacket, ResultSetHeader, PoolConnection } from "mysql2/promise"
 import { ensureDbSchema, getDbPool, withTransaction } from "@/lib/db"
+import { getLeadByEmail } from "@/lib/db-welcome-coupon"
 
 export type OrderStatus =
   | "pending"
@@ -46,6 +47,7 @@ export type CreateOrderInput = {
   customer_document?: string | null
   shipping_address?: ShippingAddress | null
   notes?: string | null
+  ad_campaign?: string | null
 }
 
 export type OrderItemRow = OrderItemInput & {
@@ -75,6 +77,7 @@ export type OrderRow = {
   total: number
   currency: string
   notes: string | null
+  ad_campaign: string | null
   created_at: string
   updated_at: string
 }
@@ -113,8 +116,8 @@ export async function createOrder(input: CreateOrderInput): Promise<{ id: number
       `INSERT INTO app_orders
          (order_number, customer_email, customer_name, customer_phone, customer_document,
           shipping_address, status, subtotal, shipping_cost, discount, total, currency, notes,
-          created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, 'COP', ?, NOW(), NOW())`,
+          ad_campaign, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, 'COP', ?, ?, NOW(), NOW())`,
       [
         orderNumber,
         input.customer_email,
@@ -127,6 +130,7 @@ export async function createOrder(input: CreateOrderInput): Promise<{ id: number
         input.discount ?? 0,
         input.total,
         input.notes ?? null,
+        input.ad_campaign ?? null,
       ]
     )
 
@@ -200,6 +204,41 @@ export async function getOrderWithItemsByNumber(
   )
 
   return { ...order, items: items as OrderItemRow[] }
+}
+
+export type CustomerHistory = {
+  firstContactAt: Date | null
+  isReturning: boolean
+}
+
+// Para la fila de Google Sheets: "Contacto" (cuando apareció por primera vez
+// este correo) y "Tag" (si ya nos había comprado antes). Se considera
+// "primer contacto" lo que sea más antiguo entre su pedido pagado más viejo
+// y su suscripción al cupón de bienvenida (ver lib/db-welcome-coupon.ts).
+export async function getCustomerHistory(
+  email: string,
+  excludeOrderId: number
+): Promise<CustomerHistory> {
+  await ensureDbSchema()
+  const pool = getDbPool()
+
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT MIN(created_at) AS first_paid_at FROM app_orders
+     WHERE customer_email = ? AND status = 'paid' AND id != ?`,
+    [email, excludeOrderId]
+  )
+  const firstPaidAt = rows[0]?.first_paid_at ? new Date(rows[0].first_paid_at) : null
+  const isReturning = firstPaidAt !== null
+
+  const lead = await getLeadByEmail(email)
+  const leadCreatedAt = lead ? new Date(lead.created_at) : null
+
+  let firstContactAt = firstPaidAt
+  if (leadCreatedAt && (!firstContactAt || leadCreatedAt < firstContactAt)) {
+    firstContactAt = leadCreatedAt
+  }
+
+  return { firstContactAt, isReturning }
 }
 
 export type UpdateOrderPaymentInput = {

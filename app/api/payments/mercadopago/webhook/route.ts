@@ -10,6 +10,7 @@ import {
 } from "@/lib/db-orders"
 import { sendOrderPaidEmails } from "@/lib/email"
 import { sendFacebookCapiEvent } from "@/lib/facebook-capi"
+import { syncOrderToLeadsSheet } from "@/lib/order-sheet-sync"
 import { getCatalogItemId } from "@/lib/data"
 
 function getBaseUrl() {
@@ -140,6 +141,9 @@ export async function POST(request: Request) {
         )
         sendPurchaseCapiEvent(orderWithItems).catch((err) =>
           console.error("Error enviando Purchase a Meta Conversions API:", err)
+        )
+        syncOrderToLeadsSheet(orderWithItems).catch((err) =>
+          console.error("Error sincronizando pedido a Google Sheets:", err)
         )
       }
     }
