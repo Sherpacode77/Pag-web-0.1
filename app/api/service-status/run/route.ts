@@ -1,29 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
-import { ensureAdminSession, validateAdminCredentials } from "@/lib/auth"
+import { ensureAdminSession, safeEqual } from "@/lib/auth"
 import { runAllServiceChecks } from "@/lib/service-checks"
 
 export const runtime = "nodejs"
 
-// Autoriza con sesion de admin (uso desde el panel) O con HTTP Basic Auth
-// usando las mismas credenciales de admin (uso desde un cron externo, p.ej.
-// un Cron Job de hPanel: curl -u $ADMIN_USERNAME:$ADMIN_PASSWORD .../run).
-// Evita crear una variable de entorno nueva solo para esto.
+// Autoriza con sesion de admin (uso desde el panel) O con un token dedicado
+// via query param (uso desde el cron externo que llama esta ruta cada 6h).
+// A proposito NO reutiliza ADMIN_USERNAME/ADMIN_PASSWORD -- esas credenciales
+// dan acceso total al panel, y este token queda guardado en texto plano en
+// la configuracion del cron job (visible para quien administre esa cuenta
+// externa). Si SERVICE_STATUS_CRON_TOKEN se filtra, lo unico que se puede
+// hacer con el es disparar esta verificacion, nada mas.
 function isAuthorized(request: NextRequest): boolean {
   if (!ensureAdminSession(request)) return true
 
-  const authHeader = request.headers.get("authorization")
-  if (!authHeader?.startsWith("Basic ")) return false
+  const expectedToken = process.env.SERVICE_STATUS_CRON_TOKEN
+  const providedToken = request.nextUrl.searchParams.get("token")
+  if (!expectedToken || !providedToken) return false
 
-  try {
-    const decoded = Buffer.from(authHeader.slice(6), "base64").toString("utf-8")
-    const separatorIndex = decoded.indexOf(":")
-    if (separatorIndex === -1) return false
-    const username = decoded.slice(0, separatorIndex)
-    const password = decoded.slice(separatorIndex + 1)
-    return validateAdminCredentials(username, password)
-  } catch {
-    return false
-  }
+  return safeEqual(providedToken, expectedToken)
 }
 
 async function handleRun(request: NextRequest) {

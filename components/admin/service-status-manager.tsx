@@ -189,14 +189,16 @@ export function ServiceStatusManager() {
       <div className="rounded-sm border border-border bg-card p-4 text-xs text-muted-foreground">
         <p className="font-medium text-foreground">Verificación automática</p>
         <p className="mt-1">
-          Estas verificaciones no corren solas todavía — hay que programar un Cron Job en hPanel
-          (Hostinger → Avanzado → Cron Jobs) que llame esta URL cada 6 horas:
+          Un servicio externo (o un Cron Job) debe llamar esta URL cada 6 horas, con el token
+          guardado en la variable de entorno <code>SERVICE_STATUS_CRON_TOKEN</code>:
         </p>
         <code className="mt-2 block overflow-x-auto rounded-sm bg-secondary px-3 py-2 text-foreground">
-          curl -u $ADMIN_USERNAME:$ADMIN_PASSWORD https://cerounobikes.com/api/service-status/run
+          curl &quot;https://cerounobikes.com/api/service-status/run?token=TU_TOKEN_SECRETO&quot;
         </code>
         <p className="mt-1">
-          Mientras tanto, puedes usar el botón &quot;Verificar ahora&quot; para revisar manualmente.
+          Este token es independiente del usuario/contraseña de admin — si se filtra, solo permite
+          disparar esta verificación, no da acceso al panel. Mientras tanto, puedes usar el botón
+          &quot;Verificar ahora&quot; para revisar manualmente.
         </p>
       </div>
     </div>

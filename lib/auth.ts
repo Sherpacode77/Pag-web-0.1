@@ -25,7 +25,7 @@ function fromBase64Url(value: string) {
   return Buffer.from(`${normalized}${padding}`, "base64").toString("utf8")
 }
 
-function safeEqual(left: string, right: string) {
+export function safeEqual(left: string, right: string) {
   const leftBuffer = Buffer.from(left)
   const rightBuffer = Buffer.from(right)
 
