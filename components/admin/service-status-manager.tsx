@@ -190,7 +190,7 @@ export function ServiceStatusManager() {
         <p className="font-medium text-foreground">Verificación automática</p>
         <p className="mt-1">
           Estas verificaciones no corren solas todavía — hay que programar un Cron Job en hPanel
-          (Hostinger → Avanzado → Cron Jobs) que llame esta URL cada 12 horas:
+          (Hostinger → Avanzado → Cron Jobs) que llame esta URL cada 6 horas:
         </p>
         <code className="mt-2 block overflow-x-auto rounded-sm bg-secondary px-3 py-2 text-foreground">
           curl -u $ADMIN_USERNAME:$ADMIN_PASSWORD https://cerounobikes.com/api/service-status/run

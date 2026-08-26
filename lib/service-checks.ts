@@ -92,6 +92,63 @@ async function checkUrlsReachability(urls: string[], concurrency = 6): Promise<M
   return results
 }
 
+// Secciones publicas del sitio a monitorear (aparte de "/", que ya tiene su
+// propio check dedicado "site_home"). Lista curada aparte de components/navbar.tsx
+// a proposito -- no todo lo que aparece en el menu es necesariamente relevante
+// para salud del sitio, y viceversa (ej. /tienda no esta en el navbar).
+const PUBLIC_SECTIONS = [
+  "/tienda",
+  "/alforjas",
+  "/accesorios",
+  "/travel",
+  "/ofertas",
+  "/contacto",
+  "/nosotros",
+  "/blog",
+]
+
+// Secciones del panel de administracion. Se verifican sin cookie de sesion
+// (el check corre server-side) -- las paginas admin son "use client" y
+// redirigen a /admin recien despues de montar en el navegador si no hay
+// sesion, asi que devuelven 200 con el shell igual; esto detecta rutas
+// caidas/rotas por deploy, no problemas dentro de una sesion autenticada.
+const ADMIN_SECTIONS = [
+  "/admin",
+  "/admin/dashboard",
+  "/admin/inventario",
+  "/admin/pedidos",
+  "/admin/ofertas",
+  "/admin/cupones",
+  "/admin/ventas",
+  "/admin/trafico",
+  "/admin/servicios",
+]
+
+function buildSectionsCheck(id: string, name: string, paths: string[]): ServiceCheck {
+  return {
+    id,
+    name,
+    async run() {
+      const siteUrl = getSiteUrl()
+      const urls = paths.map((p) => `${siteUrl}${p}`)
+      const results = await checkUrlsReachability(urls)
+      const broken = [...results.entries()]
+        .filter(([, ok]) => !ok)
+        .map(([url]) => url.replace(siteUrl, ""))
+
+      if (broken.length === 0) return { ok: true }
+
+      const allBroken = broken.length === urls.length
+      const percent = Math.round((broken.length / urls.length) * 100)
+      const errorMessage = `${broken.length} de ${urls.length} secciones no responden (${percent}%): ${broken.join(", ")}`
+
+      return allBroken
+        ? { ok: false, errorType: "secciones_caidas", errorMessage }
+        : { ok: false, degraded: true, errorType: "secciones_rotas", errorMessage }
+    },
+  }
+}
+
 const CHECKS: ServiceCheck[] = [
   {
     id: "site_home",
@@ -241,6 +298,8 @@ const CHECKS: ServiceCheck[] = [
       return { ok: true }
     },
   },
+  buildSectionsCheck("site_sections", "Secciones del sitio web", PUBLIC_SECTIONS),
+  buildSectionsCheck("admin_sections", "Secciones del panel de administración", ADMIN_SECTIONS),
 ]
 
 export type ServiceCheckRunResult = {
