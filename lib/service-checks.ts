@@ -5,6 +5,7 @@ import {
   getServiceStatusById,
   type ServiceStatusValue,
 } from "@/lib/db-service-status"
+import { sendServiceAlertEmail, type ServiceAlertTransition } from "@/lib/email"
 
 // Debe coincidir con el numero real usado en components/whatsapp-button.tsx.
 const WHATSAPP_NUMBER = "573114515672"
@@ -353,6 +354,7 @@ export async function runAllServiceChecks(): Promise<ServiceCheckRunResult[]> {
         serviceId: check.id,
         serviceName: check.name,
         status,
+        previousStatus: previous?.status ?? null,
         errorType: outcome.errorType ?? null,
         errorMessage: outcome.errorMessage ?? null,
         responseTimeMs: outcome.responseTimeMs,
@@ -360,5 +362,44 @@ export async function runAllServiceChecks(): Promise<ServiceCheckRunResult[]> {
     })
   )
 
-  return results
+  notifyStatusTransitions(results)
+
+  return results.map(({ previousStatus, ...result }) => result)
+}
+
+const BAD_STATUSES: ServiceStatusValue[] = ["failing", "degraded"]
+
+// Envia UNA alerta por corrida solo con los servicios que CAMBIARON de estado
+// (de bien a mal, o de mal a bien) -- si un servicio sigue caido de una
+// corrida del cron a la siguiente, previousStatus ya era "malo" y no se
+// vuelve a notificar, para no saturar el correo cada 6 horas con lo mismo.
+function notifyStatusTransitions(
+  results: Array<{
+    serviceName: string
+    status: ServiceStatusValue
+    previousStatus: ServiceStatusValue | null
+    errorMessage: string | null
+  }>
+) {
+  const failing: ServiceAlertTransition[] = results
+    .filter(
+      (r) =>
+        (r.status === "failing" || r.status === "degraded") &&
+        !BAD_STATUSES.includes(r.previousStatus as ServiceStatusValue)
+    )
+    .map((r) => ({
+      serviceName: r.serviceName,
+      status: r.status as "failing" | "degraded",
+      errorMessage: r.errorMessage,
+    }))
+
+  const recovered = results
+    .filter((r) => r.status === "ok" && BAD_STATUSES.includes(r.previousStatus as ServiceStatusValue))
+    .map((r) => r.serviceName)
+
+  if (failing.length === 0 && recovered.length === 0) return
+
+  sendServiceAlertEmail(failing, recovered).catch((err) =>
+    console.error("Error enviando alerta de Estado de servicios:", err)
+  )
 }

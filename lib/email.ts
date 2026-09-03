@@ -15,7 +15,8 @@ const LOGO_URL = `${SITE_BASE_URL}/images/marca-alta-blancorecurso-207.png`
 const PAYMENT_CONFIRMED_IMAGE_URL = `${SITE_BASE_URL}/images/email-pago-confirmado.png`
 
 // Destinatarios fijos para notificaciones de formularios (contacto, cotizacion Travel).
-// Distintos de STORE_NOTIFICATION_EMAIL, que es solo para pedidos pagados.
+// Distintos de STORE_NOTIFICATION_EMAIL, que es para el correo operativo de la
+// tienda (pedidos pagados y alertas de Estado de servicios).
 const FORM_NOTIFICATION_EMAILS = ["cerounobta@gmail.com", "equipo@cerounobikes.com"]
 
 function getClient(): Resend | null {
@@ -181,6 +182,82 @@ export async function sendOrderPaidEmails(order: OrderWithItems): Promise<void> 
     if (result.status === "rejected") {
       console.error("sendOrderPaidEmails: fallo enviando email", result.reason)
     }
+  }
+}
+
+export type ServiceAlertTransition = {
+  serviceName: string
+  status: "degraded" | "failing"
+  errorMessage: string | null
+}
+
+function buildServiceAlertEmailHtml(
+  failing: ServiceAlertTransition[],
+  recovered: string[]
+): string {
+  const failingRows = failing
+    .map(
+      (s) => `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:14px;line-height:1.6;">
+        <strong style="color:${s.status === "failing" ? BRAND.accent : BRAND.text};">
+          ${s.status === "failing" ? "🔴" : "🟠"} ${escapeHtml(s.serviceName)}
+        </strong><br/>
+        <span style="color:${BRAND.muted};font-size:13px;">${escapeHtml(s.errorMessage || "Sin detalle")}</span>
+      </p>`
+    )
+    .join("")
+
+  const recoveredHtml =
+    recovered.length > 0
+      ? `<p style="margin:24px 0 0;color:${BRAND.muted};font-size:13px;line-height:1.6;">
+          🟢 Ya se recuperaron: ${recovered.map(escapeHtml).join(", ")}
+        </p>`
+      : ""
+
+  return buildEmailShell(`
+    <h1 style="margin:0 0 4px;color:${BRAND.text};font-size:20px;">Alerta de Estado de servicios</h1>
+    <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.6;">
+      Se detectó un problema en uno o más servicios de cerounobikes.com.
+    </p>
+    ${failingRows}
+    ${recoveredHtml}
+    <p style="margin:24px 0 0;">
+      <a href="${SITE_BASE_URL}/admin/servicios" style="color:${BRAND.accent};font-size:14px;">Ver panel de Estado de servicios →</a>
+    </p>
+  `)
+}
+
+// Se llama desde runAllServiceChecks solo cuando un servicio CAMBIA de estado
+// (paso a paso, nunca en cada corrida del cron mientras sigue caido) para no
+// saturar el correo cada 6 horas con la misma falla.
+export async function sendServiceAlertEmail(
+  failing: ServiceAlertTransition[],
+  recovered: string[]
+): Promise<void> {
+  if (failing.length === 0 && recovered.length === 0) return
+
+  const resend = getClient()
+  const storeEmail = process.env.STORE_NOTIFICATION_EMAIL
+  if (!resend || !storeEmail) {
+    console.error("sendServiceAlertEmail: RESEND_API_KEY o STORE_NOTIFICATION_EMAIL no configurados, se omite el envío")
+    return
+  }
+
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "CERO.UNO <onboarding@resend.dev>"
+  const subject =
+    failing.length > 0
+      ? `⚠️ ${failing.length} servicio${failing.length === 1 ? "" : "s"} con problemas — cerounobikes.com`
+      : `✅ Servicio${recovered.length === 1 ? "" : "s"} recuperado${recovered.length === 1 ? "" : "s"} — cerounobikes.com`
+
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to: storeEmail,
+    subject,
+    html: buildServiceAlertEmailHtml(failing, recovered),
+  })
+
+  if (error) {
+    console.error("sendServiceAlertEmail: fallo enviando email", error)
   }
 }
 

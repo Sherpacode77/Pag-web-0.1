@@ -440,6 +440,7 @@ Este repositorio incluye documentación especializada:
 - **[GUIA_RAPIDA.md](GUIA_RAPIDA.md)** - Guía rápida del panel de administración
 - **[ADMIN_README.md](ADMIN_README.md)** - Documentación detallada del admin
 - **[SISTEMA_IMAGENES.md](SISTEMA_IMAGENES.md)** - Sistema de gestión de imágenes
+- **[PASARELA_PAGOS.md](PASARELA_PAGOS.md)** - Integración de MercadoPago y cómo diagnosticar problemas de pago
 
 ---
 
