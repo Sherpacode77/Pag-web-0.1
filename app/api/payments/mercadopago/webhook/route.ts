@@ -29,6 +29,10 @@ async function sendPurchaseCapiEvent(orderWithItems: OrderWithItems) {
     item_price: item.unit_price,
   }))
 
+  const [firstName, ...lastNameParts] = (orderWithItems.customer_name || "").trim().split(/\s+/)
+  const lastName = lastNameParts.join(" ")
+  const shippingAddress = orderWithItems.shipping_address
+
   const result = await sendFacebookCapiEvent({
     eventName: "Purchase",
     eventId: `purchase-${orderWithItems.order_number}`,
@@ -46,6 +50,12 @@ async function sendPurchaseCapiEvent(orderWithItems: OrderWithItems) {
     userData: {
       email: orderWithItems.customer_email,
       phone: orderWithItems.customer_phone,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      city: shippingAddress?.city ?? null,
+      state: shippingAddress?.department ?? null,
+      zip: shippingAddress?.postal_code ?? null,
+      country: shippingAddress?.country || "CO",
     },
   })
 

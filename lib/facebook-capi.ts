@@ -12,6 +12,12 @@ export type FacebookCapiUserData = {
   clientUserAgent?: string | null
   fbp?: string | null
   fbc?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
+  country?: string | null
 }
 
 export type FacebookCapiEventInput = {
@@ -43,12 +49,18 @@ export async function sendFacebookCapiEvent(input: FacebookCapiEventInput): Prom
   const hashedUserData: Record<string, unknown> = {}
 
   if (userData.email) hashedUserData.em = [sha256(userData.email)]
-  if (userData.phone) hashedUserData.ph = [sha256(userData.phone)]
+  if (userData.phone) hashedUserData.ph = [sha256(userData.phone.replace(/[^\d]/g, ""))]
   if (userData.externalId) hashedUserData.external_id = [sha256(userData.externalId)]
   if (userData.clientIpAddress) hashedUserData.client_ip_address = userData.clientIpAddress
   if (userData.clientUserAgent) hashedUserData.client_user_agent = userData.clientUserAgent
   if (userData.fbp) hashedUserData.fbp = userData.fbp
   if (userData.fbc) hashedUserData.fbc = userData.fbc
+  if (userData.firstName) hashedUserData.fn = [sha256(userData.firstName)]
+  if (userData.lastName) hashedUserData.ln = [sha256(userData.lastName)]
+  if (userData.city) hashedUserData.ct = [sha256(userData.city.replace(/[^a-zA-Z]/g, ""))]
+  if (userData.state) hashedUserData.st = [sha256(userData.state.replace(/[^a-zA-Z]/g, ""))]
+  if (userData.zip) hashedUserData.zp = [sha256(userData.zip.replace(/[^\d]/g, ""))]
+  if (userData.country) hashedUserData.country = [sha256(userData.country)]
 
   const payload = {
     data: [
