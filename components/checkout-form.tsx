@@ -2,6 +2,13 @@
 
 import { useState, useEffect, type FormEvent } from "react"
 import { TermsModal } from "./terms-modal"
+import { Combobox } from "./ui/combobox"
+import { COLOMBIAN_CITIES, COLOMBIAN_DEPARTMENTS, BOGOTA_CITY_NAME, BOGOTA_LOCALITIES } from "@/lib/colombia-locations"
+
+// "Bogotá D.C." se excluye de las opciones de Municipio cuando la Ciudad NO es
+// Bogotá -- ese departamento solo tiene sentido si la ciudad elegida es Bogotá,
+// y en ese caso el campo ya muestra las localidades en su lugar (ver mas abajo).
+const NON_BOGOTA_DEPARTMENTS = COLOMBIAN_DEPARTMENTS.filter((d) => d !== "Bogotá D.C.")
 
 export type CheckoutFormData = {
   email: string
@@ -19,15 +26,9 @@ export type CheckoutFormData = {
   phone: string
 }
 
-const COLOMBIAN_DEPARTMENTS = [
-  "Amazonas", "Antioquia", "Arauca", "Atlántico", "Bogotá D.C.", "Bolívar", "Boyacá", "Caldas",
-  "Caquetá", "Casanare", "Cauca", "Cesar", "Chocó", "Córdoba", "Cundinamarca", "Guainía",
-  "Guaviare", "Huila", "La Guajira", "Magdalena", "Meta", "Nariño", "Norte de Santander",
-  "Putumayo", "Quindío", "Risaralda", "San Andrés y Providencia", "Santander", "Sucre", "Tolima",
-  "Valle del Cauca", "Vaupés", "Vichada",
-]
-
-type FieldErrors = Partial<Record<"email" | "firstName" | "lastName" | "document" | "phone" | "address" | "city", string>>
+type FieldErrors = Partial<
+  Record<"email" | "firstName" | "lastName" | "document" | "phone" | "address" | "city" | "department", string>
+>
 
 const FIELD_LABELS: Record<keyof FieldErrors, string> = {
   email: "Correo electrónico",
@@ -37,6 +38,7 @@ const FIELD_LABELS: Record<keyof FieldErrors, string> = {
   phone: "Teléfono",
   address: "Dirección",
   city: "Ciudad",
+  department: "Municipio o Localidad",
 }
 
 interface CheckoutFormProps {
@@ -59,7 +61,7 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
     apartment: "",
     neighborhood: "",
     city: "",
-    department: "Bogotá D.C.",
+    department: "",
     postalCode: "",
     phone: "",
   })
@@ -85,6 +87,7 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
     if (form.deliveryMethod === "envio") {
       if (!form.address.trim()) next.address = "Requerido"
       if (!form.city.trim()) next.city = "Requerido"
+      if (!form.department.trim()) next.department = "Requerido"
     }
     setErrors(next)
     onMissingFieldsChange?.(
@@ -228,26 +231,37 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <input
-                    type="text"
-                    placeholder="Ciudad"
+                  <Combobox
+                    options={COLOMBIAN_CITIES}
                     value={form.city}
-                    onChange={(e) => update("city", e.target.value)}
-                    className={inputClass}
+                    placeholder="Ciudad"
+                    error={!!errors.city}
+                    emptyText="Ninguna ciudad coincide."
+                    onChange={(value) => {
+                      // Si cambia de ciudad, el Municipio elegido (departamento
+                      // o localidad de Bogota) ya no aplica -- se limpia para
+                      // que el cliente vuelva a elegir sobre las opciones correctas.
+                      update("city", value)
+                      update("department", "")
+                    }}
                   />
                   {errors.city && <p className={errorClass}>{errors.city}</p>}
                 </div>
-                <select
-                  value={form.department}
-                  onChange={(e) => update("department", e.target.value)}
-                  className={inputClass}
-                >
-                  {COLOMBIAN_DEPARTMENTS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <Combobox
+                    options={
+                      form.city === BOGOTA_CITY_NAME
+                        ? BOGOTA_LOCALITIES
+                        : NON_BOGOTA_DEPARTMENTS
+                    }
+                    value={form.department}
+                    placeholder="Municipio o Localidad"
+                    error={!!errors.department}
+                    emptyText="Ninguna opción coincide."
+                    onChange={(value) => update("department", value)}
+                  />
+                  {errors.department && <p className={errorClass}>{errors.department}</p>}
+                </div>
                 <input
                   type="text"
                   placeholder="Código postal (opcional)"

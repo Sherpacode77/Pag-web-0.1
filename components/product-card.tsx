@@ -36,6 +36,11 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <div className="group relative flex flex-col">
+      {offerLabel && (
+        <span className="mb-2 inline-flex w-fit items-center bg-red-600 px-2 py-1 text-xs font-bold uppercase tracking-wider text-white">
+          {offerLabel}
+        </span>
+      )}
       <Link
         href={`/tienda/${product.slug}`}
         className="relative aspect-square overflow-hidden bg-secondary"
@@ -47,12 +52,7 @@ export function ProductCard({ product }: { product: Product }) {
           className="object-cover transition-transform duration-500 group-hover:scale-105"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         />
-        {offerLabel && (
-          <span className="absolute top-3 left-3 bg-red-600 text-white px-2 py-1 text-xs font-bold uppercase tracking-wider">
-            {offerLabel}
-          </span>
-        )}
-        {product.bestSeller && !offerLabel && (
+        {product.bestSeller && (
           <span className="absolute top-3 left-3 bg-foreground text-background px-2 py-1 text-xs font-bold uppercase tracking-wider">
             Top Ventas
           </span>

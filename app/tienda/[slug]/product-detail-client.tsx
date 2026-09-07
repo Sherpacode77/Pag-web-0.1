@@ -250,6 +250,11 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-16">
             {/* Images & Videos */}
             <div className="flex flex-col gap-4">
+              {sealLabel && (
+                <span className="inline-flex w-fit -rotate-3 items-center border-2 border-white/80 bg-red-600 px-4 py-2 text-sm font-black uppercase tracking-wider text-white shadow-lg sm:text-base">
+                  {sealLabel}
+                </span>
+              )}
               <div
                 className={
                   activeMediaType === "video" && isPortraitVideo
@@ -275,16 +280,12 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
                     autoPlay
                     loop
                     playsInline
+                    preload="metadata"
                     onLoadedMetadata={(e) => {
                       const el = e.currentTarget
                       setIsPortraitVideo(el.videoHeight > el.videoWidth)
                     }}
                   />
-                )}
-                {sealLabel && (
-                  <span className="absolute top-4 left-4 -rotate-3 border-2 border-white/80 bg-red-600 px-4 py-2 text-sm font-black uppercase tracking-wider text-white shadow-lg sm:text-base">
-                    {sealLabel}
-                  </span>
                 )}
               </div>
               {(displayImages.length > 1 || displayVideos.length > 0) && (
@@ -320,7 +321,13 @@ export function ProductDetailClient({ product, relatedProducts, inventoryMap = {
                           : "border-border hover:border-muted-foreground"
                       }`}
                     >
-                      <video src={assetUrl(video)} className="w-full h-full object-cover" muted playsInline />
+                      <video
+                        src={assetUrl(video)}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                        preload="none"
+                      />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                         <div className="bg-white/90 rounded-full p-1.5">
                           <svg className="h-4 w-4 text-primary" fill="currentColor" viewBox="0 0 24 24">

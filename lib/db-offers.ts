@@ -188,10 +188,19 @@ export async function getActiveBundleOffers(): Promise<Offer[]> {
 export async function applyActiveOffers(products: Product[]): Promise<Product[]> {
   if (!hasDatabaseUrl() || products.length === 0) return products
 
-  const [pricingOffers, freeShippingIds] = await Promise.all([
-    getActivePricingOffers(),
-    getActiveFreeShippingProductIds(),
-  ])
+  // Si la base de datos falla aca (caida transitoria, red, etc.), el catalogo
+  // debe seguir mostrandose sin ofertas en vez de tumbar /api/products entero
+  // -- mismo criterio que filterProductsByAvailability para inventario.
+  let pricingOffers: Offer[]
+  let freeShippingIds: Set<string>
+  try {
+    ;[pricingOffers, freeShippingIds] = await Promise.all([
+      getActivePricingOffers(),
+      getActiveFreeShippingProductIds(),
+    ])
+  } catch {
+    return products
+  }
 
   if (pricingOffers.length === 0 && freeShippingIds.size === 0) return products
 
