@@ -74,7 +74,9 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="https://wa.me/573114515672"
+                href={`https://wa.me/573114515672?text=${encodeURIComponent(
+                  "¡Hola! Quiero más información (vengo del pie de página de cerounobikes.com)"
+                )}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"

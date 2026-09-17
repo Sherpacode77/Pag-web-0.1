@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { X, Minus, Plus, ShoppingBag } from "lucide-react"
+import { X, Minus, Plus, ShoppingBag, CheckCircle2 } from "lucide-react"
 import { useCart, getCartItemKey } from "@/lib/cart-context"
 import { formatPrice, getCatalogItemId } from "@/lib/data"
 import { trackBeginCheckout, sendFacebookServerEvent } from "@/lib/tracking-client"
@@ -11,15 +11,19 @@ import { assetUrl } from "@/lib/assets"
 import { FreeShippingBar } from "@/components/free-shipping-bar"
 import { CheckoutForm, type CheckoutFormData } from "@/components/checkout-form"
 import { OrderSummary } from "@/components/order-summary"
+import { CASH_ON_DELIVERY_SURCHARGE, PICKUP_LOCATION, type PaymentMethod } from "@/lib/shipping"
 
 export function CartSidebar() {
-  const { items, removeItem, updateQuantity, totalPrice, isOpen, setIsOpen } =
+  const { items, removeItem, updateQuantity, totalPrice, isOpen, setIsOpen, clearCart } =
     useCart()
-  const [step, setStep] = useState<"cart" | "checkout">("cart")
+  const [step, setStep] = useState<"cart" | "checkout" | "confirmado">("cart")
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [couponCode, setCouponCode] = useState<string | null>(null)
   const [deliveryMethod, setDeliveryMethod] = useState<"envio" | "retiro">("envio")
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mercadopago")
+  const [shippingCity, setShippingCity] = useState("")
   const [missingFields, setMissingFields] = useState<string[]>([])
+  const [confirmedOrder, setConfirmedOrder] = useState<{ order_number: string; total: number } | null>(null)
 
   const handleConfirmAndPay = async (form: CheckoutFormData) => {
     if (items.length === 0 || isCheckingOut) return
@@ -82,6 +86,7 @@ export function CartSidebar() {
           customer_name: `${form.firstName} ${form.lastName}`.trim(),
           customer_phone: form.phone,
           customer_document: form.document,
+          payment_method: form.paymentMethod,
           newsletter_opt_in: form.newsletterOptIn,
           coupon_code: couponCode,
           referral_code: getWhatsAppReferralCode(),
@@ -109,6 +114,43 @@ export function CartSidebar() {
 
       if (!orderResponse.ok || !orderResult.order_number) {
         throw new Error(orderResult.error || "No se pudo registrar el pedido")
+      }
+
+      // Contraentrega no pasa por la pasarela: el pedido queda confirmado aquí
+      // mismo y se cobra al entregar. Se reporta como conversión porque para
+      // este negocio un pedido contraentrega confirmado ES la venta — el cobro
+      // posterior lo hace la transportadora.
+      if (form.paymentMethod === "contraentrega") {
+        void sendFacebookServerEvent({
+          eventName: "Purchase",
+          eventId: `purchase-${orderResult.order_number}`,
+          customData: {
+            currency: "COP",
+            value: orderResult.total ?? totalPrice,
+            content_type: "product",
+            order_id: orderResult.order_number,
+            contents: items.map((item) => ({
+              id: getCatalogItemId(item.product.id, item.variantColor, item.variantSize),
+              quantity: item.quantity,
+              item_price: item.product.price,
+            })),
+          },
+          userData: {
+            email: form.email,
+            phone: form.phone,
+            firstName: form.firstName,
+            lastName: form.lastName,
+            city: form.deliveryMethod === "envio" ? form.city : undefined,
+          },
+        })
+
+        setConfirmedOrder({
+          order_number: orderResult.order_number,
+          total: orderResult.total ?? totalPrice,
+        })
+        clearCart()
+        setStep("confirmado")
+        return
       }
 
       // 2. Crear la preferencia de MercadoPago, usando el número de pedido como
@@ -195,13 +237,23 @@ export function CartSidebar() {
     }
   }
 
+  // Al cerrar se vuelve al estado inicial: si no, reabrir el carrito después de
+  // un pedido contraentrega mostraría la confirmación vieja con el carrito ya
+  // vacío.
+  const closeSidebar = () => {
+    setIsOpen(false)
+    setStep("cart")
+    setConfirmedOrder(null)
+    setMissingFields([])
+  }
+
   if (!isOpen) return null
 
   return (
     <>
       <div
         className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-        onClick={() => setIsOpen(false)}
+        onClick={closeSidebar}
         onKeyDown={() => {}}
         role="presentation"
       />
@@ -212,11 +264,15 @@ export function CartSidebar() {
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-bold uppercase tracking-wider text-card-foreground">
-            {step === "cart" ? "Tu Carrito" : "Datos de contacto y entrega"}
+            {step === "cart"
+              ? "Tu Carrito"
+              : step === "confirmado"
+                ? "Pedido confirmado"
+                : "Datos de contacto y entrega"}
           </h2>
           <button
             type="button"
-            onClick={() => setIsOpen(false)}
+            onClick={closeSidebar}
             className="text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Cerrar carrito"
           >
@@ -224,7 +280,50 @@ export function CartSidebar() {
           </button>
         </div>
 
-        {items.length === 0 ? (
+        {step === "confirmado" && confirmedOrder ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-8 text-center">
+            <CheckCircle2 className="h-16 w-16 text-primary" />
+            <div>
+              <p className="text-lg font-bold text-card-foreground">¡Tu pedido quedó confirmado!</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Número de pedido{" "}
+                <span className="font-semibold text-card-foreground">{confirmedOrder.order_number}</span>
+              </p>
+            </div>
+            <div className="w-full rounded-md border border-border bg-secondary/30 px-4 py-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {deliveryMethod === "retiro" ? "Pagas al recoger" : "Pagas al recibir"}
+                </span>
+                <span className="font-bold text-card-foreground">
+                  {formatPrice(confirmedOrder.total)}
+                </span>
+              </div>
+              <p className="mt-2 text-left text-xs text-muted-foreground">
+                {deliveryMethod === "retiro"
+                  ? `Sin recargo por pagar al recoger. Te esperamos en ${PICKUP_LOCATION.address}; te contactamos por WhatsApp para confirmar tu visita.`
+                  : `Incluye el recargo de ${formatPrice(CASH_ON_DELIVERY_SURCHARGE)} por pago contraentrega y el costo de envío. Te contactamos por WhatsApp para coordinar la entrega.`}
+              </p>
+            </div>
+            <a
+              href={`https://wa.me/573114515672?text=${encodeURIComponent(
+                `Hola! Acabo de hacer el pedido ${confirmedOrder.order_number} contraentrega en la página.`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-primary py-3 text-sm font-bold uppercase tracking-widest text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Confirmar por WhatsApp
+            </a>
+            <button
+              type="button"
+              onClick={closeSidebar}
+              className="text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Seguir comprando
+            </button>
+          </div>
+        ) : items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
             <ShoppingBag className="h-16 w-16 text-muted-foreground" />
             <p className="text-muted-foreground text-center">
@@ -232,7 +331,7 @@ export function CartSidebar() {
             </p>
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
+              onClick={closeSidebar}
               className="bg-primary text-primary-foreground px-6 py-2.5 text-sm font-medium uppercase tracking-wider hover:bg-primary/90 transition-colors"
             >
               Seguir comprando
@@ -249,6 +348,8 @@ export function CartSidebar() {
                 onSubmit={handleConfirmAndPay}
                 submitting={isCheckingOut}
                 onDeliveryMethodChange={setDeliveryMethod}
+                onPaymentMethodChange={setPaymentMethod}
+                onCityChange={setShippingCity}
                 onMissingFieldsChange={setMissingFields}
               />
             </div>
@@ -256,6 +357,8 @@ export function CartSidebar() {
               <OrderSummary
                 items={items}
                 deliveryMethod={deliveryMethod}
+                paymentMethod={paymentMethod}
+                city={shippingCity}
                 onCouponChange={setCouponCode}
                 missingFields={missingFields}
               />

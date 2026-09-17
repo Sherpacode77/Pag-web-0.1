@@ -93,7 +93,9 @@ export default function ContactoPage() {
                 </h2>
                 <div className="flex flex-col gap-6">
                   <a
-                    href="https://wa.me/573114515672"
+                    href={`https://wa.me/573114515672?text=${encodeURIComponent(
+                      "¡Hola! Quiero más información (vengo de la página de contacto de cerounobikes.com)"
+                    )}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-start gap-4 rounded-sm border border-border bg-card p-5 transition-colors hover:border-primary/40"
@@ -211,7 +213,9 @@ export default function ContactoPage() {
                       </svg>
                     </a>
                     <a
-                      href="https://wa.me/573114515672"
+                      href={`https://wa.me/573114515672?text=${encodeURIComponent(
+                        "¡Hola! Quiero más información (vengo de la página de contacto de cerounobikes.com)"
+                      )}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex h-10 w-10 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"

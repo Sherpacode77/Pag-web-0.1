@@ -46,6 +46,8 @@ export type CreateOrderInput = {
   customer_phone: string
   customer_document?: string | null
   shipping_address?: ShippingAddress | null
+  payment_method?: string | null
+  status?: OrderStatus
   notes?: string | null
   ad_campaign?: string | null
 }
@@ -112,12 +114,17 @@ export async function createOrder(input: CreateOrderInput): Promise<{ id: number
       orderNumber = randomOrderNumber()
     }
 
+    // "pending" = esperando que el cliente pague en la pasarela. Un pedido
+    // contraentrega ya está confirmado al crearse, así que entra como
+    // "processing" para no confundirlo con un checkout abandonado.
+    const status: OrderStatus = input.status ?? "pending"
+
     const [result] = await conn.execute<ResultSetHeader>(
       `INSERT INTO app_orders
          (order_number, customer_email, customer_name, customer_phone, customer_document,
-          shipping_address, status, subtotal, shipping_cost, discount, total, currency, notes,
-          ad_campaign, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, 'COP', ?, ?, NOW(), NOW())`,
+          shipping_address, status, payment_method, subtotal, shipping_cost, discount, total,
+          currency, notes, ad_campaign, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COP', ?, ?, NOW(), NOW())`,
       [
         orderNumber,
         input.customer_email,
@@ -125,6 +132,8 @@ export async function createOrder(input: CreateOrderInput): Promise<{ id: number
         input.customer_phone,
         input.customer_document ?? null,
         input.shipping_address ? JSON.stringify(input.shipping_address) : null,
+        status,
+        input.payment_method ?? null,
         input.subtotal,
         input.shipping_cost ?? 0,
         input.discount ?? 0,
@@ -162,8 +171,8 @@ export async function createOrder(input: CreateOrderInput): Promise<{ id: number
 
     await conn.execute(
       `INSERT INTO app_order_status_history (order_id, order_number, from_status, to_status, changed_by, created_at)
-       VALUES (?, ?, NULL, 'pending', 'system', NOW())`,
-      [orderId, orderNumber]
+       VALUES (?, ?, NULL, ?, 'system', NOW())`,
+      [orderId, orderNumber, status]
     )
 
     return { id: orderId, order_number: orderNumber }

@@ -7,7 +7,7 @@ import { subscribeToNewsletter } from "@/lib/db-newsletter"
 import { validateCoupon, incrementCouponUsage } from "@/lib/db-coupons"
 import { getActiveFreeShippingProductIds } from "@/lib/db-offers"
 import { getWhatsAppReferralByCode } from "@/lib/db-whatsapp"
-import { calculateShippingCost } from "@/lib/shipping"
+import { calculateShippingCost, calculateCodSurcharge } from "@/lib/shipping"
 
 const orderItemSchema = z.object({
   product_id: z.string().trim().min(1),
@@ -42,6 +42,7 @@ const createOrderSchema = z
     customer_phone: z.string().trim().min(1).max(30),
     customer_document: z.string().trim().min(1).max(50),
     shipping_address: shippingAddressSchema,
+    payment_method: z.enum(["mercadopago", "contraentrega"]).optional().default("mercadopago"),
     newsletter_opt_in: z.boolean().optional().default(false),
     coupon_code: z.string().trim().max(30).optional().nullable(),
     referral_code: z.string().trim().max(10).optional().nullable(),
@@ -107,10 +108,18 @@ export async function POST(request: NextRequest) {
 
     const freeShippingProductIds = await getActiveFreeShippingProductIds()
     const freeShippingOverride = orderInput.items.some((item) => freeShippingProductIds.has(item.product_id))
+    // La tarifa depende de la ciudad de destino (sabana vs resto del país), así
+    // que se calcula siempre en el servidor a partir de la dirección recibida —
+    // nunca se confía en un costo enviado por el cliente.
     const shipping_cost = calculateShippingCost(
       subtotal,
       orderInput.shipping_address.delivery_method,
-      freeShippingOverride
+      freeShippingOverride,
+      orderInput.shipping_address.city
+    )
+    const cod_surcharge = calculateCodSurcharge(
+      orderInput.payment_method,
+      orderInput.shipping_address.delivery_method
     )
 
     let discount = 0
@@ -138,9 +147,19 @@ export async function POST(request: NextRequest) {
       discount = Math.max(0, Math.round(maxCombinedDiscount - offerDiscountAmount))
     }
 
-    const total = subtotal - discount + shipping_cost
+    const total = subtotal - discount + shipping_cost + cod_surcharge
 
-    const order = await createOrder({ ...orderInput, subtotal, shipping_cost, discount, total, ad_campaign })
+    // Contraentrega no pasa por la pasarela: el pedido ya está confirmado al
+    // crearse. "pending" queda reservado para los que esperan pago en línea.
+    const order = await createOrder({
+      ...orderInput,
+      subtotal,
+      shipping_cost,
+      discount,
+      total,
+      ad_campaign,
+      status: orderInput.payment_method === "contraentrega" ? "processing" : "pending",
+    })
 
     if (appliedCouponId !== null) {
       try {
@@ -158,7 +177,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ...order, subtotal, shipping_cost, discount, total }, { status: 201 })
+    return NextResponse.json(
+      { ...order, subtotal, shipping_cost, discount, cod_surcharge, total, payment_method: orderInput.payment_method },
+      { status: 201 }
+    )
   } catch (error) {
     return NextResponse.json({ error: "Error creando el pedido" }, { status: 500 })
   }

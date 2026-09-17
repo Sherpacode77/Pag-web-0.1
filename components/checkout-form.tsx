@@ -4,6 +4,14 @@ import { useState, useEffect, type FormEvent } from "react"
 import { TermsModal } from "./terms-modal"
 import { Combobox } from "./ui/combobox"
 import { COLOMBIAN_CITIES, COLOMBIAN_DEPARTMENTS, BOGOTA_CITY_NAME, BOGOTA_LOCALITIES } from "@/lib/colombia-locations"
+import {
+  CASH_ON_DELIVERY_SURCHARGE,
+  SHIPPING_COST_SABANA,
+  SHIPPING_COST_NACIONAL,
+  getShippingZone,
+  type PaymentMethod,
+} from "@/lib/shipping"
+import { formatPrice } from "@/lib/data"
 
 // "Bogotá D.C." se excluye de las opciones de Municipio cuando la Ciudad NO es
 // Bogotá -- ese departamento solo tiene sentido si la ciudad elegida es Bogotá,
@@ -14,6 +22,7 @@ export type CheckoutFormData = {
   email: string
   newsletterOptIn: boolean
   deliveryMethod: "envio" | "retiro"
+  paymentMethod: PaymentMethod
   firstName: string
   lastName: string
   document: string
@@ -46,14 +55,25 @@ interface CheckoutFormProps {
   onSubmit: (data: CheckoutFormData) => void
   submitting: boolean
   onDeliveryMethodChange?: (method: "envio" | "retiro") => void
+  onPaymentMethodChange?: (method: PaymentMethod) => void
+  onCityChange?: (city: string) => void
   onMissingFieldsChange?: (fields: string[]) => void
 }
 
-export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodChange, onMissingFieldsChange }: CheckoutFormProps) {
+export function CheckoutForm({
+  onBack,
+  onSubmit,
+  submitting,
+  onDeliveryMethodChange,
+  onPaymentMethodChange,
+  onCityChange,
+  onMissingFieldsChange,
+}: CheckoutFormProps) {
   const [form, setForm] = useState<CheckoutFormData>({
     email: "",
     newsletterOptIn: true,
     deliveryMethod: "envio",
+    paymentMethod: "mercadopago",
     firstName: "",
     lastName: "",
     document: "",
@@ -72,6 +92,18 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
   useEffect(() => {
     onDeliveryMethodChange?.(form.deliveryMethod)
   }, [form.deliveryMethod, onDeliveryMethodChange])
+
+  useEffect(() => {
+    onPaymentMethodChange?.(form.paymentMethod)
+  }, [form.paymentMethod, onPaymentMethodChange])
+
+  useEffect(() => {
+    onCityChange?.(form.city)
+  }, [form.city, onCityChange])
+
+  // El recargo por pagar al recibir solo existe cuando hay transportadora de por
+  // medio; recogiendo en tienda el pago en efectivo no cuesta nada extra.
+  const isPickup = form.deliveryMethod === "retiro"
 
   function update<K extends keyof CheckoutFormData>(key: K, value: CheckoutFormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -286,6 +318,87 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
         </div>
       </div>
 
+      <div>
+        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-card-foreground">Método de pago</h3>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => update("paymentMethod", "mercadopago")}
+            className={`flex items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors ${
+              form.paymentMethod === "mercadopago"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50"
+            }`}
+          >
+            <span>
+              <span className="block text-sm font-medium text-card-foreground">Pago en línea</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Tarjeta, PSE o Nequi a través de Mercado Pago.
+              </span>
+            </span>
+            <span className="whitespace-nowrap text-xs font-bold uppercase text-primary">Sin recargo</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => update("paymentMethod", "contraentrega")}
+            className={`flex items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors ${
+              form.paymentMethod === "contraentrega"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50"
+            }`}
+          >
+            <span>
+              <span className="block text-sm font-medium text-card-foreground">
+                {isPickup ? "Pago al recoger" : "Pago contraentrega"}
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {isPickup
+                  ? "Pagas en efectivo al recoger tu pedido en la tienda."
+                  : "Pagas en efectivo cuando recibes tu pedido."}
+              </span>
+            </span>
+            <span
+              className={`whitespace-nowrap text-xs font-bold uppercase ${
+                isPickup ? "text-primary" : "text-foreground"
+              }`}
+            >
+              {isPickup ? "Sin recargo" : `+${formatPrice(CASH_ON_DELIVERY_SURCHARGE)}`}
+            </span>
+          </button>
+        </div>
+
+        {form.paymentMethod === "contraentrega" && (
+          <p className="mt-2 rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+            {isPickup ? (
+              <>
+                Al recoger en tienda no hay recargo: el costo adicional de{" "}
+                <strong className="text-card-foreground">{formatPrice(CASH_ON_DELIVERY_SURCHARGE)}</strong>{" "}
+                solo aplica cuando pagas contraentrega con envío a domicilio.
+              </>
+            ) : (
+              <>
+                Elegir pago contraentrega tiene un costo adicional de{" "}
+                <strong className="text-card-foreground">{formatPrice(CASH_ON_DELIVERY_SURCHARGE)}</strong>,
+                ya incluido en el total de tu pedido.
+              </>
+            )}
+          </p>
+        )}
+
+        {form.deliveryMethod === "envio" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {form.city
+              ? getShippingZone(form.city) === "sabana"
+                ? `Envío a ${form.city}: ${formatPrice(SHIPPING_COST_SABANA)}.`
+                : `Envío a ${form.city}: ${formatPrice(SHIPPING_COST_NACIONAL)}.`
+              : `Envío: ${formatPrice(SHIPPING_COST_SABANA)} en Bogotá y la sabana, ${formatPrice(
+                  SHIPPING_COST_NACIONAL
+                )} para el resto del país.`}
+          </p>
+        )}
+      </div>
+
       <label className="flex items-start gap-2 text-xs text-muted-foreground">
         <input
           type="checkbox"
@@ -314,8 +427,20 @@ export function CheckoutForm({ onBack, onSubmit, submitting, onDeliveryMethodCha
             : "bg-primary text-primary-foreground hover:bg-primary/90"
         }`}
       >
-        {submitting ? "Procesando..." : "Finalizar Compra"}
+        {submitting
+          ? "Procesando..."
+          : form.paymentMethod === "contraentrega"
+            ? "Confirmar pedido"
+            : "Ir a pagar"}
       </button>
+
+      <p className="-mt-3 text-center text-xs text-muted-foreground">
+        {form.paymentMethod === "contraentrega"
+          ? isPickup
+            ? "No pagas ahora. Confirmamos tu pedido y pagas al recogerlo en la tienda."
+            : "No pagas ahora. Confirmamos tu pedido y pagas al recibirlo."
+          : "Te llevaremos a Mercado Pago para completar el pago de forma segura."}
+      </p>
 
       {showTerms && <TermsModal onClose={() => setShowTerms(false)} />}
     </form>

@@ -417,12 +417,10 @@
     "originalPrice": 515000,
     "description": "Set completo de bikepacking que incluye SaddleBag 12L, FrontBag Roll Top 8L, Frame Bag 5L y Top Tube Bag. Todo lo que necesitas para tu aventura en un solo paquete con descuento.",
     "shortDescription": "Set completo: SaddleBag + FrontBag + FrameBag + TopTube",
-    "image": "/images/products/saddlebag-studio.jpg",
+    "image": "/images/products/rolltop-lifestyle.jpg",
     "images": [
-      "/images/products/saddlebag-studio.jpg",
       "/images/products/rolltop-lifestyle.jpg",
-      "/images/products/frontbag-lifestyle.jpg",
-      "/images/products/frame-bag.jpg"
+      "/images/products/saddlebag-studio.jpg"
     ],
     "category": "kits",
     "tags": [

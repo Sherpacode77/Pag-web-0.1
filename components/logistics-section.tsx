@@ -16,7 +16,9 @@ export function LogisticsSection() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const message = `Hola! Quiero cotizar logistica:%0ANombre: ${formData.nombre}%0ATipo: ${formData.tipo}%0ACiclistas: ${formData.ciclistas}%0AFecha: ${formData.fecha}`
+    const message = encodeURIComponent(
+      `¡Hola! Quiero cotizar logística (formulario de cerounobikes.com):\nNombre: ${formData.nombre}\nTipo: ${formData.tipo}\nCiclistas: ${formData.ciclistas}\nFecha: ${formData.fecha}`
+    )
     window.open(`https://wa.me/573114515672?text=${message}`, "_blank")
   }
 

@@ -201,10 +201,8 @@ const products = [
     "shortDescription": "Set completo: SaddleBag + FrontBag + FrameBag + TopTube",
     "image": "/images/products/saddlebag-studio.jpg",
     "images": [
-      "/images/products/saddlebag-studio.jpg",
       "/images/products/rolltop-lifestyle.jpg",
-      "/images/products/frontbag-lifestyle.jpg",
-      "/images/products/frame-bag.jpg"
+      "/images/products/saddlebag-studio.jpg"
     ],
     "category": "kits",
     "tags": ["kit", "completo", "descuento", "bikepacking"],

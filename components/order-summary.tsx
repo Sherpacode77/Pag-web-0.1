@@ -6,18 +6,32 @@ import { Tag, X, MapPin } from "lucide-react"
 import type { CartItem } from "@/lib/cart-context"
 import { formatPrice } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
-import { calculateShippingCost, PICKUP_LOCATION } from "@/lib/shipping"
+import {
+  calculateShippingCost,
+  calculateCodSurcharge,
+  PICKUP_LOCATION,
+  type PaymentMethod,
+} from "@/lib/shipping"
 
 interface OrderSummaryProps {
   items: CartItem[]
   deliveryMethod: "envio" | "retiro"
+  paymentMethod?: PaymentMethod
+  city?: string
   onCouponChange: (code: string | null) => void
   missingFields?: string[]
 }
 
 type CouponStatus = "idle" | "checking" | "applied" | "error"
 
-export function OrderSummary({ items, deliveryMethod, onCouponChange, missingFields = [] }: OrderSummaryProps) {
+export function OrderSummary({
+  items,
+  deliveryMethod,
+  paymentMethod = "mercadopago",
+  city,
+  onCouponChange,
+  missingFields = [],
+}: OrderSummaryProps) {
   const [couponInput, setCouponInput] = useState("")
   const [status, setStatus] = useState<CouponStatus>("idle")
   const [message, setMessage] = useState<string | null>(null)
@@ -26,13 +40,14 @@ export function OrderSummary({ items, deliveryMethod, onCouponChange, missingFie
 
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
   const freeShippingOverride = items.some((item) => item.product.freeShipping)
-  const shippingCost = calculateShippingCost(subtotal, deliveryMethod, freeShippingOverride)
+  const shippingCost = calculateShippingCost(subtotal, deliveryMethod, freeShippingOverride, city)
+  const codSurcharge = calculateCodSurcharge(paymentMethod, deliveryMethod)
   const offerSavings = items.reduce((sum, item) => {
     if (!item.product.originalPrice) return sum
     return sum + (item.product.originalPrice - item.product.price) * item.quantity
   }, 0)
   const totalSavings = offerSavings + appliedDiscount
-  const total = subtotal - appliedDiscount + shippingCost
+  const total = subtotal - appliedDiscount + shippingCost + codSurcharge
 
   async function handleApplyCoupon() {
     if (!couponInput.trim() || status === "checking") return
@@ -167,9 +182,18 @@ export function OrderSummary({ items, deliveryMethod, onCouponChange, missingFie
           </div>
         )}
         <div className="flex items-center justify-between text-muted-foreground">
-          <span>{deliveryMethod === "retiro" ? "Retiro en tienda" : "Envío"}</span>
+          <span>
+            {deliveryMethod === "retiro" ? "Retiro en tienda" : "Envío"}
+            {deliveryMethod === "envio" && city ? ` · ${city}` : ""}
+          </span>
           <span>{shippingCost === 0 ? "GRATIS" : formatPrice(shippingCost)}</span>
         </div>
+        {codSurcharge > 0 && (
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span>Pago contraentrega</span>
+            <span>{formatPrice(codSurcharge)}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between border-t border-border pt-2 text-base font-bold text-card-foreground">
           <span>Total</span>
           <span>COP {formatPrice(total)}</span>
