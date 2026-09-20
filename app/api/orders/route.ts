@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { ensureAdminSession } from "@/lib/auth"
 import { hasDatabaseUrl } from "@/lib/db"
-import { createOrder, listOrdersWithItems } from "@/lib/db-orders"
+import { createOrder, listOrdersWithItems, getOrderWithItemsByNumber } from "@/lib/db-orders"
+import { sendOrderCreatedEmails } from "@/lib/email"
 import { subscribeToNewsletter } from "@/lib/db-newsletter"
 import { validateCoupon, incrementCouponUsage } from "@/lib/db-coupons"
 import { getActiveFreeShippingProductIds } from "@/lib/db-offers"
@@ -167,6 +168,19 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error("POST /api/orders: fallo incrementando uso de cupón", err)
       }
+    }
+
+    // Correo de "orden registrada", antes de cualquier pago. Se hace sin await y
+    // sin romper la respuesta: si el correo falla, el pedido igual queda creado.
+    try {
+      const orderWithItems = await getOrderWithItemsByNumber(order.order_number)
+      if (orderWithItems) {
+        sendOrderCreatedEmails(orderWithItems).catch((err) =>
+          console.error("POST /api/orders: fallo enviando correo de pedido creado", err)
+        )
+      }
+    } catch (err) {
+      console.error("POST /api/orders: no se pudo cargar el pedido para el correo", err)
     }
 
     if (newsletter_opt_in) {

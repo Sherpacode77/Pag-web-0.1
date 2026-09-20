@@ -157,9 +157,16 @@ export default function AdminPedidosPage() {
     (order) => statusFilter === "all" || order.status === statusFilter
   )
 
+  // MySQL devuelve DECIMAL como string ("74250.00"), asi que sumar directamente
+  // concatena en vez de sumar y el total termina en NaN. Hay que convertir.
+  const toNumber = (v: unknown): number => {
+    const n = typeof v === "number" ? v : Number.parseFloat(String(v ?? 0))
+    return Number.isFinite(n) ? n : 0
+  }
+
   const totalRevenue = orders
     .filter((o) => o.status !== "pending" && o.status !== "cancelled")
-    .reduce((sum, o) => sum + o.total, 0)
+    .reduce((sum, o) => sum + toNumber(o.total), 0)
 
   if (loading) {
     return (
@@ -232,6 +239,7 @@ export default function AdminPedidosPage() {
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Cliente</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Fecha</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Total</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Pago</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Estado</th>
                     <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider">Items</th>
                   </tr>
@@ -259,6 +267,19 @@ export default function AdminPedidosPage() {
                             <p className="font-semibold">{formatPrice(order.total)}</p>
                           </td>
                           <td className="px-4 py-4">
+                            {order.payment_method === "contraentrega" ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500/15 text-amber-500">
+                                Contraentrega
+                              </span>
+                            ) : order.payment_method === "mercadopago" ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-sky-500/15 text-sky-500">
+                                En línea
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
                             <span
                               className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text}`}
                             >
@@ -281,8 +302,8 @@ export default function AdminPedidosPage() {
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan={6} className="bg-secondary/10 px-4 py-4">
-                              <div className="mb-4 grid gap-4 text-sm sm:grid-cols-2">
+                            <td colSpan={7} className="bg-secondary/10 px-4 py-4">
+                              <div className="mb-4 grid gap-4 text-sm sm:grid-cols-3">
                                 <div>
                                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
                                     Contacto
@@ -310,6 +331,36 @@ export default function AdminPedidosPage() {
                                       ]
                                         .filter(Boolean)
                                         .join(", ") || "—"}
+                                    </p>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                    Método de pago
+                                  </p>
+                                  {order.payment_method === "contraentrega" ? (
+                                    <>
+                                      <p className="text-amber-500 font-medium">
+                                        {order.shipping_address?.delivery_method === "retiro"
+                                          ? "Pago al recoger"
+                                          : "Pago contraentrega"}
+                                      </p>
+                                      <p className="text-muted-foreground text-xs">
+                                        Cobrar en efectivo al entregar
+                                      </p>
+                                    </>
+                                  ) : order.payment_method === "mercadopago" ? (
+                                    <>
+                                      <p className="text-sky-500 font-medium">Pago en línea</p>
+                                      <p className="text-muted-foreground text-xs">
+                                        {order.status === "pending"
+                                          ? "MercadoPago aún no confirma el pago"
+                                          : "Vía MercadoPago"}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="text-muted-foreground">
+                                      — <span className="text-xs">(pedido anterior al registro del método)</span>
                                     </p>
                                   )}
                                 </div>

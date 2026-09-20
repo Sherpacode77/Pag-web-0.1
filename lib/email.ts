@@ -24,6 +24,39 @@ function getClient(): Resend | null {
   return apiKey ? new Resend(apiKey) : null
 }
 
+const WHATSAPP_NUMBER = "573114515672"
+const WHATSAPP_DISPLAY = "+57 311 451 5672"
+const WHATSAPP_GREEN = "#25D366"
+
+// El cliente identifica su pedido por el sufijo ("701244"), no por el codigo
+// completo "CO-2026-701244". Se muestra solo esa parte en asuntos y titulos.
+function orderSuffix(orderNumber: string): string {
+  const m = orderNumber.match(/(\d+)\s*$/)
+  return m ? m[1] : orderNumber
+}
+
+function buildWhatsAppBlock(message: string): string {
+  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
+  return `
+    <table role="presentation" width="100%" style="border-collapse:collapse;margin:28px 0 0;">
+      <tr>
+        <td align="center" style="padding:0 0 12px;">
+          <a href="${href}" style="display:inline-block;background-color:${WHATSAPP_GREEN};color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:700;padding:14px 28px;border-radius:999px;">
+            <span style="font-size:17px;">&#128172;</span>&nbsp;&nbsp;Escríbenos por WhatsApp
+          </a>
+        </td>
+      </tr>
+      <tr>
+        <td align="center">
+          <p style="margin:0;color:${BRAND.muted};font-size:13px;line-height:1.6;">
+            ¿No abre el botón? Escríbenos directo al
+            <a href="${href}" style="color:${WHATSAPP_GREEN};font-weight:700;text-decoration:none;">${WHATSAPP_DISPLAY}</a>
+          </p>
+        </td>
+      </tr>
+    </table>`
+}
+
 function formatCOP(amount: number): string {
   return new Intl.NumberFormat("es-CO", {
     style: "currency",
@@ -139,6 +172,140 @@ function buildStoreEmailHtml(order: OrderWithItems): string {
     <table role="presentation" width="100%" style="border-collapse:collapse;">${buildItemsRows(order)}</table>
     <table role="presentation" width="100%" style="border-collapse:collapse;margin-top:8px;">${buildTotalsRows(order)}</table>
   `)
+}
+
+function buildOrderCreatedCustomerHtml(order: OrderWithItems): string {
+  const firstName = order.customer_name?.split(" ")[0]
+  const esContraentrega = order.payment_method === "contraentrega"
+  const addr = order.shipping_address
+  const esRetiro = addr?.delivery_method === "retiro"
+  const numero = orderSuffix(order.order_number)
+
+  const titulo = esContraentrega ? "¡Pedido confirmado!" : "¡Recibimos tu pedido!"
+  const estado = esContraentrega
+    ? esRetiro
+      ? "Pagas en efectivo cuando pases a recogerlo por la tienda."
+      : "Pagas en efectivo cuando lo recibas en tu dirección."
+    : "Tu pago está en proceso. En cuanto se acredite te llega un segundo correo confirmando la compra."
+
+  return buildEmailShell(`
+    <p style="margin:0 0 6px;color:${WHATSAPP_GREEN};font-size:22px;font-weight:700;line-height:1.3;">
+      ${titulo}
+    </p>
+    <p style="margin:0 0 20px;color:${BRAND.muted};font-size:14px;line-height:1.6;">
+      Hola${firstName ? ` ${firstName}` : ""}, ${estado}
+    </p>
+
+    <table role="presentation" width="100%" style="border-collapse:collapse;margin:0 0 24px;">
+      <tr>
+        <td style="background-color:${BRAND.bg};border:1px solid ${BRAND.border};border-radius:10px;padding:16px 20px;">
+          <p style="margin:0 0 4px;color:${BRAND.muted};font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">
+            Número de tu orden
+          </p>
+          <p style="margin:0;color:${BRAND.text};font-size:26px;font-weight:700;letter-spacing:.02em;">
+            ${numero}
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" width="100%" style="border-collapse:collapse;">${buildItemsRows(order)}</table>
+    <table role="presentation" width="100%" style="border-collapse:collapse;margin-top:8px;">${buildTotalsRows(order)}</table>
+
+    <p style="margin:28px 0 0;color:${BRAND.muted};font-size:13px;line-height:1.6;">
+      ¿Algo no salió como esperabas o tuviste problemas para pagar? Estamos a un mensaje de distancia.
+    </p>
+    ${buildWhatsAppBlock(`Hola, les escribo por mi orden ${numero}`)}
+
+    <p style="margin:24px 0 0;color:${BRAND.text};font-size:14px;">El equipo de CERO.UNO</p>
+  `)
+}
+
+function buildOrderCreatedStoreHtml(order: OrderWithItems): string {
+  const addr = order.shipping_address
+  const entrega =
+    addr?.delivery_method === "envio"
+      ? `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.neighborhood, addr.city, addr.department].filter(Boolean).join(", ")}`
+      : "Retiro en punto de venta"
+  const metodo =
+    order.payment_method === "contraentrega" ? "Contraentrega (cobrar al entregar)" : "Pago en línea (MercadoPago)"
+  const aviso =
+    order.payment_method === "contraentrega"
+      ? `<p style="margin:0 0 20px;padding:12px;border:1px solid ${BRAND.border};border-radius:8px;color:${BRAND.text};font-size:13px;line-height:1.6;">
+           Pedido confirmado. No requiere pago en línea: se cobra al entregar.
+         </p>`
+      : `<p style="margin:0 0 20px;padding:12px;border:1px solid ${BRAND.accent};border-radius:8px;color:${BRAND.text};font-size:13px;line-height:1.6;">
+           El cliente eligió pago en línea. Este pedido queda <strong>pendiente</strong> hasta que MercadoPago confirme.
+           Si no llega esa confirmación en unos minutos, conviene contactarlo: puede haberse quedado atascado en la pasarela.
+         </p>`
+
+  return buildEmailShell(`
+    <h1 style="margin:0 0 4px;color:${BRAND.text};font-size:20px;">Nueva orden registrada</h1>
+    <p style="margin:0 0 20px;color:${BRAND.accent};font-size:14px;font-weight:700;">${order.order_number}</p>
+    ${aviso}
+    <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.8;">
+      <strong style="color:${BRAND.text};">Cliente:</strong> ${order.customer_name ?? "—"}<br/>
+      <strong style="color:${BRAND.text};">Email:</strong> ${order.customer_email ?? "—"}<br/>
+      <strong style="color:${BRAND.text};">Teléfono:</strong> ${order.customer_phone ?? "—"}<br/>
+      <strong style="color:${BRAND.text};">Método de pago:</strong> ${metodo}<br/>
+      <strong style="color:${BRAND.text};">Entrega:</strong> ${entrega}
+    </p>
+    <table role="presentation" width="100%" style="border-collapse:collapse;">${buildItemsRows(order)}</table>
+    <table role="presentation" width="100%" style="border-collapse:collapse;margin-top:8px;">${buildTotalsRows(order)}</table>
+    <p style="margin:24px 0 0;">
+      <a href="${SITE_BASE_URL}/admin/pedidos" style="color:${BRAND.accent};font-size:14px;">Ver en el panel →</a>
+    </p>
+  `)
+}
+
+// Se llama al CREAR el pedido, antes de cualquier pago. Es la unica senal que
+// existe cuando el cliente se queda atascado en la pasarela: sin esto un intento
+// fallido solo aparece en el panel si alguien entra a mirarlo.
+export async function sendOrderCreatedEmails(order: OrderWithItems): Promise<void> {
+  const resend = getClient()
+  if (!resend) {
+    console.error("sendOrderCreatedEmails: RESEND_API_KEY no configurado, se omite el envío")
+    return
+  }
+
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "CERO.UNO <onboarding@resend.dev>"
+  const storeEmail = process.env.STORE_NOTIFICATION_EMAIL
+  const esContraentrega = order.payment_method === "contraentrega"
+
+  const sends: Promise<unknown>[] = []
+
+  if (order.customer_email) {
+    sends.push(
+      resend.emails.send({
+        from: fromAddress,
+        to: order.customer_email,
+        subject: esContraentrega
+          ? `Pedido confirmado - Pagas al recibir, número de orden ${orderSuffix(order.order_number)}`
+          : `Recibimos tu pedido - Pago en proceso, número de orden ${orderSuffix(order.order_number)}`,
+        html: buildOrderCreatedCustomerHtml(order),
+      })
+    )
+  }
+
+  if (storeEmail) {
+    sends.push(
+      resend.emails.send({
+        from: fromAddress,
+        to: storeEmail,
+        subject: esContraentrega
+          ? `Nueva orden contraentrega — ${order.order_number}`
+          : `Nueva orden (pago en proceso) — ${order.order_number}`,
+        html: buildOrderCreatedStoreHtml(order),
+      })
+    )
+  }
+
+  const results = await Promise.allSettled(sends)
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error("sendOrderCreatedEmails: fallo enviando email", result.reason)
+    }
+  }
 }
 
 // Se llama solo cuando un pedido transiciona a "paid" (ver webhook de MercadoPago) —

@@ -50,6 +50,26 @@ const nextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      // Next emite por defecto "s-maxage=3600, stale-while-revalidate=31532400"
+      // en las paginas prerenderizadas: un ano de margen para servir contenido
+      // viejo. La CDN de Hostinger lo obedece al pie de la letra, y se midio
+      // sirviendo HTML de 25 a 44 horas de antiguedad — por eso un deploy podia
+      // "no verse" durante dias. Se acota la ventana rancia a 60s: la CDN sigue
+      // absorbiendo el trafico durante la hora fresca, pero pasada esa hora
+      // tiene que revalidar contra el origen antes de responder.
+      {
+        source: "/((?!api/).*)",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=60" },
+        ],
+      },
+      // Las rutas de API nunca se cachean: sirven pedidos, stock y cupones.
+      {
+        source: "/api/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+        ],
+      },
       {
         source: "/_next/static/(.*)",
         headers: [

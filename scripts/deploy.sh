@@ -20,11 +20,13 @@ SSH_PORT="65002"
 APP_DIR="~/domains/cerounobikes.com/nodejs"
 SITE_URL="https://cerounobikes.com"
 
-# Cuantos deploys anteriores se conservan. Con 3 se puede retroceder hasta tres
-# versiones: si la anterior tambien resulto estar rota, todavia queda a donde
-# volver. Cada respaldo pesa ~16 MB mientras el empaquetado siga excluyendo
-# .next/dev y .next/cache, asi que conservar varios es barato.
-RETAIN_BACKUPS="${RETAIN_BACKUPS:-3}"
+# Cuantos deploys anteriores se conservan. Cada respaldo pesa ~16 MB mientras el
+# empaquetado siga excluyendo .next/dev y .next/cache, asi que 8 cuesta ~130 MB:
+# irrelevante. El numero no importa solo para retroceder — de cada respaldo se
+# recuperan los estaticos (ver mas abajo), asi que la ventana define cuantos
+# deploys de antiguedad puede tener el HTML cacheado de un visitante sin que la
+# pagina le reviente con 'client-side exception'.
+RETAIN_BACKUPS="${RETAIN_BACKUPS:-8}"
 
 SSH="ssh -i $SSH_KEY -p $SSH_PORT $SSH_HOST"
 TARBALL="$(mktemp -d)/deploy.tar.gz"
