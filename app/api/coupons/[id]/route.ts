@@ -2,13 +2,26 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { ensureAdminSession } from "@/lib/auth"
 import { hasDatabaseUrl } from "@/lib/db"
-import { setCouponActive, deleteCoupon } from "@/lib/db-coupons"
+import { setCouponActive, updateCoupon, deleteCoupon } from "@/lib/db-coupons"
 
-const patchSchema = z.object({
-  is_active: z.boolean(),
-})
+// Acepta tanto el toggle suelto de activar/desactivar como una edicion completa.
+// Todo es opcional: solo se escriben las columnas que vengan en el cuerpo.
+const patchSchema = z
+  .object({
+    description: z.string().trim().max(200).nullable().optional(),
+    discount_type: z.enum(["percentage", "fixed"]).optional(),
+    discount_value: z.number().finite().positive().optional(),
+    min_order_amount: z.number().finite().nonnegative().optional(),
+    max_discount_amount: z.number().finite().positive().nullable().optional(),
+    max_uses: z.number().int().positive().nullable().optional(),
+    valid_until: z.string().trim().nullable().optional(),
+    is_active: z.boolean().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "No se envió ningún campo para actualizar",
+  })
 
-// PATCH - Activar/desactivar cupón (admin)
+// PATCH - Editar cupón o activar/desactivarlo (admin)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -33,7 +46,18 @@ export async function PATCH(
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 })
     }
 
-    const updated = await setCouponActive(couponId, parsed.data.is_active)
+    const fields = parsed.data
+
+    if (fields.discount_type === "percentage" && (fields.discount_value ?? 0) > 100) {
+      return NextResponse.json({ error: "El porcentaje no puede superar 100" }, { status: 400 })
+    }
+
+    // El caso de solo activar/desactivar conserva su ruta dedicada.
+    const soloActivo = Object.keys(fields).length === 1 && fields.is_active !== undefined
+    const updated = soloActivo
+      ? await setCouponActive(couponId, fields.is_active as boolean)
+      : await updateCoupon(couponId, fields)
+
     if (!updated) {
       return NextResponse.json({ error: "Cupón no encontrado" }, { status: 404 })
     }

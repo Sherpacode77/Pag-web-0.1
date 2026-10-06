@@ -32,8 +32,30 @@ export type CreateCouponInput = {
   is_active?: boolean
 }
 
+export type UpdateCouponInput = {
+  description?: string | null
+  discount_type?: CouponDiscountType
+  discount_value?: number
+  min_order_amount?: number
+  max_discount_amount?: number | null
+  max_uses?: number | null
+  valid_until?: string | null
+  is_active?: boolean
+}
+
 function normalizeCode(code: string): string {
   return code.trim().toUpperCase()
+}
+
+// El <input type="date"> del admin manda "YYYY-MM-DD", que MySQL guarda como
+// medianoche — es decir, un cupon "hasta el 30" moria al terminar el 29. Se
+// normaliza al ultimo segundo del dia para que la fecha signifique lo que el
+// usuario espera.
+function normalizeValidUntil(value: string | null | undefined): string | null {
+  if (value == null) return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed} 23:59:59` : trimmed
 }
 
 export async function listCoupons(): Promise<Coupon[]> {
@@ -64,7 +86,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<Coupon> {
       input.min_order_amount ?? 0,
       input.max_discount_amount ?? null,
       input.max_uses ?? null,
-      input.valid_until ?? null,
+      normalizeValidUntil(input.valid_until),
       input.is_active === false ? 0 : 1,
     ]
   )
@@ -80,6 +102,36 @@ export async function setCouponActive(id: number, isActive: boolean): Promise<bo
   const [result] = await pool.execute<ResultSetHeader>(
     `UPDATE app_coupons SET is_active = ?, updated_at = NOW() WHERE id = ?`,
     [isActive ? 1 : 0, id]
+  )
+  return result.affectedRows > 0
+}
+
+export async function updateCoupon(id: number, input: UpdateCouponInput): Promise<boolean> {
+  await ensureDbSchema()
+  const pool = getDbPool()
+
+  const sets: string[] = []
+  const values: (string | number | null)[] = []
+
+  const push = (column: string, value: string | number | null) => {
+    sets.push(`${column} = ?`)
+    values.push(value)
+  }
+
+  if (input.description !== undefined) push("description", input.description ?? null)
+  if (input.discount_type !== undefined) push("discount_type", input.discount_type)
+  if (input.discount_value !== undefined) push("discount_value", input.discount_value)
+  if (input.min_order_amount !== undefined) push("min_order_amount", input.min_order_amount)
+  if (input.max_discount_amount !== undefined) push("max_discount_amount", input.max_discount_amount ?? null)
+  if (input.max_uses !== undefined) push("max_uses", input.max_uses ?? null)
+  if (input.valid_until !== undefined) push("valid_until", normalizeValidUntil(input.valid_until))
+  if (input.is_active !== undefined) push("is_active", input.is_active ? 1 : 0)
+
+  if (sets.length === 0) return false
+
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE app_coupons SET ${sets.join(", ")}, updated_at = NOW() WHERE id = ?`,
+    [...values, id]
   )
   return result.affectedRows > 0
 }
