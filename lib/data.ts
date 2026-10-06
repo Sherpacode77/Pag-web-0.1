@@ -30,7 +30,11 @@ export interface Product {
   image: string
   images: string[]
   videos?: string[]
-  category: "alforjas" | "accesorios" | "ropa" | "kits"
+  // "servicios" es exclusivo de CERO.UNO Travel (ver lib/travel-services.ts):
+  // no se guarda en la base de productos ni se lista en la tienda.
+  category: "alforjas" | "accesorios" | "ropa" | "kits" | "servicios"
+  // Solo lo usan los servicios de Travel, para cruzar con las listas de abordaje.
+  sku?: string
   bikePart?: "manubrio" | "sillin" | "marco" | "tubo-superior"
   tags: string[]
   colors?: string[]
@@ -75,6 +79,9 @@ export interface CyclingEvent {
   distance?: string
   description: string
   image?: string
+  // Evento con cupos de transporte a la venta: la tarjeta despliega el panel
+  // de reserva (ver components/travel/giro-de-rigo-booking.tsx).
+  bookable?: boolean
 }
 
 // --- PRODUCTS ---
@@ -85,7 +92,7 @@ export const products: Product[] = [
     id: "1",
     name: "SaddleBag 12L",
     slug: "saddlebag-12l",
-    price: 180000,
+    price: 160000,
     description:
       "Bolso de sillin de 12 litros, 100% impermeable con cierre roll-top. Fabricado con telas de alto gramaje resistentes al arrastre y filtro UV. Ideal para bikepacking de larga distancia. Sistema de montaje universal compatible con cualquier sillin.",
     shortDescription: "Bolso de sillin impermeable 12L con cierre roll-top",
@@ -482,34 +489,17 @@ export const cyclingEvents: CyclingEvent[] = [
     date: "01 de Noviembre 2026",
     description:
       "Cotiza con nosotros el transporte y hospedaje para vivir esta ciclo-travesia en Cali sin preocupaciones.",
-    image: "/images/event-ciclotravesia.jpg",
+    image: "/images/event-giro-de-rigo-2026.jpg",
+    bookable: true,
   },
   {
     id: "2",
     name: "Reto Mariquita - Letras",
     location: "Mariquita - Colombia",
-    date: "13 de Septiembre 2026",
+    date: "08 de Noviembre 2026",
     description:
       "Te llevamos a Mariquita con toda la logistica de transporte para que solo te enfoques en rodar.",
-    image: "/images/blog/trans-andes.jpg",
-  },
-  {
-    id: "3",
-    name: "Travesia Aventura MTB La Vega",
-    location: "La Vega - Colombia",
-    date: "13 de Septiembre 2026",
-    description:
-      "Transporte y soporte logistico para tu aventura en montana en La Vega.",
-    image: "/images/category-setup.jpg",
-  },
-  {
-    id: "4",
-    name: "Gran Fondo Nairo Quintana Fest",
-    location: "Cartagena - Colombia",
-    date: "9 al 11 de Octubre 2026",
-    description:
-      "Acompanamos tu logistica de transporte y hospedaje para este gran fondo en Cartagena.",
-    image: "/images/category-urban.jpg",
+    image: "/images/event-reto-mariquita-letras-2026.jpg",
   },
 ]
 

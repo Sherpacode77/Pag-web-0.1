@@ -12,6 +12,7 @@ import { FreeShippingBar } from "@/components/free-shipping-bar"
 import { CheckoutForm, type CheckoutFormData } from "@/components/checkout-form"
 import { OrderSummary } from "@/components/order-summary"
 import { CASH_ON_DELIVERY_SURCHARGE, PICKUP_LOCATION, type PaymentMethod } from "@/lib/shipping"
+import { isTravelServiceId } from "@/lib/travel-services"
 
 export function CartSidebar() {
   const { items, removeItem, updateQuantity, totalPrice, isOpen, setIsOpen, clearCart } =
@@ -19,11 +20,20 @@ export function CartSidebar() {
   const [step, setStep] = useState<"cart" | "checkout" | "confirmado">("cart")
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [couponCode, setCouponCode] = useState<string | null>(null)
-  const [deliveryMethod, setDeliveryMethod] = useState<"envio" | "retiro">("envio")
+  const [deliveryMethod, setDeliveryMethod] = useState<"envio" | "retiro" | "servicio">("envio")
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mercadopago")
   const [shippingCity, setShippingCity] = useState("")
   const [missingFields, setMissingFields] = useState<string[]>([])
   const [confirmedOrder, setConfirmedOrder] = useState<{ order_number: string; total: number } | null>(null)
+
+  // Una compra de puros cupos de CERO.UNO Travel no se despacha: el checkout
+  // no pide direccion, no cobra flete y solo acepta pago en linea.
+  const onlyServices = items.length > 0 && items.every((item) => isTravelServiceId(item.product.id))
+  // Un cupo = un pasajero, asi que la cantidad de cupos manda cuantos juegos de
+  // datos pide el formulario.
+  const passengerCount = items
+    .filter((item) => isTravelServiceId(item.product.id))
+    .reduce((sum, item) => sum + item.quantity, 0)
 
   const handleConfirmAndPay = async (form: CheckoutFormData) => {
     if (items.length === 0 || isCheckingOut) return
@@ -86,6 +96,16 @@ export function CartSidebar() {
           customer_name: `${form.firstName} ${form.lastName}`.trim(),
           customer_phone: form.phone,
           customer_document: form.document,
+          passengers: onlyServices
+            ? [
+                { name: `${form.firstName} ${form.lastName}`.trim(), document: form.document, phone: form.phone },
+                ...form.extraPassengers.map((pax) => ({
+                  name: `${pax.firstName} ${pax.lastName}`.trim(),
+                  document: pax.document,
+                  phone: pax.phone,
+                })),
+              ]
+            : undefined,
           payment_method: form.paymentMethod,
           newsletter_opt_in: form.newsletterOptIn,
           coupon_code: couponCode,
@@ -347,6 +367,8 @@ export function CartSidebar() {
                 }}
                 onSubmit={handleConfirmAndPay}
                 submitting={isCheckingOut}
+                onlyServices={onlyServices}
+                passengerCount={passengerCount}
                 onDeliveryMethodChange={setDeliveryMethod}
                 onPaymentMethodChange={setPaymentMethod}
                 onCityChange={setShippingCity}
@@ -450,7 +472,7 @@ export function CartSidebar() {
             </div>
 
             <div className="border-t border-border px-6 py-4">
-              <FreeShippingBar total={totalPrice} />
+              {!onlyServices && <FreeShippingBar total={totalPrice} />}
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm uppercase tracking-wider text-muted-foreground">
                   Subtotal

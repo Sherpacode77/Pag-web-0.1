@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronDown, ChevronUp, Package, Receipt } from "lucide-react"
+import { ChevronDown, ChevronUp, Package, Receipt, Trash2 } from "lucide-react"
 import { AdminNav } from "@/components/admin/admin-nav"
 import { formatPrice } from "@/lib/data"
 
@@ -48,6 +48,7 @@ type Order = {
   customer_email: string | null
   customer_phone: string | null
   customer_document: string | null
+  notes: string | null
   shipping_address: ShippingAddress | null
   status: OrderStatus
   mercadopago_status: string | null
@@ -144,6 +145,56 @@ export default function AdminPedidosPage() {
     }
   }
 
+  const [trabajando, setTrabajando] = useState<string | null>(null)
+
+  async function cambiarEstado(orderNumber: string, status: OrderStatus) {
+    setTrabajando(orderNumber)
+    try {
+      const res = await fetch(`/api/orders/${orderNumber}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        alert(d.error || "No se pudo cambiar el estado")
+        return
+      }
+      await fetchOrders()
+    } catch {
+      alert("Error de conexión al cambiar el estado")
+    } finally {
+      setTrabajando(null)
+    }
+  }
+
+  async function eliminarPedido(orderNumber: string, cliente: string | null) {
+    // Doble confirmación: el borrado no tiene vuelta atrás.
+    if (!confirm(`¿Eliminar el pedido ${orderNumber}${cliente ? ` de ${cliente}` : ""}?
+
+Esta acción NO se puede deshacer.`)) return
+    if (!confirm("Confirma una vez más: el pedido y sus artículos se borran definitivamente.")) return
+
+    setTrabajando(orderNumber)
+    try {
+      const res = await fetch(`/api/orders/${orderNumber}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        alert(d.error || "No se pudo eliminar el pedido")
+        return
+      }
+      await fetchOrders()
+    } catch {
+      alert("Error de conexión al eliminar")
+    } finally {
+      setTrabajando(null)
+    }
+  }
+
   function toggleExpanded(orderId: number) {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -164,8 +215,12 @@ export default function AdminPedidosPage() {
     return Number.isFinite(n) ? n : 0
   }
 
+  // "Ingresos (pagados)" = dinero efectivamente recibido. Antes sumaba todo lo
+  // que no estuviera pendiente o cancelado, con lo que entraban los pedidos
+  // "processing" (contraentrega aun sin cobrar) e inflaban la cifra.
+  const COBRADOS: OrderStatus[] = ["paid", "shipped", "delivered"]
   const totalRevenue = orders
-    .filter((o) => o.status !== "pending" && o.status !== "cancelled")
+    .filter((o) => COBRADOS.includes(o.status))
     .reduce((sum, o) => sum + toNumber(o.total), 0)
 
   if (loading) {
@@ -242,6 +297,7 @@ export default function AdminPedidosPage() {
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Pago</th>
                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">Estado</th>
                     <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider">Items</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -299,10 +355,37 @@ export default function AdminPedidosPage() {
                               )}
                             </button>
                           </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <select
+                                value={order.status}
+                                disabled={trabajando === order.order_number}
+                                onChange={(e) => cambiarEstado(order.order_number, e.target.value as OrderStatus)}
+                                className="rounded-md border border-input bg-card px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                                aria-label="Cambiar estado del pedido"
+                              >
+                                {(Object.keys(STATUS_CONFIG) as OrderStatus[]).map((st) => (
+                                  <option key={st} value={st}>
+                                    {STATUS_CONFIG[st].label}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => eliminarPedido(order.order_number, order.customer_name)}
+                                disabled={trabajando === order.order_number}
+                                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                                title="Eliminar pedido definitivamente"
+                                aria-label="Eliminar pedido"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan={7} className="bg-secondary/10 px-4 py-4">
+                            <td colSpan={8} className="bg-secondary/10 px-4 py-4">
                               <div className="mb-4 grid gap-4 text-sm sm:grid-cols-3">
                                 <div>
                                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
@@ -310,8 +393,13 @@ export default function AdminPedidosPage() {
                                   </p>
                                   <p>{order.customer_phone ?? "—"}</p>
                                   <p className="text-muted-foreground">
-                                    Documento: {order.customer_document ?? "—"}
+                                    Documento: {order.customer_document || "—"}
                                   </p>
+                                  {order.notes && (
+                                    <p className="mt-2 whitespace-pre-line rounded-sm border border-border bg-background p-2 text-xs text-foreground">
+                                      {order.notes}
+                                    </p>
+                                  )}
                                 </div>
                                 <div>
                                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">

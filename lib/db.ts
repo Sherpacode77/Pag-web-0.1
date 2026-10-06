@@ -421,6 +421,64 @@ async function runSchemaSetup() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // Ventas clasificadas en el libro "Mensajeria 2026" (una fila por venta).
+  // Una automatizacion externa reemplaza por hoja el contenido (ver
+  // app/api/sales-log); net_amount es la columna ROAS del Excel (ingreso sin envio).
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_sales_log (
+      id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+      sheet          VARCHAR(60)    NOT NULL,
+      row_key        VARCHAR(40)    NOT NULL,
+      sale_date      DATE           NOT NULL,
+      channel        VARCHAR(40)    NOT NULL,
+      channel_raw    VARCHAR(80)    NULL,
+      customer_name  VARCHAR(200)   NULL,
+      product_code   VARCHAR(40)    NULL,
+      quantity       INT            NOT NULL DEFAULT 1,
+      gross_amount   DECIMAL(15,2)  NOT NULL DEFAULT 0,
+      shipping       DECIMAL(15,2)  NOT NULL DEFAULT 0,
+      net_amount     DECIMAL(15,2)  NOT NULL DEFAULT 0,
+      is_return      TINYINT(1)     NOT NULL DEFAULT 0,
+      synced_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  // Listas de abordaje de CERO.UNO Travel: una fila por pasajero y por lista,
+  // asi que un cupo de ida y regreso genera DOS filas. Se alimenta de los
+  // pedidos pagados en la web y de los registros manuales (ventas por WhatsApp).
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_travel_passengers (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      list_key        VARCHAR(20)   NOT NULL,
+      service_sku     VARCHAR(40)   NULL,
+      group_number    INT           NULL,
+      is_group_leader TINYINT(1)    NOT NULL DEFAULT 0,
+      full_name       VARCHAR(200)  NOT NULL,
+      phone           VARCHAR(40)   NULL,
+      pickup_point    VARCHAR(200)  NULL,
+      deposit         DECIMAL(15,2) NOT NULL DEFAULT 0,
+      balance         DECIMAL(15,2) NOT NULL DEFAULT 0,
+      payment_channel VARCHAR(40)   NULL,
+      deposit_date    DATE          NULL,
+      with_bike       TINYINT(1)    NOT NULL DEFAULT 0,
+      source          VARCHAR(10)   NOT NULL DEFAULT 'manual',
+      order_number    VARCHAR(50)   NULL,
+      seat_index      INT           NOT NULL DEFAULT 1,
+      notes           TEXT          NULL,
+      created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await createIndexSafe(pool, "CREATE INDEX idx_travel_pax_list ON app_travel_passengers(list_key)")
+  await createIndexSafe(pool, "CREATE INDEX idx_travel_pax_sku ON app_travel_passengers(service_sku)")
+  // Evita que un reintento del webhook duplique al mismo pasajero del pedido.
+  await createIndexSafe(
+    pool,
+    "CREATE UNIQUE INDEX uq_travel_pax_order ON app_travel_passengers(order_number, list_key, seat_index)"
+  )
+
+  await createIndexSafe(pool, "CREATE UNIQUE INDEX uq_app_sales_log_row ON app_sales_log(sheet, row_key)")
+  await createIndexSafe(pool, "CREATE INDEX idx_app_sales_log_date ON app_sales_log(sale_date, channel)")
+
   await createIndexSafe(pool, "CREATE INDEX idx_app_products_slug ON app_products(slug)")
   await createIndexSafe(pool, "CREATE UNIQUE INDEX uq_app_products_sku_prefix ON app_products(sku_prefix)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_customers_email ON app_customers(email)")

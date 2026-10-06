@@ -6,6 +6,7 @@ import { Tag, X, MapPin } from "lucide-react"
 import type { CartItem } from "@/lib/cart-context"
 import { formatPrice } from "@/lib/data"
 import { assetUrl } from "@/lib/assets"
+import { isTravelServiceId } from "@/lib/travel-services"
 import {
   calculateShippingCost,
   calculateCodSurcharge,
@@ -15,7 +16,7 @@ import {
 
 interface OrderSummaryProps {
   items: CartItem[]
-  deliveryMethod: "envio" | "retiro"
+  deliveryMethod: "envio" | "retiro" | "servicio"
   paymentMethod?: PaymentMethod
   city?: string
   onCouponChange: (code: string | null) => void
@@ -39,8 +40,13 @@ export function OrderSummary({
   const [appliedDiscount, setAppliedDiscount] = useState(0)
 
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
-  const freeShippingOverride = items.some((item) => item.product.freeShipping)
-  const shippingCost = calculateShippingCost(subtotal, deliveryMethod, freeShippingOverride, city)
+  // Los cupos de CERO.UNO Travel no se despachan: ni pagan flete ni cuentan
+  // para el umbral de envio gratis (el servidor hace el mismo calculo).
+  const physicalItems = items.filter((item) => !isTravelServiceId(item.product.id))
+  const physicalSubtotal = physicalItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  const freeShippingOverride =
+    physicalItems.length === 0 || physicalItems.some((item) => item.product.freeShipping)
+  const shippingCost = calculateShippingCost(physicalSubtotal, deliveryMethod, freeShippingOverride, city)
   const codSurcharge = calculateCodSurcharge(paymentMethod, deliveryMethod)
   const offerSavings = items.reduce((sum, item) => {
     if (!item.product.originalPrice) return sum
@@ -183,10 +189,20 @@ export function OrderSummary({
         )}
         <div className="flex items-center justify-between text-muted-foreground">
           <span>
-            {deliveryMethod === "retiro" ? "Retiro en tienda" : "Envío"}
+            {deliveryMethod === "servicio"
+              ? "Envío"
+              : deliveryMethod === "retiro"
+                ? "Retiro en tienda"
+                : "Envío"}
             {deliveryMethod === "envio" && city ? ` · ${city}` : ""}
           </span>
-          <span>{shippingCost === 0 ? "GRATIS" : formatPrice(shippingCost)}</span>
+          <span>
+            {deliveryMethod === "servicio"
+              ? "NO APLICA"
+              : shippingCost === 0
+                ? "GRATIS"
+                : formatPrice(shippingCost)}
+          </span>
         </div>
         {codSurcharge > 0 && (
           <div className="flex items-center justify-between text-muted-foreground">

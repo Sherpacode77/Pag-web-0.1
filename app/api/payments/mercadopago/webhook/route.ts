@@ -9,6 +9,7 @@ import {
   type OrderWithItems,
 } from "@/lib/db-orders"
 import { sendOrderPaidEmails } from "@/lib/email"
+import { syncOrderToTravelLists } from "@/lib/db-travel"
 import { sendFacebookCapiEvent } from "@/lib/facebook-capi"
 import { syncOrderToLeadsSheet } from "@/lib/order-sheet-sync"
 import { getCatalogItemId } from "@/lib/data"
@@ -154,6 +155,11 @@ export async function POST(request: Request) {
         )
         syncOrderToLeadsSheet(orderWithItems).catch((err) =>
           console.error("Error sincronizando pedido a Google Sheets:", err)
+        )
+        // Un cupo de CERO.UNO Travel entra a las listas de abordaje solo cuando
+        // el abono ya esta confirmado.
+        syncOrderToTravelLists(orderWithItems).catch((err) =>
+          console.error("Error sincronizando pasajeros de CERO.UNO Travel:", err)
         )
       }
     }

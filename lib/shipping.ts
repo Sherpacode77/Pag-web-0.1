@@ -11,7 +11,9 @@ export const SHIPPING_COST_NACIONAL = 12500
 export const CASH_ON_DELIVERY_SURCHARGE = 5000
 
 export type PaymentMethod = "mercadopago" | "contraentrega"
-export type DeliveryMethod = "envio" | "retiro"
+// "servicio" = pedido compuesto solo por servicios de CERO.UNO Travel:
+// no se despacha a ninguna direccion, asi que no paga flete ni recargo.
+export type DeliveryMethod = "envio" | "retiro" | "servicio"
 export type ShippingZone = "sabana" | "nacional"
 
 // Bogotá + municipios de la sabana y planicie con influencia directa.
@@ -76,7 +78,7 @@ export function calculateShippingCost(
   freeShippingOverride = false,
   city?: string | null
 ): number {
-  if (deliveryMethod === "retiro") return 0
+  if (deliveryMethod === "retiro" || deliveryMethod === "servicio") return 0
   if (freeShippingOverride) return 0
   if (subtotal >= FREE_SHIPPING_THRESHOLD) return 0
   return getShippingRate(city)
@@ -90,6 +92,6 @@ export function calculateCodSurcharge(
   paymentMethod: PaymentMethod = "mercadopago",
   deliveryMethod: DeliveryMethod = "envio"
 ): number {
-  if (deliveryMethod === "retiro") return 0
+  if (deliveryMethod === "retiro" || deliveryMethod === "servicio") return 0
   return paymentMethod === "contraentrega" ? CASH_ON_DELIVERY_SURCHARGE : 0
 }

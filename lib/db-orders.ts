@@ -25,7 +25,7 @@ export type OrderItemInput = {
 }
 
 export type ShippingAddress = {
-  delivery_method: "envio" | "retiro"
+  delivery_method: "envio" | "retiro" | "servicio"
   address_line?: string | null
   apartment?: string | null
   neighborhood?: string | null
@@ -313,6 +313,55 @@ export async function updateOrderPaymentStatus(
   }
 
   return getOrderByNumber(orderNumber)
+}
+
+// Cambio de estado hecho a mano desde el panel (no por el webhook de pago).
+// Queda registrado en el historial con changed_by = "admin" para poder
+// distinguirlo despues de las transiciones automaticas de MercadoPago.
+export async function setOrderStatus(
+  orderNumber: string,
+  nextStatus: OrderStatus,
+  changedBy: string
+): Promise<OrderRow | null> {
+  await ensureDbSchema()
+  const pool = getDbPool()
+
+  const order = await getOrderByNumber(orderNumber)
+  if (!order) return null
+  if (order.status === nextStatus) return order
+
+  await pool.execute(
+    `UPDATE app_orders SET status = ?, updated_at = NOW() WHERE order_number = ?`,
+    [nextStatus, orderNumber]
+  )
+  await pool.execute(
+    `INSERT INTO app_order_status_history (order_id, order_number, from_status, to_status, changed_by, created_at)
+     VALUES (?, ?, ?, ?, ?, NOW())`,
+    [order.id, orderNumber, order.status, nextStatus, changedBy]
+  )
+
+  return getOrderByNumber(orderNumber)
+}
+
+// Borrado definitivo. Las tres tablas se limpian dentro de una transaccion y en
+// este orden por las claves foraneas: primero lo que apunta al pedido, y el
+// pedido al final.
+export async function deleteOrder(orderNumber: string): Promise<boolean> {
+  await ensureDbSchema()
+
+  return withTransaction(async (conn) => {
+    const [rows] = await conn.execute<RowDataPacket[]>(
+      `SELECT id FROM app_orders WHERE order_number = ? LIMIT 1`,
+      [orderNumber]
+    )
+    if (rows.length === 0) return false
+    const orderId = rows[0].id
+
+    await conn.execute(`DELETE FROM app_order_items WHERE order_id = ?`, [orderId])
+    await conn.execute(`DELETE FROM app_order_status_history WHERE order_id = ?`, [orderId])
+    await conn.execute(`DELETE FROM app_orders WHERE id = ?`, [orderId])
+    return true
+  })
 }
 
 export async function listOrdersWithItems(limit = 200): Promise<OrderWithItems[]> {

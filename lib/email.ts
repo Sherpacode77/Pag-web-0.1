@@ -153,12 +153,26 @@ function buildCustomerEmailHtml(order: OrderWithItems): string {
   )
 }
 
-function buildStoreEmailHtml(order: OrderWithItems): string {
+// Las notas traen los pasajeros de un cupo de CERO.UNO Travel: el equipo
+// logistico las necesita para saber a quien esperar en el punto de embarque.
+function buildNotesBlock(order: OrderWithItems): string {
+  if (!order.notes) return ""
+  return `<p style="margin:0 0 20px;padding:12px;border:1px solid ${BRAND.border};border-radius:8px;color:${BRAND.text};font-size:13px;line-height:1.7;white-space:pre-line;">${escapeHtml(order.notes)}</p>`
+}
+
+function describeDelivery(order: OrderWithItems): string {
   const addr = order.shipping_address
-  const deliveryInfo =
-    addr?.delivery_method === "envio"
-      ? `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.neighborhood, addr.city, addr.department].filter(Boolean).join(", ")}`
-      : "Retiro en punto de venta"
+  if (addr?.delivery_method === "envio") {
+    return `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.neighborhood, addr.city, addr.department].filter(Boolean).join(", ")}`
+  }
+  if (addr?.delivery_method === "servicio") {
+    return "CERO.UNO Travel — cupo de transporte (sin despacho)"
+  }
+  return "Retiro en punto de venta"
+}
+
+function buildStoreEmailHtml(order: OrderWithItems): string {
+  const deliveryInfo = describeDelivery(order)
 
   return buildEmailShell(`
     <h1 style="margin:0 0 4px;color:${BRAND.text};font-size:20px;">Nuevo pedido pagado</h1>
@@ -169,6 +183,7 @@ function buildStoreEmailHtml(order: OrderWithItems): string {
       <strong style="color:${BRAND.text};">Teléfono:</strong> ${order.customer_phone ?? "—"}<br/>
       <strong style="color:${BRAND.text};">Entrega:</strong> ${deliveryInfo}
     </p>
+    ${buildNotesBlock(order)}
     <table role="presentation" width="100%" style="border-collapse:collapse;">${buildItemsRows(order)}</table>
     <table role="presentation" width="100%" style="border-collapse:collapse;margin-top:8px;">${buildTotalsRows(order)}</table>
   `)
@@ -222,11 +237,7 @@ function buildOrderCreatedCustomerHtml(order: OrderWithItems): string {
 }
 
 function buildOrderCreatedStoreHtml(order: OrderWithItems): string {
-  const addr = order.shipping_address
-  const entrega =
-    addr?.delivery_method === "envio"
-      ? `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.neighborhood, addr.city, addr.department].filter(Boolean).join(", ")}`
-      : "Retiro en punto de venta"
+  const entrega = describeDelivery(order)
   const metodo =
     order.payment_method === "contraentrega" ? "Contraentrega (cobrar al entregar)" : "Pago en línea (MercadoPago)"
   const aviso =
@@ -250,6 +261,7 @@ function buildOrderCreatedStoreHtml(order: OrderWithItems): string {
       <strong style="color:${BRAND.text};">Método de pago:</strong> ${metodo}<br/>
       <strong style="color:${BRAND.text};">Entrega:</strong> ${entrega}
     </p>
+    ${buildNotesBlock(order)}
     <table role="presentation" width="100%" style="border-collapse:collapse;">${buildItemsRows(order)}</table>
     <table role="presentation" width="100%" style="border-collapse:collapse;margin-top:8px;">${buildTotalsRows(order)}</table>
     <p style="margin:24px 0 0;">

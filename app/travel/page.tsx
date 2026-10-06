@@ -2,12 +2,13 @@
 
 import React from "react"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Image from "next/image"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
 import { cyclingEvents } from "@/lib/data"
+import { GiroDeRigoBooking } from "@/components/travel/giro-de-rigo-booking"
 import {
   MapPin,
   Calendar,
@@ -19,6 +20,7 @@ import {
   AlertCircle,
   Users,
   Send,
+  ChevronDown,
 } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
 import { SectionDivider } from "@/components/section-divider"
@@ -41,6 +43,17 @@ export default function TravelPage() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const bookingRef = useRef<HTMLDivElement>(null)
+
+  // Al abrir desde la tarjeta del evento, el panel queda fuera de pantalla:
+  // se baja hasta el para que el usuario vea que algo se desplego.
+  function openBooking() {
+    setBookingOpen(true)
+    requestAnimationFrame(() => {
+      bookingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -167,15 +180,34 @@ export default function TravelPage() {
               {cyclingEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="overflow-hidden rounded-sm border border-border bg-card"
+                  {...(event.bookable
+                    ? {
+                        role: "button" as const,
+                        tabIndex: 0,
+                        "aria-expanded": bookingOpen,
+                        "aria-controls": "giro-de-rigo-reserva",
+                        onClick: () => openBooking(),
+                        onKeyDown: (e: React.KeyboardEvent) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            openBooking()
+                          }
+                        },
+                      }
+                    : {})}
+                  className={`overflow-hidden rounded-sm border border-border bg-card ${
+                    event.bookable
+                      ? "cursor-pointer transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      : ""
+                  }`}
                 >
                   {event.image && (
-                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-secondary">
+                    <div className="relative aspect-square w-full overflow-hidden bg-secondary">
                       <Image
                         src={assetUrl(event.image)}
                         alt={event.name}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                         sizes="(max-width: 768px) 100vw, 50vw"
                       />
                     </div>
@@ -209,9 +241,23 @@ export default function TravelPage() {
                         {event.distance}
                       </div>
                     )}
+                    {event.bookable && (
+                      <span className="mt-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
+                        Ver y reservar servicios de transporte
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform duration-300 ${
+                            bookingOpen ? "rotate-180" : ""
+                          }`}
+                        />
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div ref={bookingRef} id="giro-de-rigo-reserva" className="mt-8 scroll-mt-24">
+              <GiroDeRigoBooking open={bookingOpen} onToggle={() => setBookingOpen((v) => !v)} />
             </div>
           </div>
         </section>

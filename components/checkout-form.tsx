@@ -18,10 +18,20 @@ import { formatPrice } from "@/lib/data"
 // y en ese caso el campo ya muestra las localidades en su lugar (ver mas abajo).
 const NON_BOGOTA_DEPARTMENTS = COLOMBIAN_DEPARTMENTS.filter((d) => d !== "Bogotá D.C.")
 
+export type Passenger = {
+  firstName: string
+  lastName: string
+  document: string
+  phone: string
+}
+
 export type CheckoutFormData = {
   email: string
+  // Pasajeros 2..N de un cupo de CERO.UNO Travel; el pasajero 1 son los campos
+  // firstName/lastName/phone/document del comprador.
+  extraPassengers: Passenger[]
   newsletterOptIn: boolean
-  deliveryMethod: "envio" | "retiro"
+  deliveryMethod: "envio" | "retiro" | "servicio"
   paymentMethod: PaymentMethod
   firstName: string
   lastName: string
@@ -54,7 +64,11 @@ interface CheckoutFormProps {
   onBack: () => void
   onSubmit: (data: CheckoutFormData) => void
   submitting: boolean
-  onDeliveryMethodChange?: (method: "envio" | "retiro") => void
+  onDeliveryMethodChange?: (method: "envio" | "retiro" | "servicio") => void
+  // El carrito lleva solo cupos de CERO.UNO Travel: no hay nada que despachar.
+  onlyServices?: boolean
+  // Cupos en el carrito: hay que pedir los datos de cada pasajero.
+  passengerCount?: number
   onPaymentMethodChange?: (method: PaymentMethod) => void
   onCityChange?: (city: string) => void
   onMissingFieldsChange?: (fields: string[]) => void
@@ -64,6 +78,8 @@ export function CheckoutForm({
   onBack,
   onSubmit,
   submitting,
+  onlyServices = false,
+  passengerCount = 1,
   onDeliveryMethodChange,
   onPaymentMethodChange,
   onCityChange,
@@ -71,8 +87,9 @@ export function CheckoutForm({
 }: CheckoutFormProps) {
   const [form, setForm] = useState<CheckoutFormData>({
     email: "",
+    extraPassengers: [],
     newsletterOptIn: true,
-    deliveryMethod: "envio",
+    deliveryMethod: onlyServices ? "servicio" : "envio",
     paymentMethod: "mercadopago",
     firstName: "",
     lastName: "",
@@ -88,6 +105,17 @@ export function CheckoutForm({
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
+  const [extraErrors, setExtraErrors] = useState<{ firstName: string; lastName: string; phone: string }[]>([])
+
+  useEffect(() => {
+    setForm((prev) => {
+      const next = onlyServices ? "servicio" : prev.deliveryMethod === "servicio" ? "envio" : prev.deliveryMethod
+      return next === prev.deliveryMethod ? prev : { ...prev, deliveryMethod: next }
+    })
+    if (onlyServices) {
+      setForm((prev) => (prev.paymentMethod === "mercadopago" ? prev : { ...prev, paymentMethod: "mercadopago" }))
+    }
+  }, [onlyServices])
 
   useEffect(() => {
     onDeliveryMethodChange?.(form.deliveryMethod)
@@ -101,6 +129,18 @@ export function CheckoutForm({
     onCityChange?.(form.city)
   }, [form.city, onCityChange])
 
+  const extraNeeded = onlyServices ? Math.max(0, passengerCount - 1) : 0
+  useEffect(() => {
+    setForm((prev) => {
+      if (prev.extraPassengers.length === extraNeeded) return prev
+      const next = prev.extraPassengers.slice(0, extraNeeded)
+      while (next.length < extraNeeded) {
+        next.push({ firstName: "", lastName: "", document: "", phone: "" })
+      }
+      return { ...prev, extraPassengers: next }
+    })
+  }, [extraNeeded])
+
   // El recargo por pagar al recibir solo existe cuando hay transportadora de por
   // medio; recogiendo en tienda el pago en efectivo no cuesta nada extra.
   const isPickup = form.deliveryMethod === "retiro"
@@ -111,21 +151,38 @@ export function CheckoutForm({
 
   function validate(): boolean {
     const next: FieldErrors = {}
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = "Correo inválido"
+    const emailFilled = form.email.trim().length > 0
+    // En un cupo de transporte el correo y la cedula son opcionales: muchos
+    // clientes llegan por WhatsApp y no los dan. Si escriben correo, se valida.
+    if (!onlyServices || emailFilled) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = "Correo inválido"
+    }
     if (!form.firstName.trim()) next.firstName = "Requerido"
     if (!form.lastName.trim()) next.lastName = "Requerido"
-    if (!form.document.trim()) next.document = "Requerido"
+    if (!onlyServices && !form.document.trim()) next.document = "Requerido"
     if (!form.phone.trim()) next.phone = "Requerido"
     if (form.deliveryMethod === "envio") {
       if (!form.address.trim()) next.address = "Requerido"
       if (!form.city.trim()) next.city = "Requerido"
       if (!form.department.trim()) next.department = "Requerido"
     }
+    const missing = (Object.keys(next) as (keyof FieldErrors)[]).map((key) => FIELD_LABELS[key])
+
+    // Cada cupo viaja con una persona distinta: sin sus datos el equipo
+    // logistico no sabe a quien esperar.
+    const nextExtra = form.extraPassengers.map((pax) => ({
+      firstName: pax.firstName.trim() ? "" : "Requerido",
+      lastName: pax.lastName.trim() ? "" : "Requerido",
+      phone: pax.phone.trim() ? "" : "Requerido",
+    }))
+    nextExtra.forEach((err, i) => {
+      if (err.firstName || err.lastName || err.phone) missing.push(`Datos del pasajero ${i + 2}`)
+    })
+
     setErrors(next)
-    onMissingFieldsChange?.(
-      (Object.keys(next) as (keyof FieldErrors)[]).map((key) => FIELD_LABELS[key])
-    )
-    return Object.keys(next).length === 0
+    setExtraErrors(nextExtra)
+    onMissingFieldsChange?.(missing)
+    return missing.length === 0
   }
 
   function handleSubmit(e: FormEvent) {
@@ -153,7 +210,7 @@ export function CheckoutForm({
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-card-foreground">Contacto</h3>
         <input
           type="email"
-          placeholder="Correo electrónico"
+          placeholder={onlyServices ? "Correo electrónico (opcional)" : "Correo electrónico"}
           value={form.email}
           onChange={(e) => update("email", e.target.value)}
           className={inputClass}
@@ -171,7 +228,16 @@ export function CheckoutForm({
       </div>
 
       <div>
-        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-card-foreground">Entrega</h3>
+        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-card-foreground">
+          {onlyServices ? (passengerCount > 1 ? "Datos de los pasajeros" : "Datos del pasajero") : "Entrega"}
+        </h3>
+        {onlyServices ? (
+          <p className="mb-3 rounded-md border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+            Estás apartando tu cupo de transporte: aquí pagas el abono del 50%; el saldo lo pagas al
+            equipo logístico de CERO.UNO el día del viaje. Te escribiremos por WhatsApp para compartir
+            contigo el punto de embarque y la hora exacta de encuentro.
+          </p>
+        ) : (
         <div className="mb-3 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -196,8 +262,12 @@ export function CheckoutForm({
             Retiro
           </button>
         </div>
+        )}
 
         <div className="flex flex-col gap-3">
+          {onlyServices && passengerCount > 1 && (
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">Pasajero 1</p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <input
@@ -224,7 +294,7 @@ export function CheckoutForm({
           <div>
             <input
               type="text"
-              placeholder="Número de Cédula o ID"
+              placeholder={onlyServices ? "Número de Cédula o ID (opcional)" : "Número de Cédula o ID"}
               value={form.document}
               onChange={(e) => update("document", e.target.value)}
               className={inputClass}
@@ -315,6 +385,60 @@ export function CheckoutForm({
             />
             {errors.phone && <p className={errorClass}>{errors.phone}</p>}
           </div>
+
+          {form.extraPassengers.map((pax, i) => {
+            const err = extraErrors[i]
+            const setPax = (key: keyof Passenger, value: string) =>
+              setForm((prev) => {
+                const next = [...prev.extraPassengers]
+                next[i] = { ...next[i], [key]: value }
+                return { ...prev, extraPassengers: next }
+              })
+            return (
+              <div key={i} className="flex flex-col gap-3 border-t border-border pt-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-primary">Pasajero {i + 2}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Nombre"
+                      value={pax.firstName}
+                      onChange={(e) => setPax("firstName", e.target.value)}
+                      className={inputClass}
+                    />
+                    {err?.firstName && <p className={errorClass}>{err.firstName}</p>}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Apellidos"
+                      value={pax.lastName}
+                      onChange={(e) => setPax("lastName", e.target.value)}
+                      className={inputClass}
+                    />
+                    {err?.lastName && <p className={errorClass}>{err.lastName}</p>}
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Número de Cédula o ID (opcional)"
+                  value={pax.document}
+                  onChange={(e) => setPax("document", e.target.value)}
+                  className={inputClass}
+                />
+                <div>
+                  <input
+                    type="tel"
+                    placeholder="Teléfono"
+                    value={pax.phone}
+                    onChange={(e) => setPax("phone", e.target.value)}
+                    className={inputClass}
+                  />
+                  {err?.phone && <p className={errorClass}>{err.phone}</p>}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -339,6 +463,7 @@ export function CheckoutForm({
             <span className="whitespace-nowrap text-xs font-bold uppercase text-primary">Sin recargo</span>
           </button>
 
+          {!onlyServices && (
           <button
             type="button"
             onClick={() => update("paymentMethod", "contraentrega")}
@@ -366,6 +491,7 @@ export function CheckoutForm({
               {isPickup ? "Sin recargo" : `+${formatPrice(CASH_ON_DELIVERY_SURCHARGE)}`}
             </span>
           </button>
+          )}
         </div>
 
         {form.paymentMethod === "contraentrega" && (

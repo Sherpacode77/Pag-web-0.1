@@ -9,6 +9,7 @@ import { validateCoupon, incrementCouponUsage } from "@/lib/db-coupons"
 import { getActiveFreeShippingProductIds } from "@/lib/db-offers"
 import { getWhatsAppReferralByCode } from "@/lib/db-whatsapp"
 import { calculateShippingCost, calculateCodSurcharge } from "@/lib/shipping"
+import { isTravelServiceId } from "@/lib/travel-services"
 
 const orderItemSchema = z.object({
   product_id: z.string().trim().min(1),
@@ -25,7 +26,7 @@ const orderItemSchema = z.object({
 })
 
 const shippingAddressSchema = z.object({
-  delivery_method: z.enum(["envio", "retiro"]),
+  delivery_method: z.enum(["envio", "retiro", "servicio"]),
   address_line: z.string().trim().max(400).optional().nullable(),
   apartment: z.string().trim().max(100).optional().nullable(),
   neighborhood: z.string().trim().max(150).optional().nullable(),
@@ -35,13 +36,22 @@ const shippingAddressSchema = z.object({
   country: z.string().trim().max(50).optional().default("Colombia"),
 })
 
+const passengerSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  document: z.string().trim().max(50).optional().nullable(),
+  phone: z.string().trim().max(30).optional().nullable(),
+})
+
 const createOrderSchema = z
   .object({
     items: z.array(orderItemSchema).min(1).max(50),
-    customer_email: z.string().trim().email().max(255),
+    // En un cupo de Travel el correo y la cedula son opcionales (ver checkout):
+    // la validacion exacta depende del metodo de entrega, abajo en superRefine.
+    customer_email: z.string().trim().max(255),
     customer_name: z.string().trim().min(1).max(200),
     customer_phone: z.string().trim().min(1).max(30),
-    customer_document: z.string().trim().min(1).max(50),
+    customer_document: z.string().trim().max(50),
+    passengers: z.array(passengerSchema).max(50).optional(),
     shipping_address: shippingAddressSchema,
     payment_method: z.enum(["mercadopago", "contraentrega"]).optional().default("mercadopago"),
     newsletter_opt_in: z.boolean().optional().default(false),
@@ -65,6 +75,38 @@ const createOrderSchema = z
         })
       }
     }
+    const isService = data.shipping_address.delivery_method === "servicio"
+    const emailFilled = data.customer_email.length > 0
+    if ((!isService || emailFilled) && !z.string().email().safeParse(data.customer_email).success) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Correo inválido", path: ["customer_email"] })
+    }
+    if (!isService && data.customer_document.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La cédula es obligatoria", path: ["customer_document"] })
+    }
+    if (data.passengers && data.passengers.length > 0) {
+      const seats = data.items
+        .filter((item) => isTravelServiceId(item.product_id))
+        .reduce((sum, item) => sum + item.quantity, 0)
+      if (data.passengers.length !== seats) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Se compraron ${seats} cupo(s) pero llegaron ${data.passengers.length} pasajero(s)`,
+          path: ["passengers"],
+        })
+      }
+    }
+    // "servicio" no paga flete: solo se acepta si TODA la compra son servicios
+    // de Travel, para que no sirva como atajo para despachar productos gratis.
+    if (
+      data.shipping_address.delivery_method === "servicio" &&
+      !data.items.every((item) => isTravelServiceId(item.product_id))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El método de entrega 'servicio' solo aplica a pedidos de CERO.UNO Travel",
+        path: ["shipping_address", "delivery_method"],
+      })
+    }
   })
 
 // POST - Crear pedido pendiente (lo llama el carrito antes de ir a MercadoPago).
@@ -86,7 +128,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { newsletter_opt_in, coupon_code, referral_code, ...orderInput } = parsed.data
+    const { newsletter_opt_in, coupon_code, referral_code, passengers, ...orderInput } = parsed.data
 
     let ad_campaign: string | null = null
     if (referral_code) {
@@ -107,13 +149,22 @@ export async function POST(request: NextRequest) {
     )
     const offerDiscountAmount = Math.max(0, originalSubtotal - subtotal)
 
+    // El flete depende solo de lo que se despacha: los cupos de CERO.UNO Travel
+    // no viajan por transportadora, asi que no cuentan para el umbral de envio
+    // gratis ni generan costo de envio.
+    const physicalSubtotal = orderInput.items
+      .filter((item) => !isTravelServiceId(item.product_id))
+      .reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
+    const hasPhysicalItems = orderInput.items.some((item) => !isTravelServiceId(item.product_id))
+
     const freeShippingProductIds = await getActiveFreeShippingProductIds()
-    const freeShippingOverride = orderInput.items.some((item) => freeShippingProductIds.has(item.product_id))
+    const freeShippingOverride =
+      !hasPhysicalItems || orderInput.items.some((item) => freeShippingProductIds.has(item.product_id))
     // La tarifa depende de la ciudad de destino (sabana vs resto del país), así
     // que se calcula siempre en el servidor a partir de la dirección recibida —
     // nunca se confía en un costo enviado por el cliente.
     const shipping_cost = calculateShippingCost(
-      subtotal,
+      physicalSubtotal,
       orderInput.shipping_address.delivery_method,
       freeShippingOverride,
       orderInput.shipping_address.city
@@ -152,8 +203,27 @@ export async function POST(request: NextRequest) {
 
     // Contraentrega no pasa por la pasarela: el pedido ya está confirmado al
     // crearse. "pending" queda reservado para los que esperan pago en línea.
+    // Los pasajeros se guardan como texto en las notas del pedido: es lo que el
+    // equipo logistico lee para saber a quien esperar en el punto de embarque.
+    const passengerNotes =
+      passengers && passengers.length > 0
+        ? [
+            `Pasajeros (${passengers.length}):`,
+            ...passengers.map((pax, i) =>
+              [
+                `${i + 1}. ${pax.name}`,
+                pax.phone ? `Tel: ${pax.phone}` : null,
+                pax.document ? `CC: ${pax.document}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            ),
+          ].join("\n")
+        : null
+
     const order = await createOrder({
       ...orderInput,
+      notes: passengerNotes,
       subtotal,
       shipping_cost,
       discount,

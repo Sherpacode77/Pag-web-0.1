@@ -92,3 +92,28 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(0 100% 44%);
 }
+
+/* CERO.UNO Travel — aparicion escalonada de los bloques al desplegar el panel
+   de reserva. El retraso de cada bloque se pasa inline con --travel-delay. */
+@keyframes travel-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.travel-reveal {
+  animation: travel-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--travel-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .travel-reveal {
+    opacity: 1;
+    animation: none;
+  }
+}

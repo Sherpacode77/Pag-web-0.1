@@ -4,6 +4,7 @@ import { useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { MetaAdsPanel } from "./meta-ads-panel"
 import { WhatsAppSalesPanel } from "./whatsapp-sales-panel"
+import { SalesLogPanel } from "./sales-log-panel"
 import type { WhatsAppSaleChannel } from "@/lib/db-whatsapp"
 
 function toISODate(date: Date): string {
@@ -76,26 +77,8 @@ export function VentasDashboard() {
       <div>
         <h1 className="text-xl font-bold text-foreground">Ventas</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Desempeño de campañas por canal de pauta publicitaria, y ventas cerradas por WhatsApp.
+          Informe de ventas por canal, desempeño de campañas de pauta y ventas cerradas por WhatsApp.
         </p>
-      </div>
-
-      {/* Pestañas de canal */}
-      <div className="flex gap-1 border-b border-border">
-        {CHANNELS.map((channel) => (
-          <button
-            key={channel.key}
-            type="button"
-            onClick={() => setActiveChannel(channel)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeChannel.key === channel.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {channel.label}
-          </button>
-        ))}
       </div>
 
       {/* Rango de fechas (compartido entre canales) */}
@@ -149,6 +132,26 @@ export function VentasDashboard() {
             Aplicar rango
           </button>
         </div>
+      </div>
+
+      <SalesLogPanel since={range.since} until={range.until} />
+
+      {/* Pestañas de canal */}
+      <div className="flex gap-1 border-b border-border">
+        {CHANNELS.map((channel) => (
+          <button
+            key={channel.key}
+            type="button"
+            onClick={() => setActiveChannel(channel)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeChannel.key === channel.key
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {channel.label}
+          </button>
+        ))}
       </div>
 
       {activeChannel.configured ? (
