@@ -131,6 +131,39 @@ if $DRY_RUN; then
   exit 0
 fi
 
+# public/ no va en el tarball: pesa ~170 MB y cambia poco. Se suben solo los
+# archivos que faltan en produccion o que pesan distinto, comparando listados.
+# Sin esto, una imagen nueva queda rota en el sitio aunque el deploy diga OK
+# (paso exactamente eso con las fotos de CERO.UNO Travel).
+say "Sincronizando public"
+REMOTE_LIST=$(mktemp)
+LOCAL_LIST=$(mktemp)
+PENDING=$(mktemp)
+$SSH "cd $APP_DIR && find public -type f -printf '%s %p
+' 2>/dev/null | sort" > "$REMOTE_LIST" || true
+find public -type f -printf '%s %p
+' | sort > "$LOCAL_LIST"
+# Las rutas con espacios se comparan completas: se corta solo por el primer campo.
+comm -23 "$LOCAL_LIST" "$REMOTE_LIST" | cut -d' ' -f2- | sort -u > "$PENDING"
+PENDING_COUNT=$(wc -l < "$PENDING" | tr -d ' ')
+
+if [ "$PENDING_COUNT" = "0" ]; then
+  echo "  sin cambios"
+else
+  echo "  $PENDING_COUNT archivo(s) por subir"
+  ASSETS="$(mktemp -d)/public.tar.gz"
+  tar -czf "$ASSETS" -T "$PENDING"
+  echo "  $(du -h "$ASSETS" | cut -f1)"
+  scp -i "$SSH_KEY" -P "$SSH_PORT" "$ASSETS" "$SSH_HOST:$APP_DIR/public-assets.tar.gz"
+  $SSH "set -e
+    cd $APP_DIR
+    tar -xzf public-assets.tar.gz
+    rm public-assets.tar.gz
+    chmod -R 755 public"
+  rm -f "$ASSETS"
+fi
+rm -f "$REMOTE_LIST" "$LOCAL_LIST" "$PENDING"
+
 say "Subiendo"
 scp -i "$SSH_KEY" -P "$SSH_PORT" "$TARBALL" "$SSH_HOST:$APP_DIR/deploy.tar.gz"
 
