@@ -76,6 +76,13 @@ const createOrderSchema = z
       }
     }
     const isService = data.shipping_address.delivery_method === "servicio"
+    if (isService && !data.shipping_address.address_line) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La dirección es obligatoria en los servicios de CERO.UNO Travel",
+        path: ["shipping_address", "address_line"],
+      })
+    }
     const emailFilled = data.customer_email.length > 0
     if ((!isService || emailFilled) && !z.string().email().safeParse(data.customer_email).success) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Correo inválido", path: ["customer_email"] })

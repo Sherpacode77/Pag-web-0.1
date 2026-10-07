@@ -118,7 +118,12 @@ export function CartSidebar() {
           referral_code: getWhatsAppReferralCode(),
           shipping_address: {
             delivery_method: form.deliveryMethod,
-            address_line: form.deliveryMethod === "envio" || needsPickupAddress ? form.address : null,
+            // En un servicio de Travel la direccion se guarda siempre que el cliente la
+            // escriba: es parte de sus datos de contacto, no solo de la recogida.
+            address_line:
+              form.deliveryMethod === "envio" || form.deliveryMethod === "servicio"
+                ? form.address.trim() || null
+                : null,
             apartment: form.deliveryMethod === "envio" ? form.apartment : null,
             neighborhood: form.deliveryMethod === "envio" ? form.neighborhood : null,
             city: form.deliveryMethod === "envio" ? form.city : null,

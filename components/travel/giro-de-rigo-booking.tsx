@@ -109,7 +109,7 @@ const FAQS = [
   },
   {
     q: "¿Y si viajo por mi cuenta pero quiero mandar la bici?",
-    a: "Para eso está el traslado de bicicleta: tu bici viaja en un furgón con soportes especializados, sin que tomes cupo de pasajero. Puedes dejarla en nuestro local de Capito (Bogotá, barrio 7 de Agosto) o la recogemos en tu casa por $30.000 más por trayecto, un par de días antes del evento.",
+    a: "Para eso está el traslado de bicicleta: tu bici viaja en un furgón con soportes especializados, sin que tomes cupo de pasajero. Puedes dejarla en nuestro local de Capito (Bogotá, barrio 7 de Agosto) o la recogemos en tu casa por $40.000 más por trayecto, un par de días antes del evento.",
   },
   {
     q: "¿CERO.UNO organiza el Giro de Rigo?",
@@ -203,13 +203,15 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
             {service.returnTime && (
               <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <LifeBuoy className="h-3.5 w-3.5 shrink-0" />
-                Regresa {service.returnTime}
+                Regreso: {service.returnTime}
               </p>
             )}
           </div>
         </div>
 
-        <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{service.description}</p>
+        {!service.hideCardDescription && (
+          <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{service.description}</p>
+        )}
 
         {service.scheduleNote && (
           <p className="mb-4 flex items-start gap-2 rounded-sm border border-border bg-secondary/40 p-3 text-xs leading-relaxed text-muted-foreground">
@@ -240,7 +242,9 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
               <span className="font-medium text-foreground">No cubre:</span> {service.warranty.excludes}
             </p>
           )}
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground/80">{service.warranty.why}</p>
+          {service.warranty.why && (
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground/80">{service.warranty.why}</p>
+          )}
         </div>
 
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-foreground">Trayecto</p>

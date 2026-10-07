@@ -4,6 +4,7 @@ import React from "react"
 
 import { useRef, useState } from "react"
 import Image from "next/image"
+import { Saira } from "next/font/google"
 import { Navbar } from "@/components/navbar"
 import { CartSidebar } from "@/components/cart-sidebar"
 import { Footer } from "@/components/footer"
@@ -23,6 +24,15 @@ import {
 } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
 import { SectionDivider } from "@/components/section-divider"
+
+// "Travel" va con una tipografia cursiva, ancha y gruesa para acompanar el logo
+// (que es una Eurostile inclinada): Saira con el eje de ancho al maximo.
+const travelFont = Saira({
+  subsets: ["latin"],
+  style: ["italic"],
+  axes: ["wdth"],
+  display: "swap",
+})
 
 const initialFormData = {
   nombre: "",
@@ -87,8 +97,8 @@ export default function TravelPage() {
       <Navbar />
       <CartSidebar />
       <main>
-        {/* Hero */}
-        <section className="relative h-[60vh] min-h-[400px] overflow-hidden">
+        {/* Hero: compacto a proposito, para llegar rapido al boton de reserva */}
+        <section className="relative overflow-hidden">
           <Image
             src={assetUrl("/images/travel-hero.jpg")}
             alt="CERO.UNO Travel - Logistica ciclista"
@@ -96,42 +106,52 @@ export default function TravelPage() {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-background/70" />
-          <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.3em] text-primary">
+          <div className="absolute inset-0 bg-background/80" />
+          <div className="relative z-10 flex flex-col items-center px-4 py-4 text-center md:py-5">
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.3em] text-primary md:text-xs">
               Logistica ciclista
             </p>
-            <h1 className="text-4xl font-bold tracking-tight text-foreground md:text-6xl text-balance">
-              CERO.UNO Travel
+            <h1 className="flex flex-col items-center">
+              <Image
+                src={assetUrl("/images/marca-alta-blancorecurso-207.png")}
+                alt="CERO.UNO"
+                width={1367}
+                height={416}
+                priority
+                className="h-11 w-auto md:h-14"
+              />
+              <span
+                className={`${travelFont.className} mt-1 text-2xl uppercase leading-none tracking-[0.32em] text-primary md:text-3xl`}
+                style={{ fontStretch: "125%", fontWeight: 800, paddingLeft: "0.32em" }}
+              >
+                Travel
+              </span>
             </h1>
-            <p className="mt-4 max-w-2xl text-base text-muted-foreground leading-relaxed md:text-lg">
-              Servicio de transporte y logistica para eventos ciclisticos y
-              ciclo-travesias en Colombia. Nos encargamos de que tu unica
-              preocupacion sea pedalear.
+            <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground md:text-sm">
+              Servicio de transporte y logistica para eventos ciclisticos y ciclo-travesias en Colombia. Nos
+              encargamos de que tu unica preocupacion sea pedalear.
             </p>
           </div>
         </section>
 
         {/* Services */}
-        <section className="section-light relative py-20 bg-background">
+        <section className="section-light relative bg-background py-5 md:py-6">
           <SectionDivider />
-          <div className="mx-auto max-w-7xl px-4 lg:px-8">
-            <div className="mb-12 text-center">
-              <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-                Nuestros servicios
-              </h2>
-            </div>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mx-auto max-w-5xl px-4 lg:px-8">
+            <h2 className="mb-3 text-center text-lg font-bold tracking-tight text-foreground md:mb-4 md:text-xl">
+              Nuestros servicios
+            </h2>
+            <div className="grid gap-3 md:grid-cols-3 md:gap-4">
               {[
                 {
                   icon: Bus,
                   title: "Servicio privado de transporte (ida - regreso)",
-                  desc: "Buses comodos con racks especializados para bicicletas. Regresa seguro despues de tu evento.",
+                  desc: "Buses o Vans comodas con racks especializados para bicicletas. Regresa seguro despues de tu evento.",
                 },
                 {
                   icon: Wrench,
                   title: "Asistencia mecanica",
-                  desc: "Equipo mecanico en puntos estrategicos de la ruta para resolver cualquier imprevisto.",
+                  desc: "Equipo mecanico con herramienta especializada tanto en el abordaje como en el punto de desembarco para dejar tu bici a punto.",
                 },
                 {
                   icon: ShieldCheck,
@@ -141,17 +161,13 @@ export default function TravelPage() {
               ].map((service) => (
                 <div
                   key={service.title}
-                  className="rounded-sm border border-border bg-card p-6 text-center"
+                  className="flex flex-col items-center rounded-sm border border-border bg-card p-4 text-center"
                 >
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-sm bg-primary/10">
-                    <service.icon className="h-6 w-6 text-primary" />
+                  <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-sm bg-primary/10">
+                    <service.icon className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="mb-2 text-base font-bold text-foreground">
-                    {service.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {service.desc}
-                  </p>
+                  <h3 className="text-sm font-bold leading-snug text-foreground">{service.title}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{service.desc}</p>
                 </div>
               ))}
             </div>
@@ -159,14 +175,14 @@ export default function TravelPage() {
         </section>
 
         {/* Upcoming events */}
-        <section className="section-light relative py-20 bg-secondary">
+        <section className="section-light relative bg-secondary py-8 md:py-10">
           <SectionDivider />
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
-            <div className="mb-12 text-center">
-              <p className="mb-2 text-xs font-medium uppercase tracking-[0.3em] text-primary">
+            <div className="mb-5 text-center">
+              <p className="mb-1 text-xs font-medium uppercase tracking-[0.3em] text-primary">
                 Proximos eventos
               </p>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+              <h2 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
                 Calendario 2026
               </h2>
             </div>

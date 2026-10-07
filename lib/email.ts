@@ -1,5 +1,6 @@
 import { Resend } from "resend"
 import type { OrderWithItems } from "@/lib/db-orders"
+import { travelServiceNeedsHomePickup } from "@/lib/travel-services"
 
 const BRAND = {
   bg: "#0D0D0D",
@@ -166,10 +167,13 @@ function describeDelivery(order: OrderWithItems): string {
     return `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.neighborhood, addr.city, addr.department].filter(Boolean).join(", ")}`
   }
   if (addr?.delivery_method === "servicio") {
-    // Un traslado puerta a puerta trae la direccion donde recoger la bicicleta.
-    return addr.address_line
+    if (!addr.address_line) return "CERO.UNO Travel — cupo de transporte (sin despacho)"
+    // Solo el traslado puerta a puerta usa la direccion para recoger la bicicleta;
+    // en los demas servicios es simplemente un dato de contacto del cliente.
+    const pickup = order.items.some((item) => travelServiceNeedsHomePickup(item.product_id))
+    return pickup
       ? `CERO.UNO Travel — recoger la bicicleta en ${addr.address_line}`
-      : "CERO.UNO Travel — cupo de transporte (sin despacho)"
+      : `CERO.UNO Travel — cupo de transporte (dirección del cliente: ${addr.address_line})`
   }
   return "Retiro en punto de venta"
 }

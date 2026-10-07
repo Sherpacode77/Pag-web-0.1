@@ -164,7 +164,9 @@ export function CheckoutForm({
     if (!form.lastName.trim()) next.lastName = "Requerido"
     if (!onlyServices && !form.document.trim()) next.document = "Requerido"
     if (!form.phone.trim()) next.phone = "Requerido"
-    if (onlyServices && needsPickupAddress && !form.address.trim()) {
+    // En Travel la direccion es obligatoria en todos los servicios: es un dato de
+    // contacto del cliente y, en el traslado a domicilio, el lugar de recogida.
+    if (onlyServices && !form.address.trim()) {
       next.address = "Requerido"
     }
     if (form.deliveryMethod === "envio") {
@@ -235,13 +237,7 @@ export function CheckoutForm({
 
       <div>
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-card-foreground">
-          {onlyServices
-            ? passengerCount === 0
-              ? "Datos de quien envía la bicicleta"
-              : passengerCount > 1
-                ? "Datos de los pasajeros"
-                : "Datos del pasajero"
-            : "Entrega"}
+          {onlyServices ? "Datos de contacto" : "Entrega"}
         </h3>
         {onlyServices ? (
           <p className="mb-3 rounded-md border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
@@ -249,21 +245,6 @@ export function CheckoutForm({
             equipo logístico de CERO.UNO el día del viaje. Te escribiremos por WhatsApp para compartir
             contigo el punto de embarque y la hora exacta de encuentro.
           </p>
-        ) : null}
-        {onlyServices && needsPickupAddress ? (
-          <div className="mb-3">
-            <input
-              type="text"
-              placeholder="Dirección donde recogemos la bicicleta"
-              value={form.address}
-              onChange={(e) => update("address", e.target.value)}
-              className={inputClass}
-            />
-            {errors.address && <p className={errorClass}>{errors.address}</p>}
-            <p className="mt-1 text-xs text-muted-foreground">
-              Pasamos por tu bicicleta un par de días antes del evento; coordinamos la hora por WhatsApp.
-            </p>
-          </div>
         ) : null}
         {onlyServices ? null : (
         <div className="mb-3 grid grid-cols-2 gap-2">
@@ -413,6 +394,24 @@ export function CheckoutForm({
             />
             {errors.phone && <p className={errorClass}>{errors.phone}</p>}
           </div>
+
+          {onlyServices && (
+            <div>
+              <input
+                type="text"
+                placeholder={needsPickupAddress ? "Dirección donde recogemos la bicicleta" : "Dirección"}
+                value={form.address}
+                onChange={(e) => update("address", e.target.value)}
+                className={inputClass}
+              />
+              {errors.address && <p className={errorClass}>{errors.address}</p>}
+              {needsPickupAddress && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Pasamos por tu bicicleta un par de días antes del evento; coordinamos la hora por WhatsApp.
+                </p>
+              )}
+            </div>
+          )}
 
           {form.extraPassengers.map((pax, i) => {
             const err = extraErrors[i]

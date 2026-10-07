@@ -31,7 +31,7 @@ type OrderStatus =
   | "refunded"
 
 type ShippingAddress = {
-  delivery_method: "envio" | "retiro"
+  delivery_method: "envio" | "retiro" | "servicio"
   address_line: string | null
   apartment: string | null
   neighborhood: string | null
@@ -405,7 +405,9 @@ Esta acción NO se puede deshacer.`)) return
                                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
                                     {order.shipping_address?.delivery_method === "retiro"
                                       ? "Retiro en tienda"
-                                      : "Envío a domicilio"}
+                                      : order.shipping_address?.delivery_method === "servicio"
+                                        ? "CERO.UNO Travel · dirección del cliente"
+                                        : "Envío a domicilio"}
                                   </p>
                                   {order.shipping_address?.delivery_method !== "retiro" && (
                                     <p>

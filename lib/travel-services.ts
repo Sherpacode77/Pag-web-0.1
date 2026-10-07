@@ -76,12 +76,12 @@ export const TRAVEL_DELIVERY_OPTIONS: TravelBikeOption[] = [
   {
     key: "local",
     label: "La dejo en el local",
-    detail: "Entregas y recoges tu bici en Capito, Bogotá · barrio 7 de Agosto.",
+    detail: "Capito · Bogotá, barrio 7 de Agosto",
   },
   {
     key: "domicilio",
     label: "Recójanla en mi casa",
-    detail: "Puerta a puerta un par de días antes del evento. $30.000 más por trayecto.",
+    detail: "Puerta a puerta · +$40.000 por trayecto",
   },
 ]
 
@@ -149,9 +149,12 @@ export type TravelService = {
   highlights: string[]
   // La cobertura cambia segun como viaja la bicicleta en cada vehiculo, y es
   // una promesa comercial: tiene que verse antes de comprar, no despues.
-  warranty: { covers: string; excludes?: string; why: string }
+  warranty: { covers: string; excludes?: string; why?: string }
   // false en el furgon: traslada bicicletas solas, sin pasajero a bordo.
   carriesPassenger: boolean
+  // La descripcion sigue yendo en el pedido y el correo, pero puede omitirse en
+  // la tarjeta cuando repite lo que ya dicen los puntos del servicio.
+  hideCardDescription?: boolean
   optionsTitle: string
   // Horario propio de cada servicio: los dos buses y la van salen en momentos
   // distintos. El furgon no tiene hora de salida, sino una regla de entrega.
@@ -165,11 +168,12 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
   {
     key: "bus",
     name: "Cupo en BUS",
-    vehicle: "Bus último modelo · 40 pasajeros",
+    vehicle: "40 pasajeros",
     tagline: "La opción más económica, con bodegas amplias para las bicicletas.",
     description:
       "Viajas en un bus último modelo de 40 pasajeros. Las bicicletas viajan sin ruedas en las bodegas del bus: nuestro equipo las desmonta, las acomoda y las asegura para todo el trayecto, y te ayuda a montarlas de nuevo al llegar.",
     image: "/images/travel-bus-cerouno.jpg",
+    hideCardDescription: true,
     highlights: [
       "Bus último modelo de 40 pasajeros",
       "Bodegas amplias para acomodar todas las bicicletas",
@@ -178,7 +182,7 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
     ],
     warranty: {
       covers: "Defectos funcionales ocasionados durante el transporte.",
-      excludes: "No cubre afectaciones de pintura.",
+      excludes: "Afectaciones de pintura.",
       why: "La bicicleta viaja sin ruedas y en bodega compartida con las demás.",
     },
     departure: "Viernes 30 de octubre, 9:30 p. m.",
@@ -194,58 +198,54 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
   {
     key: "van",
     name: "Cupo en VAN",
-    vehicle: "Van con soportes especializados",
+    vehicle: "12 pasajeros",
     tagline: "Grupo pequeño y soportes diseñados para transportar bicicletas.",
     description:
       "Viajas en van con soportes especializados para bicicleta: cada bici va completa y anclada en su propio soporte, sin desmontar nada y sin contacto entre marcos. Grupo reducido y trato cercano durante todo el trayecto.",
     image: "/images/travel-van-cerouno.jpg",
+    hideCardDescription: true,
     highlights: [
-      "Soportes especializados: una bicicleta por soporte, sin roces entre marcos",
-      "Tu bicicleta viaja completa: no se desmontan las ruedas",
+      "Soportes especializados: una bici por soporte, sin roces",
+      "Tu bici viaja completa, sin desmontar las ruedas",
       "Grupo reducido y salida más ágil",
       "Asistencia mecánica durante el viaje",
     ],
     warranty: {
-      covers: "Cualquier defecto funcional y, por el seguro, también los rayones en la pintura causados durante el traslado.",
-      why: "Cada bicicleta va completa y anclada en su propio soporte, sin contacto con las demás.",
+      covers: "Defectos funcionales y, por el seguro, rayones en la pintura durante el traslado.",
     },
     departure: "Viernes 30 de octubre, 8:00 p. m.",
     returnTime: "Lunes 2 de noviembre, 11:30 a. m.",
     carriesPassenger: true,
     optionsTitle: "¿Llevas bicicleta?",
     prices: {
-      ida: { "con-bici": 200000, "sin-bici": 150000 },
-      regreso: { "con-bici": 200000, "sin-bici": 150000 },
+      ida: { "con-bici": 260000, "sin-bici": 150000 },
+      regreso: { "con-bici": 260000, "sin-bici": 150000 },
       "ida-vuelta": { "con-bici": 480000, "sin-bici": 370000 },
     },
   },
   {
     key: "furgon",
     name: "Traslado de bicicleta",
-    vehicle: "Furgón con soportes · 20 bicicletas",
+    vehicle: "20 bicicletas",
     tagline: "Tu bici viaja al evento aunque tú viajes por tu cuenta.",
     description:
       "Si vas a Cali por tu cuenta pero no quieres llevar la bici, nosotros la trasladamos. Viaja en un furgón con soportes especializados, una bicicleta por soporte y sin contacto entre marcos. Puedes dejarla en nuestro local de Capito (Bogotá, barrio 7 de Agosto) o la recogemos en tu casa.",
     image: "/images/travel-furgon-cerouno.jpg",
+    hideCardDescription: true,
     highlights: [
-      "Furgón con soportes especializados para 20 bicicletas",
-      "No ocupa cupo de pasajero: es solo para tu bici",
-      "Déjala en nuestro local de Capito (Bogotá · 7 de Agosto) sin costo adicional",
-      "O la recogemos puerta a puerta un par de días antes del evento",
+      "Furgón con soportes especializados, una bici por soporte",
+      "No ocupa cupo de pasajero: viaja solo tu bici",
     ],
     warranty: {
-      covers:
-        "Garantía total: cualquier defecto funcional y también los rayones en la pintura ocasionados durante el traslado.",
-      why: "Cada bicicleta viaja anclada en su propio soporte y bajo nuestra custodia de principio a fin.",
+      covers: "Todo defecto funcional y los rayones en la pintura durante el traslado (garantía total).",
     },
-    scheduleNote:
-      "Sin hora de salida: recibimos tu bicicleta mínimo 2 días antes del viaje y la entregamos en Cali el sábado 31 de octubre, en el transcurso del día.",
+    scheduleNote: "Entrégala mínimo 2 días antes. La recibes en Cali el sábado 31 de octubre, en el transcurso del día.",
     carriesPassenger: false,
     optionsTitle: "¿Cómo nos entregas la bici?",
     prices: {
-      ida: { local: 140000, domicilio: 170000 },
-      regreso: { local: 140000, domicilio: 170000 },
-      "ida-vuelta": { local: 270000, domicilio: 330000 },
+      ida: { local: 140000, domicilio: 180000 },
+      regreso: { local: 140000, domicilio: 180000 },
+      "ida-vuelta": { local: 270000, domicilio: 350000 },
     },
   },
 ]
