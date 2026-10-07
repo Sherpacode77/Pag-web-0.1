@@ -15,8 +15,23 @@ export function isTravelServiceId(productId: string): boolean {
   return productId.startsWith(TRAVEL_SERVICE_ID_PREFIX)
 }
 
+// El traslado de bicicleta no lleva a nadie a bordo: no se piden datos de
+// pasajero por cada unidad, solo los de quien la envia.
+export function travelServiceCarriesPassenger(productId: string): boolean {
+  return isTravelServiceId(productId) && !productId.includes("-furgon-")
+}
+
+// Sin direccion no hay donde recoger la bicicleta, asi que el checkout la pide.
+export function travelServiceNeedsHomePickup(productId: string): boolean {
+  return isTravelServiceId(productId) && productId.endsWith("-domicilio")
+}
+
 export type TravelRouteKey = "ida" | "regreso" | "ida-vuelta"
-export type TravelBikeKey = "con-bici" | "sin-bici"
+
+// Segunda dimension de cada servicio. En bus y van es si el pasajero lleva
+// bicicleta; en el furgon (traslado de bicicleta sola) es como nos la entrega.
+export type TravelOptionKey = "con-bici" | "sin-bici" | "local" | "domicilio"
+export type TravelBikeKey = TravelOptionKey
 
 export type TravelRoute = {
   key: TravelRouteKey
@@ -26,7 +41,7 @@ export type TravelRoute = {
 }
 
 export type TravelBikeOption = {
-  key: TravelBikeKey
+  key: TravelOptionKey
   label: string
   detail: string
 }
@@ -57,32 +72,71 @@ export const TRAVEL_BIKE_OPTIONS: TravelBikeOption[] = [
   { key: "sin-bici", label: "Sin bicicleta", detail: "Solo pasajero." },
 ]
 
+export const TRAVEL_DELIVERY_OPTIONS: TravelBikeOption[] = [
+  {
+    key: "local",
+    label: "La dejo en el local",
+    detail: "Entregas y recoges tu bici en Capito, Bogotá · barrio 7 de Agosto.",
+  },
+  {
+    key: "domicilio",
+    label: "Recójanla en mi casa",
+    detail: "Puerta a puerta un par de días antes del evento. $30.000 más por trayecto.",
+  },
+]
+
+export function getServiceOptions(service: TravelService): TravelBikeOption[] {
+  return service.carriesPassenger ? TRAVEL_BIKE_OPTIONS : TRAVEL_DELIVERY_OPTIONS
+}
+
 // Listas de abordaje: un cupo de ida y regreso ocupa un puesto en DOS listas.
-export type TravelListKey = "ida-bus" | "ida-van" | "regreso-bus" | "regreso-van"
+export type TravelListKey =
+  | "ida-bus"
+  | "regreso-bus"
+  | "ida-van"
+  | "regreso-van"
+  | "ida-furgon"
+  | "regreso-furgon"
 
 export const TRAVEL_LISTS: { key: TravelListKey; label: string; sheet: string; capacity: number }[] = [
   { key: "ida-bus", label: "Ida · Bus", sheet: "Ida Bus", capacity: 40 },
-  { key: "ida-van", label: "Ida · Van", sheet: "Ida Van", capacity: 12 },
   { key: "regreso-bus", label: "Regreso · Bus", sheet: "Regreso Bus", capacity: 40 },
+  { key: "ida-van", label: "Ida · Van", sheet: "Ida Van", capacity: 12 },
   { key: "regreso-van", label: "Regreso · Van", sheet: "Regreso Van", capacity: 12 },
+  // El furgon lleva bicicletas sin pasajero: cupo propio, no resta asientos.
+  { key: "ida-furgon", label: "Ida · Furgón (bicis)", sheet: "Ida Furgon", capacity: 20 },
+  { key: "regreso-furgon", label: "Regreso · Furgón (bicis)", sheet: "Regreso Furgon", capacity: 20 },
 ]
 
 export function getListCapacity(list: TravelListKey): number {
   return TRAVEL_LISTS.find((l) => l.key === list)!.capacity
 }
 
+// Cada servicio tiene su par de listas: `ida-<clave>` y `regreso-<clave>`.
 export function getListsForRoute(vehicle: string, route: TravelRouteKey): TravelListKey[] {
-  const v = vehicle === "bus" ? "bus" : "van"
-  if (route === "ida") return [`ida-${v}` as TravelListKey]
-  if (route === "regreso") return [`regreso-${v}` as TravelListKey]
-  return [`ida-${v}` as TravelListKey, `regreso-${v}` as TravelListKey]
+  if (route === "ida") return [`ida-${vehicle}` as TravelListKey]
+  if (route === "regreso") return [`regreso-${vehicle}` as TravelListKey]
+  return [`ida-${vehicle}` as TravelListKey, `regreso-${vehicle}` as TravelListKey]
 }
 
 // SKU legible para el panel y para cruzar con las listas de abordaje.
-export function buildTravelSku(vehicleKey: string, route: TravelRouteKey, bike: TravelBikeKey): string {
+const SKU_OPTION_CODES: Record<TravelOptionKey, string> = {
+  "con-bici": "CB",
+  "sin-bici": "SB",
+  local: "LOC",
+  domicilio: "DOM",
+}
+
+const SKU_VEHICLE_CODES: Record<string, string> = {
+  bus: "BUS",
+  van: "VAN",
+  furgon: "FURGON",
+}
+
+export function buildTravelSku(vehicleKey: string, route: TravelRouteKey, option: TravelOptionKey): string {
   const r = route === "ida" ? "IDA" : route === "regreso" ? "REG" : "IDAREG"
-  const b = bike === "con-bici" ? "CB" : "SB"
-  return `TRV-GDR-${vehicleKey.toUpperCase()}-${r}-${b}`
+  const v = SKU_VEHICLE_CODES[vehicleKey] ?? vehicleKey.toUpperCase()
+  return `TRV-GDR-${v}-${r}-${SKU_OPTION_CODES[option]}`
 }
 
 export type TravelService = {
@@ -96,7 +150,15 @@ export type TravelService = {
   // La cobertura cambia segun como viaja la bicicleta en cada vehiculo, y es
   // una promesa comercial: tiene que verse antes de comprar, no despues.
   warranty: { covers: string; excludes?: string; why: string }
-  prices: Record<TravelRouteKey, Record<TravelBikeKey, number>>
+  // false en el furgon: traslada bicicletas solas, sin pasajero a bordo.
+  carriesPassenger: boolean
+  optionsTitle: string
+  // Horario propio de cada servicio: los dos buses y la van salen en momentos
+  // distintos. El furgon no tiene hora de salida, sino una regla de entrega.
+  departure?: string
+  returnTime?: string
+  scheduleNote?: string
+  prices: Record<TravelRouteKey, Partial<Record<TravelOptionKey, number>>>
 }
 
 export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
@@ -119,10 +181,14 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
       excludes: "No cubre afectaciones de pintura.",
       why: "La bicicleta viaja sin ruedas y en bodega compartida con las demás.",
     },
+    departure: "Viernes 30 de octubre, 9:30 p. m.",
+    returnTime: "Lunes 2 de noviembre, 12:30 p. m.",
+    carriesPassenger: true,
+    optionsTitle: "¿Llevas bicicleta?",
     prices: {
-      ida: { "con-bici": 140000, "sin-bici": 100000 },
-      regreso: { "con-bici": 140000, "sin-bici": 100000 },
-      "ida-vuelta": { "con-bici": 270000, "sin-bici": 190000 },
+      ida: { "con-bici": 160000, "sin-bici": 110000 },
+      regreso: { "con-bici": 160000, "sin-bici": 110000 },
+      "ida-vuelta": { "con-bici": 290000, "sin-bici": 210000 },
     },
   },
   {
@@ -140,13 +206,46 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
       "Asistencia mecánica durante el viaje",
     ],
     warranty: {
-      covers: "Cualquier defecto funcional y también las afectaciones de pintura ocasionadas durante el transporte.",
+      covers: "Cualquier defecto funcional y, por el seguro, también los rayones en la pintura causados durante el traslado.",
       why: "Cada bicicleta va completa y anclada en su propio soporte, sin contacto con las demás.",
     },
+    departure: "Viernes 30 de octubre, 8:00 p. m.",
+    returnTime: "Lunes 2 de noviembre, 11:30 a. m.",
+    carriesPassenger: true,
+    optionsTitle: "¿Llevas bicicleta?",
     prices: {
       ida: { "con-bici": 200000, "sin-bici": 150000 },
       regreso: { "con-bici": 200000, "sin-bici": 150000 },
       "ida-vuelta": { "con-bici": 480000, "sin-bici": 370000 },
+    },
+  },
+  {
+    key: "furgon",
+    name: "Traslado de bicicleta",
+    vehicle: "Furgón con soportes · 20 bicicletas",
+    tagline: "Tu bici viaja al evento aunque tú viajes por tu cuenta.",
+    description:
+      "Si vas a Cali por tu cuenta pero no quieres llevar la bici, nosotros la trasladamos. Viaja en un furgón con soportes especializados, una bicicleta por soporte y sin contacto entre marcos. Puedes dejarla en nuestro local de Capito (Bogotá, barrio 7 de Agosto) o la recogemos en tu casa.",
+    image: "/images/travel-furgon-cerouno.jpg",
+    highlights: [
+      "Furgón con soportes especializados para 20 bicicletas",
+      "No ocupa cupo de pasajero: es solo para tu bici",
+      "Déjala en nuestro local de Capito (Bogotá · 7 de Agosto) sin costo adicional",
+      "O la recogemos puerta a puerta un par de días antes del evento",
+    ],
+    warranty: {
+      covers:
+        "Garantía total: cualquier defecto funcional y también los rayones en la pintura ocasionados durante el traslado.",
+      why: "Cada bicicleta viaja anclada en su propio soporte y bajo nuestra custodia de principio a fin.",
+    },
+    scheduleNote:
+      "Sin hora de salida: recibimos tu bicicleta mínimo 2 días antes del viaje y la entregamos en Cali el sábado 31 de octubre, en el transcurso del día.",
+    carriesPassenger: false,
+    optionsTitle: "¿Cómo nos entregas la bici?",
+    prices: {
+      ida: { local: 140000, domicilio: 170000 },
+      regreso: { local: 140000, domicilio: 170000 },
+      "ida-vuelta": { local: 270000, domicilio: 330000 },
     },
   },
 ]
@@ -155,7 +254,7 @@ export const GIRO_DE_RIGO_EVENT = {
   name: "Giro de Rigo 2026",
   edition: "Edición La Sucursal · Cali",
   banner: "/images/event-giro-de-rigo-banner.png",
-  departure: "Viernes 30 de octubre de 2026, en la noche",
+  departure: "Viernes 30 de octubre · bus 9:30 p. m. y van 8:00 p. m.",
   returnTrip: "Lunes 2 de noviembre de 2026",
 }
 
@@ -195,9 +294,9 @@ export const TRAVEL_POLICIES = {
 export function getTravelServicePrice(
   service: TravelService,
   route: TravelRouteKey,
-  bike: TravelBikeKey
+  option: TravelOptionKey
 ): number {
-  return service.prices[route][bike]
+  return service.prices[route][option] ?? 0
 }
 
 // El carrito y el pedido identifican cada linea por product.id, asi que la
@@ -209,7 +308,7 @@ export function buildTravelServiceProduct(
   bike: TravelBikeKey
 ): Product {
   const routeInfo = TRAVEL_ROUTES.find((r) => r.key === route)!
-  const bikeInfo = TRAVEL_BIKE_OPTIONS.find((b) => b.key === bike)!
+  const bikeInfo = getServiceOptions(service).find((b) => b.key === bike)!
   const total = getTravelServicePrice(service, route, bike)
   const deposit = getTravelServiceDeposit(service, route, bike)
   const balance = total - deposit
@@ -254,14 +353,16 @@ export type TravelCartVariant = {
 // muestran "color / talla / diseño" concatenados.
 export function buildTravelServiceVariant(
   route: TravelRouteKey,
-  bike: TravelBikeKey
+  option: TravelOptionKey
 ): TravelCartVariant {
   const routeInfo = TRAVEL_ROUTES.find((r) => r.key === route)!
-  const bikeInfo = TRAVEL_BIKE_OPTIONS.find((b) => b.key === bike)!
+  const optionInfo = [...TRAVEL_BIKE_OPTIONS, ...TRAVEL_DELIVERY_OPTIONS].find((b) => b.key === option)!
   return {
     variantColor: route,
     variantColorName: routeInfo.label,
-    variantSize: bike,
-    variantSizeName: bikeInfo.label,
+    variantSize: option,
+    // "La dejo en el local" no cabe en variant_size_name (20 caracteres en la
+    // base), asi que en el carrito y el pedido se guarda una etiqueta corta.
+    variantSizeName: option === "local" ? "En el local" : option === "domicilio" ? "A domicilio" : optionInfo.label,
   }
 }

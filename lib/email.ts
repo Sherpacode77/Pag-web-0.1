@@ -166,7 +166,10 @@ function describeDelivery(order: OrderWithItems): string {
     return `Envío a domicilio — ${[addr.address_line, addr.apartment, addr.neighborhood, addr.city, addr.department].filter(Boolean).join(", ")}`
   }
   if (addr?.delivery_method === "servicio") {
-    return "CERO.UNO Travel — cupo de transporte (sin despacho)"
+    // Un traslado puerta a puerta trae la direccion donde recoger la bicicleta.
+    return addr.address_line
+      ? `CERO.UNO Travel — recoger la bicicleta en ${addr.address_line}`
+      : "CERO.UNO Travel — cupo de transporte (sin despacho)"
   }
   return "Retiro en punto de venta"
 }

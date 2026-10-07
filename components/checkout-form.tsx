@@ -69,6 +69,8 @@ interface CheckoutFormProps {
   onlyServices?: boolean
   // Cupos en el carrito: hay que pedir los datos de cada pasajero.
   passengerCount?: number
+  // Traslado de bicicleta puerta a puerta: hay que saber donde recogerla.
+  needsPickupAddress?: boolean
   onPaymentMethodChange?: (method: PaymentMethod) => void
   onCityChange?: (city: string) => void
   onMissingFieldsChange?: (fields: string[]) => void
@@ -80,6 +82,7 @@ export function CheckoutForm({
   submitting,
   onlyServices = false,
   passengerCount = 1,
+  needsPickupAddress = false,
   onDeliveryMethodChange,
   onPaymentMethodChange,
   onCityChange,
@@ -161,6 +164,9 @@ export function CheckoutForm({
     if (!form.lastName.trim()) next.lastName = "Requerido"
     if (!onlyServices && !form.document.trim()) next.document = "Requerido"
     if (!form.phone.trim()) next.phone = "Requerido"
+    if (onlyServices && needsPickupAddress && !form.address.trim()) {
+      next.address = "Requerido"
+    }
     if (form.deliveryMethod === "envio") {
       if (!form.address.trim()) next.address = "Requerido"
       if (!form.city.trim()) next.city = "Requerido"
@@ -229,7 +235,13 @@ export function CheckoutForm({
 
       <div>
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-card-foreground">
-          {onlyServices ? (passengerCount > 1 ? "Datos de los pasajeros" : "Datos del pasajero") : "Entrega"}
+          {onlyServices
+            ? passengerCount === 0
+              ? "Datos de quien envía la bicicleta"
+              : passengerCount > 1
+                ? "Datos de los pasajeros"
+                : "Datos del pasajero"
+            : "Entrega"}
         </h3>
         {onlyServices ? (
           <p className="mb-3 rounded-md border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
@@ -237,7 +249,23 @@ export function CheckoutForm({
             equipo logístico de CERO.UNO el día del viaje. Te escribiremos por WhatsApp para compartir
             contigo el punto de embarque y la hora exacta de encuentro.
           </p>
-        ) : (
+        ) : null}
+        {onlyServices && needsPickupAddress ? (
+          <div className="mb-3">
+            <input
+              type="text"
+              placeholder="Dirección donde recogemos la bicicleta"
+              value={form.address}
+              onChange={(e) => update("address", e.target.value)}
+              className={inputClass}
+            />
+            {errors.address && <p className={errorClass}>{errors.address}</p>}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pasamos por tu bicicleta un par de días antes del evento; coordinamos la hora por WhatsApp.
+            </p>
+          </div>
+        ) : null}
+        {onlyServices ? null : (
         <div className="mb-3 grid grid-cols-2 gap-2">
           <button
             type="button"

@@ -12,7 +12,11 @@ import { FreeShippingBar } from "@/components/free-shipping-bar"
 import { CheckoutForm, type CheckoutFormData } from "@/components/checkout-form"
 import { OrderSummary } from "@/components/order-summary"
 import { CASH_ON_DELIVERY_SURCHARGE, PICKUP_LOCATION, type PaymentMethod } from "@/lib/shipping"
-import { isTravelServiceId } from "@/lib/travel-services"
+import {
+  isTravelServiceId,
+  travelServiceCarriesPassenger,
+  travelServiceNeedsHomePickup,
+} from "@/lib/travel-services"
 
 export function CartSidebar() {
   const { items, removeItem, updateQuantity, totalPrice, isOpen, setIsOpen, clearCart } =
@@ -32,8 +36,10 @@ export function CartSidebar() {
   // Un cupo = un pasajero, asi que la cantidad de cupos manda cuantos juegos de
   // datos pide el formulario.
   const passengerCount = items
-    .filter((item) => isTravelServiceId(item.product.id))
+    .filter((item) => travelServiceCarriesPassenger(item.product.id))
     .reduce((sum, item) => sum + item.quantity, 0)
+  // Un traslado puerta a puerta necesita la direccion donde recoger la bici.
+  const needsPickupAddress = items.some((item) => travelServiceNeedsHomePickup(item.product.id))
 
   const handleConfirmAndPay = async (form: CheckoutFormData) => {
     if (items.length === 0 || isCheckingOut) return
@@ -112,7 +118,7 @@ export function CartSidebar() {
           referral_code: getWhatsAppReferralCode(),
           shipping_address: {
             delivery_method: form.deliveryMethod,
-            address_line: form.deliveryMethod === "envio" ? form.address : null,
+            address_line: form.deliveryMethod === "envio" || needsPickupAddress ? form.address : null,
             apartment: form.deliveryMethod === "envio" ? form.apartment : null,
             neighborhood: form.deliveryMethod === "envio" ? form.neighborhood : null,
             city: form.deliveryMethod === "envio" ? form.city : null,
@@ -369,6 +375,7 @@ export function CartSidebar() {
                 submitting={isCheckingOut}
                 onlyServices={onlyServices}
                 passengerCount={passengerCount}
+                needsPickupAddress={needsPickupAddress}
                 onDeliveryMethodChange={setDeliveryMethod}
                 onPaymentMethodChange={setPaymentMethod}
                 onCityChange={setShippingCity}

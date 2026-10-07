@@ -6,10 +6,10 @@ import { Bus, Download, Plus, Trash2, Users, X } from "lucide-react"
 import {
   GIRO_DE_RIGO_SERVICES,
   TRAVEL_LISTS,
+  getServiceOptions,
   buildTravelSku,
   getListsForRoute,
   getTravelServicePrice,
-  type TravelBikeKey,
   type TravelListKey,
   type TravelRouteKey,
 } from "@/lib/travel-services"
@@ -42,17 +42,18 @@ function buildCatalogRows(): TravelServiceStats[] {
   const rows: TravelServiceStats[] = []
   for (const service of GIRO_DE_RIGO_SERVICES) {
     for (const route of ["ida", "regreso", "ida-vuelta"] as TravelRouteKey[]) {
-      for (const bike of ["con-bici", "sin-bici"] as TravelBikeKey[]) {
-        const price = getTravelServicePrice(service, route, bike)
+      for (const option of getServiceOptions(service)) {
+        const price = getTravelServicePrice(service, route, option.key)
         rows.push({
-          sku: buildTravelSku(service.key, route, bike),
+          sku: buildTravelSku(service.key, route, option.key),
           serviceKey: service.key,
           serviceName: service.name,
           vehicle: service.vehicle,
           route,
           routeLabel: ROUTE_LABELS[route],
-          bike,
-          bikeLabel: bike === "con-bici" ? "Con bicicleta" : "Sin bicicleta",
+          bike: option.key,
+          bikeLabel: option.label,
+          carriesPassenger: service.carriesPassenger,
           price,
           deposit: Math.round(price / 2),
           lists: getListsForRoute(service.key, route),

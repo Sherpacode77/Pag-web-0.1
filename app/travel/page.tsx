@@ -15,10 +15,9 @@ import {
   Route,
   Bus,
   Wrench,
-  Shield,
+  ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  Users,
   Send,
   ChevronDown,
 } from "lucide-react"
@@ -135,14 +134,9 @@ export default function TravelPage() {
                   desc: "Equipo mecanico en puntos estrategicos de la ruta para resolver cualquier imprevisto.",
                 },
                 {
-                  icon: Shield,
-                  title: "Seguro de ruta para ti y tu bici",
-                  desc: "Cobertura de asistencia durante todo el recorrido para tu tranquilidad.",
-                },
-                {
-                  icon: Users,
-                  title: "Grupos de 10 pasajeros en adelante",
-                  desc: "Capacidad logistica para eventos pequenos y grandes. Cotizamos a tu medida.",
+                  icon: ShieldCheck,
+                  title: "Seguros y polizas vigentes",
+                  desc: "Todos nuestros servicios cuentan con seguro y polizas vigentes para tu tranquilidad.",
                 },
               ].map((service) => (
                 <div
@@ -176,6 +170,11 @@ export default function TravelPage() {
                 Calendario 2026
               </h2>
             </div>
+
+            <div ref={bookingRef} id="giro-de-rigo-reserva" className="mb-10 scroll-mt-24">
+              <GiroDeRigoBooking open={bookingOpen} onToggle={() => setBookingOpen((v) => !v)} />
+            </div>
+
             <div className="grid gap-6 md:grid-cols-2">
               {cyclingEvents.map((event) => (
                 <div
@@ -256,9 +255,6 @@ export default function TravelPage() {
               ))}
             </div>
 
-            <div ref={bookingRef} id="giro-de-rigo-reserva" className="mt-8 scroll-mt-24">
-              <GiroDeRigoBooking open={bookingOpen} onToggle={() => setBookingOpen((v) => !v)} />
-            </div>
           </div>
         </section>
 

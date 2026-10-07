@@ -7,9 +7,10 @@ import {
   buildTravelSku,
   getListCapacity,
   getListsForRoute,
+  getServiceOptions,
   getTravelServicePrice,
   isTravelServiceId,
-  type TravelBikeKey,
+  type TravelOptionKey,
   type TravelListKey,
   type TravelRouteKey,
 } from "@/lib/travel-services"
@@ -136,8 +137,10 @@ export type TravelServiceStats = {
   vehicle: string
   route: TravelRouteKey
   routeLabel: string
-  bike: TravelBikeKey
+  bike: TravelOptionKey
   bikeLabel: string
+  // false en el furgon: la fila cuenta bicicletas, no pasajeros.
+  carriesPassenger: boolean
   price: number
   deposit: number
   lists: TravelListKey[]
@@ -181,7 +184,7 @@ export function buildTravelStats(
   const services: TravelServiceStats[] = []
   for (const service of GIRO_DE_RIGO_SERVICES) {
     for (const route of ["ida", "regreso", "ida-vuelta"] as TravelRouteKey[]) {
-      for (const bike of ["con-bici", "sin-bici"] as TravelBikeKey[]) {
+      for (const bike of getServiceOptions(service).map((o) => o.key)) {
         const sku = buildTravelSku(service.key, route, bike)
         const used = getListsForRoute(service.key, route)
         const occupancy = used.reduce((sum, l) => sum + occupancyOf(l), 0) / used.length
@@ -194,7 +197,8 @@ export function buildTravelStats(
           route,
           routeLabel: ROUTE_LABELS[route],
           bike,
-          bikeLabel: bike === "con-bici" ? "Con bicicleta" : "Sin bicicleta",
+          bikeLabel: getServiceOptions(service).find((o) => o.key === bike)!.label,
+          carriesPassenger: service.carriesPassenger,
           price,
           deposit: Math.round(price / 2),
           lists: used,
@@ -269,7 +273,7 @@ export async function syncOrderToTravelLists(order: OrderWithItems): Promise<num
             balance: total - deposit,
             paymentChannel: "WEB",
             depositDate: new Date().toISOString().slice(0, 10),
-            withBike: parsed.bike === "con-bici",
+            withBike: parsed.bike !== "sin-bici",
             source: "web",
             orderNumber: order.order_number,
             seatIndex: seat,
@@ -292,10 +296,12 @@ export async function syncOrderToTravelLists(order: OrderWithItems): Promise<num
 
 function parseServiceId(
   productId: string
-): { vehicle: string; route: TravelRouteKey; bike: TravelBikeKey } | null {
-  const m = productId.match(/^travel-giro-de-rigo-(bus|van)-(ida-vuelta|ida|regreso)-(con-bici|sin-bici)$/)
+): { vehicle: string; route: TravelRouteKey; bike: TravelOptionKey } | null {
+  const m = productId.match(
+    /^travel-giro-de-rigo-(bus|van|furgon)-(ida-vuelta|ida|regreso)-(con-bici|sin-bici|local|domicilio)$/
+  )
   if (!m) return null
-  return { vehicle: m[1], route: m[2] as TravelRouteKey, bike: m[3] as TravelBikeKey }
+  return { vehicle: m[1], route: m[2] as TravelRouteKey, bike: m[3] as TravelOptionKey }
 }
 
 // Las notas del pedido traen los pasajeros en el formato que arma /api/orders.

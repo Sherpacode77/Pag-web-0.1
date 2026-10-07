@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  Truck,
   LifeBuoy,
   Lock,
   ShieldCheck,
@@ -25,15 +26,15 @@ import { trackAddToCart } from "@/lib/tracking-client"
 import {
   GIRO_DE_RIGO_EVENT,
   GIRO_DE_RIGO_SERVICES,
-  TRAVEL_BIKE_OPTIONS,
   TRAVEL_ROUTES,
+  getServiceOptions,
   buildTravelServiceProduct,
   buildTravelServiceVariant,
   getTravelServiceBalance,
   getTravelServiceDeposit,
   getTravelServicePrice,
   TRAVEL_POLICIES,
-  type TravelBikeKey,
+  type TravelOptionKey,
   type TravelRouteKey,
   type TravelService,
 } from "@/lib/travel-services"
@@ -71,12 +72,28 @@ const FAQS = [
     a: "Depende del vehículo. En el bus la bicicleta viaja sin ruedas: nuestro equipo las desmonta antes de cargarla y te ayuda a montarlas de nuevo al llegar. En la van no se desmonta nada: va completa y anclada en su soporte.",
   },
   {
-    q: "¿Qué pasa si mi bicicleta se raya o se daña en el viaje?",
-    a: "En bus respondemos por los defectos funcionales ocasionados durante el transporte, pero no por la pintura: la bici viaja sin ruedas y en bodega compartida. En van respondemos tanto por defectos funcionales como por afectaciones de pintura, porque cada bicicleta va anclada en su propio soporte. Si te preocupa el acabado de tu bici, la van es la opción indicada.",
+    q: "¿Me pueden garantizar que mi bicicleta va a llegar en perfectas condiciones a mi destino?",
+    a: "Sí. Tanto en el bus de 40 pasajeros como en la van de 12 contamos con asistencia mecánica profesional y herramienta especializada en el punto de abordaje y en el de desembarque, para atender cualquier novedad en el momento. Si tu bicicleta presenta algún inconveniente funcional durante el traslado, nosotros lo cubrimos. Además, quienes viajan en van cuentan con una cobertura adicional del seguro, que incluye los rayones en la pintura causados durante el traslado. Y si envías tu bicicleta sola en el furgón, la garantía es total: cubre tanto lo funcional como la pintura.",
   },
   {
-    q: "¿Dónde nos encontramos para la salida a Cali?",
-    a: "El recorrido arranca en Bulevar Niza a las 9:00 p. m. y de ahí vamos recogiendo a los pasajeros sobre la Avenida Boyacá: eliges la altura que más te convenga y ahí te esperamos.",
+    q: "¿A qué hora salimos hacia Cali?",
+    a: "Todos salimos el viernes 30 de octubre: el bus a las 9:30 p. m. y la van a las 8:00 p. m. El regreso desde Cali es el lunes 2 de noviembre, el bus a las 12:30 p. m. y la van a las 11:30 a. m.",
+  },
+  {
+    q: "Si mando solo la bici, ¿cuándo la entrego y cuándo la recibo?",
+    a: "El traslado de bicicleta no tiene hora de salida: necesitamos tu bici con mínimo 2 días de anticipación, ya sea porque la dejas en nuestro local de Capito o porque pasamos a recogerla. En Cali te la entregamos el sábado 31 de octubre, en el transcurso del día.",
+  },
+  {
+    q: "¿Dónde nos encontramos para la salida?",
+    a: "El primer punto de embarque es en inmediaciones de Bulevar Niza. De ahí tomamos hacia el sur toda la Avenida Boyacá y luego la Autopista Sur, con varios puntos de abordaje estratégicos en el camino: eliges la altura de la Boyacá o de la Autopista Sur que más te convenga y ahí te esperamos.",
+  },
+  {
+    q: "¿Dónde nos bajamos en Cali?",
+    a: "Hay un único punto de desembarque, en inmediaciones de la Plazoleta Jairo Varela, que es el lugar oficial de partida del evento.",
+  },
+  {
+    q: "¿Cuánto dura el viaje?",
+    a: "El recorrido hasta Cali toma unas 9 horas en van y unas 10 horas en bus, dependiendo de las condiciones de la vía.",
   },
   {
     q: "¿Dónde me dejan en el regreso a Bogotá?",
@@ -89,6 +106,14 @@ const FAQS = [
   {
     q: "¿Puedo viajar sin bicicleta?",
     a: "Sí. El cupo sin bicicleta es para acompañantes y cuesta menos. Elige la opción 'Sin bicicleta' al reservar.",
+  },
+  {
+    q: "¿Y si viajo por mi cuenta pero quiero mandar la bici?",
+    a: "Para eso está el traslado de bicicleta: tu bici viaja en un furgón con soportes especializados, sin que tomes cupo de pasajero. Puedes dejarla en nuestro local de Capito (Bogotá, barrio 7 de Agosto) o la recogemos en tu casa por $30.000 más por trayecto, un par de días antes del evento.",
+  },
+  {
+    q: "¿CERO.UNO organiza el Giro de Rigo?",
+    a: "No. Somos un agente independiente al evento y no contamos con una relación comercial directa con El Giro de Rigo versión Cali 2026. Lo que contratas con nosotros es el servicio de transporte: cualquier situación relacionada con ese servicio es responsabilidad exclusiva de CERO.UNO. La inscripción al evento la gestionas directamente con su organizador.",
   },
   {
     q: "¿Cómo confirmo mi cupo?",
@@ -109,7 +134,9 @@ function revealStyle(delayMs: number): CSSProperties {
 function ServiceCard({ service, delay }: { service: TravelService; delay: number }) {
   const { addItem } = useCart()
   const [route, setRoute] = useState<TravelRouteKey>("ida-vuelta")
-  const [bike, setBike] = useState<TravelBikeKey>("con-bici")
+  // El furgon no ofrece "con/sin bici" sino como se entrega la bicicleta.
+  const options = getServiceOptions(service)
+  const [bike, setBike] = useState<TravelOptionKey>(options[0].key)
   const [justAdded, setJustAdded] = useState(false)
 
   const price = getTravelServicePrice(service, route, bike)
@@ -120,7 +147,9 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
   // Lo que el cliente se ahorra frente a comprar ida y regreso por separado.
   const roundTripSaving =
     route === "ida-vuelta"
-      ? service.prices.ida[bike] + service.prices.regreso[bike] - service.prices["ida-vuelta"][bike]
+      ? getTravelServicePrice(service, "ida", bike) +
+        getTravelServicePrice(service, "regreso", bike) -
+        getTravelServicePrice(service, "ida-vuelta", bike)
       : 0
 
   function handleAdd() {
@@ -137,7 +166,7 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
     setTimeout(() => setJustAdded(false), 2500)
   }
 
-  const Icon = service.key === "bus" ? Bus : Bike
+  const Icon = service.key.startsWith("bus") ? Bus : service.key === "furgon" ? Truck : Bike
 
   return (
     <div
@@ -151,7 +180,7 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
           width={1408}
           height={768}
           className="block h-auto w-full object-cover transition-transform duration-[1200ms] ease-out group-hover/card:scale-[1.04]"
-          sizes="(max-width: 1024px) 100vw, 50vw"
+          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
         />
       </div>
 
@@ -165,10 +194,29 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
             <p className="truncate text-xs uppercase tracking-[0.18em] text-muted-foreground">
               {service.vehicle}
             </p>
+            {service.departure && (
+              <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-primary">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                Sale {service.departure}
+              </p>
+            )}
+            {service.returnTime && (
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <LifeBuoy className="h-3.5 w-3.5 shrink-0" />
+                Regresa {service.returnTime}
+              </p>
+            )}
           </div>
         </div>
 
         <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{service.description}</p>
+
+        {service.scheduleNote && (
+          <p className="mb-4 flex items-start gap-2 rounded-sm border border-border bg-secondary/40 p-3 text-xs leading-relaxed text-muted-foreground">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            {service.scheduleNote}
+          </p>
+        )}
 
         <ul className="mb-5 flex flex-col gap-2">
           {service.highlights.map((item) => (
@@ -225,16 +273,16 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
                   </span>
                 </span>
                 <span className="whitespace-nowrap text-sm font-bold text-foreground">
-                  {formatPrice(service.prices[option.key][bike])}
+                  {formatPrice(getTravelServicePrice(service, option.key, bike))}
                 </span>
               </button>
             )
           })}
         </div>
 
-        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-foreground">¿Llevas bicicleta?</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-foreground">{service.optionsTitle}</p>
         <div className="mb-6 grid grid-cols-2 gap-2">
-          {TRAVEL_BIKE_OPTIONS.map((option) => {
+          {options.map((option) => {
             const active = bike === option.key
             return (
               <button
@@ -242,13 +290,16 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
                 type="button"
                 onClick={() => setBike(option.key)}
                 aria-pressed={active}
-                className={`rounded-sm border px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
+                className={`rounded-sm border px-3 py-2.5 text-left text-sm font-medium transition-all duration-300 ${
                   active
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
                 }`}
               >
-                {option.label}
+                <span className="block">{option.label}</span>
+                {!service.carriesPassenger && (
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{option.detail}</span>
+                )}
               </button>
             )
           })}
@@ -306,7 +357,7 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
                   Agregado al carrito
                 </>
               ) : (
-                "Apartar mi cupo con el 50%"
+                service.carriesPassenger ? "Apartar mi cupo con el 50%" : "Apartar el traslado con el 50%"
               )}
             </span>
             {!justAdded && (
@@ -326,41 +377,40 @@ type GiroDeRigoBookingProps = {
 
 export function GiroDeRigoBooking({ open, onToggle }: GiroDeRigoBookingProps) {
   return (
-    <div className="overflow-hidden rounded-sm border border-border bg-card">
+    <div className="overflow-hidden rounded-sm border-2 border-primary bg-card shadow-[0_18px_50px_-24px_hsl(var(--primary)/0.6)]">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         aria-controls="giro-de-rigo-servicios"
-        className="group/bar flex w-full items-center justify-between gap-4 bg-primary/5 px-6 py-4 text-left transition-colors duration-300 hover:bg-primary/10"
+        className="group/bar flex w-full items-center justify-between gap-4 bg-primary px-6 py-5 text-left text-primary-foreground transition-colors duration-300 hover:bg-primary/90"
       >
-        <span>
-          <span className="block text-sm font-bold uppercase tracking-wider text-foreground">
-            Reserva tu transporte al {GIRO_DE_RIGO_EVENT.name}
+        <span className="flex items-center gap-4">
+          <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-primary-foreground/15 sm:flex">
+            <Bus className="h-5 w-5" />
           </span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            Cupos en bus y en van, con o sin bicicleta. Desde {formatPrice(100000)}.
+          <span>
+            <span className="block text-base font-bold uppercase tracking-wider md:text-lg">
+              Reserva tu transporte al {GIRO_DE_RIGO_EVENT.name}
+            </span>
+            <span className="mt-0.5 block text-xs text-primary-foreground/80 md:text-sm">
+              Cupos en bus y en van, traslado de bicicleta. Desde {formatPrice(100000)}.
+            </span>
           </span>
         </span>
-        <ChevronDown
-          className={`h-5 w-5 shrink-0 text-primary transition-transform duration-500 ${
-            open ? "rotate-180" : "group-hover/bar:translate-y-0.5"
-          }`}
-        />
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="hidden text-xs font-bold uppercase tracking-widest md:inline">
+            {open ? "Cerrar" : "Ver servicios"}
+          </span>
+          <ChevronDown
+            className={`h-5 w-5 transition-transform duration-500 ${
+              open ? "rotate-180" : "group-hover/bar:translate-y-0.5"
+            }`}
+          />
+        </span>
       </button>
 
       <div id="giro-de-rigo-servicios" hidden={!open} className="border-t border-border">
-        <div className="w-full overflow-hidden bg-[#0d3b32]">
-          <Image
-            src={assetUrl(GIRO_DE_RIGO_EVENT.banner)}
-            alt={`${GIRO_DE_RIGO_EVENT.name} · ${GIRO_DE_RIGO_EVENT.edition}`}
-            width={1316}
-            height={676}
-            className="block h-auto w-full"
-            sizes="(max-width: 1024px) 100vw, 1024px"
-          />
-        </div>
-
         <div className="px-6 py-10">
           <div className="travel-reveal mb-10" style={revealStyle(60)}>
             <h3 className="max-w-3xl text-2xl font-bold leading-tight tracking-tight text-foreground md:text-3xl">
@@ -401,7 +451,7 @@ export function GiroDeRigoBooking({ open, onToggle }: GiroDeRigoBookingProps) {
             </div>
           )}
 
-          <div className="mb-12 grid gap-6 lg:grid-cols-2">
+          <div className="mb-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {GIRO_DE_RIGO_SERVICES.map((service, i) => (
               <ServiceCard key={service.key} service={service} delay={160 + i * 110} />
             ))}
