@@ -187,94 +187,13 @@ export default function TravelPage() {
               </h2>
             </div>
 
-            <div ref={bookingRef} id="giro-de-rigo-reserva" className="mb-10 scroll-mt-24">
+            <div ref={bookingRef} id="giro-de-rigo-reserva" className="scroll-mt-24">
               <GiroDeRigoBooking open={bookingOpen} onToggle={() => setBookingOpen((v) => !v)} />
             </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              {cyclingEvents.map((event) => (
-                <div
-                  key={event.id}
-                  {...(event.bookable
-                    ? {
-                        role: "button" as const,
-                        tabIndex: 0,
-                        "aria-expanded": bookingOpen,
-                        "aria-controls": "giro-de-rigo-reserva",
-                        onClick: () => openBooking(),
-                        onKeyDown: (e: React.KeyboardEvent) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault()
-                            openBooking()
-                          }
-                        },
-                      }
-                    : {})}
-                  className={`overflow-hidden rounded-sm border border-border bg-card ${
-                    event.bookable
-                      ? "cursor-pointer transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      : ""
-                  }`}
-                >
-                  {event.image && (
-                    <div className="relative aspect-square w-full overflow-hidden bg-secondary">
-                      <Image
-                        src={assetUrl(event.image)}
-                        alt={event.name}
-                        fill
-                        className="object-contain"
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                      />
-                    </div>
-                  )}
-                  <div className="p-6">
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
-                        <Route className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-foreground">
-                          {event.name}
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {event.location}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {event.date}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {event.description}
-                    </p>
-                    {event.distance && (
-                      <div className="mt-3 inline-block rounded-sm bg-secondary px-3 py-1 text-xs font-medium text-foreground">
-                        {event.distance}
-                      </div>
-                    )}
-                    {event.bookable && (
-                      <span className="mt-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
-                        Ver y reservar servicios de transporte
-                        <ChevronDown
-                          className={`h-4 w-4 transition-transform duration-300 ${
-                            bookingOpen ? "rotate-180" : ""
-                          }`}
-                        />
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
           </div>
         </section>
 
-        {/* Lead Form */}
+        {/* Lead Form: justo despues del bloque de reserva */}
         <section className="section-light relative py-20 bg-background" id="cotizar">
           <SectionDivider />
           <div className="mx-auto max-w-2xl px-4 lg:px-8">
@@ -549,6 +468,92 @@ export default function TravelPage() {
                 </button>
               </form>
             )}
+          </div>
+        </section>
+
+        {/* Eventos del calendario: van despues del formulario */}
+        <section className="section-light relative bg-secondary py-8 md:py-10">
+          <SectionDivider />
+          <div className="mx-auto max-w-7xl px-4 lg:px-8">
+            <div className="grid gap-6 md:grid-cols-2">
+              {cyclingEvents.map((event) => (
+                <div
+                  key={event.id}
+                  {...(event.bookable
+                    ? {
+                        role: "button" as const,
+                        tabIndex: 0,
+                        "aria-expanded": bookingOpen,
+                        "aria-controls": "giro-de-rigo-reserva",
+                        onClick: () => openBooking(),
+                        onKeyDown: (e: React.KeyboardEvent) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            openBooking()
+                          }
+                        },
+                      }
+                    : {})}
+                  className={`overflow-hidden rounded-sm border border-border bg-card ${
+                    event.bookable
+                      ? "cursor-pointer transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      : ""
+                  }`}
+                >
+                  {event.image && (
+                    <div className="relative aspect-square w-full overflow-hidden bg-secondary">
+                      <Image
+                        src={assetUrl(event.image)}
+                        alt={event.name}
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
+                    </div>
+                  )}
+                  <div className="p-6">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
+                        <Route className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-foreground">
+                          {event.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {event.location}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {event.date}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {event.description}
+                    </p>
+                    {event.distance && (
+                      <div className="mt-3 inline-block rounded-sm bg-secondary px-3 py-1 text-xs font-medium text-foreground">
+                        {event.distance}
+                      </div>
+                    )}
+                    {event.bookable && (
+                      <span className="mt-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
+                        Ver y reservar servicios de transporte
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform duration-300 ${
+                            bookingOpen ? "rotate-180" : ""
+                          }`}
+                        />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </main>

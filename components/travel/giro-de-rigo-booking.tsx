@@ -417,7 +417,7 @@ export function GiroDeRigoBooking({ open, onToggle }: GiroDeRigoBookingProps) {
       <div id="giro-de-rigo-servicios" hidden={!open} className="border-t border-border">
         <div className="px-6 py-10">
           <div className="travel-reveal mb-10" style={revealStyle(60)}>
-            <h3 className="max-w-3xl text-2xl font-bold leading-tight tracking-tight text-foreground md:text-3xl">
+            <h3 className="mx-auto max-w-3xl text-center text-2xl font-bold leading-tight tracking-tight text-foreground md:mx-0 md:text-left md:text-3xl">
               Transporte privado premium <span className="text-primary">para ti y para tu bici</span>
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
