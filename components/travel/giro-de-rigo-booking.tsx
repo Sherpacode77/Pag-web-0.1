@@ -105,11 +105,11 @@ const FAQS = [
   },
   {
     q: "¿Puedo viajar sin bicicleta?",
-    a: "Sí. El cupo sin bicicleta es para acompañantes y cuesta menos. Elige la opción 'Sin bicicleta' al reservar.",
+    a: "Sí. En el bus, el cupo sin bicicleta es para acompañantes y cuesta menos: elige la opción 'Sin bicicleta' al reservar. En la van el cupo tiene un solo precio, lleves o no bicicleta.",
   },
   {
     q: "¿Y si viajo por mi cuenta pero quiero mandar la bici?",
-    a: "Para eso está el traslado de bicicleta: tu bici viaja en un furgón con soportes especializados, sin que tomes cupo de pasajero. Puedes dejarla en nuestro local de Capito (Bogotá, barrio 7 de Agosto) o la recogemos en tu casa por $40.000 más por trayecto, un par de días antes del evento.",
+    a: "Para eso está el traslado de bicicleta: tu bici viaja en un furgón con soportes especializados, sin que tomes cupo de pasajero. Puedes dejarla en nuestro local de Capito (Bogotá, barrio 7 de Agosto) o la recogemos en tu casa por $59.000 más en un trayecto o $109.000 más en ida y vuelta, un par de días antes del evento.",
   },
   {
     q: "¿CERO.UNO organiza el Giro de Rigo?",
@@ -284,8 +284,10 @@ function ServiceCard({ service, delay }: { service: TravelService; delay: number
           })}
         </div>
 
-        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-foreground">{service.optionsTitle}</p>
-        <div className="mb-6 grid grid-cols-2 gap-2">
+        {options.length > 1 && (
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-foreground">{service.optionsTitle}</p>
+        )}
+        <div className={options.length > 1 ? "mb-6 grid grid-cols-2 gap-2" : "hidden"}>
           {options.map((option) => {
             const active = bike === option.key
             return (

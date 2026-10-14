@@ -81,11 +81,12 @@ export const TRAVEL_DELIVERY_OPTIONS: TravelBikeOption[] = [
   {
     key: "domicilio",
     label: "Recójanla en mi casa",
-    detail: "Puerta a puerta · +$40.000 por trayecto",
+    detail: "Puerta a puerta · +$59.000 (ida y vuelta: +$109.000)",
   },
 ]
 
 export function getServiceOptions(service: TravelService): TravelBikeOption[] {
+  if (service.options) return service.options
   return service.carriesPassenger ? TRAVEL_BIKE_OPTIONS : TRAVEL_DELIVERY_OPTIONS
 }
 
@@ -155,6 +156,8 @@ export type TravelService = {
   // La descripcion sigue yendo en el pedido y el correo, pero puede omitirse en
   // la tarjeta cuando repite lo que ya dicen los puntos del servicio.
   hideCardDescription?: boolean
+  // Si se omite, se usan las opciones por defecto de getServiceOptions.
+  options?: TravelBikeOption[]
   optionsTitle: string
   // Horario propio de cada servicio: los dos buses y la van salen en momentos
   // distintos. El furgon no tiene hora de salida, sino una regla de entrega.
@@ -190,9 +193,9 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
     carriesPassenger: true,
     optionsTitle: "¿Llevas bicicleta?",
     prices: {
-      ida: { "con-bici": 160000, "sin-bici": 110000 },
-      regreso: { "con-bici": 160000, "sin-bici": 110000 },
-      "ida-vuelta": { "con-bici": 290000, "sin-bici": 210000 },
+      ida: { "con-bici": 190000, "sin-bici": 130000 },
+      regreso: { "con-bici": 190000, "sin-bici": 130000 },
+      "ida-vuelta": { "con-bici": 340000, "sin-bici": 240000 },
     },
   },
   {
@@ -206,6 +209,7 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
     hideCardDescription: true,
     highlights: [
       "Soportes especializados: una bici por soporte, sin roces",
+      "Un solo precio: hay lugar para la bici de cada pasajero",
       "Tu bici viaja completa, sin desmontar las ruedas",
       "Grupo reducido y salida más ágil",
       "Asistencia mecánica durante el viaje",
@@ -216,11 +220,14 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
     departure: "Viernes 30 de octubre, 8:00 p. m.",
     returnTime: "Lunes 2 de noviembre, 11:30 a. m.",
     carriesPassenger: true,
+    // La van tiene lugar para todas las bicis de sus pasajeros: un solo precio,
+    // lleve o no bicicleta. Por eso no se le pregunta al cliente.
+    options: [{ key: "con-bici", label: "Bicicleta incluida", detail: "El cupo cubre tu bici si la llevas." }],
     optionsTitle: "¿Llevas bicicleta?",
     prices: {
-      ida: { "con-bici": 260000, "sin-bici": 150000 },
-      regreso: { "con-bici": 260000, "sin-bici": 150000 },
-      "ida-vuelta": { "con-bici": 480000, "sin-bici": 370000 },
+      ida: { "con-bici": 310000 },
+      regreso: { "con-bici": 310000 },
+      "ida-vuelta": { "con-bici": 570000 },
     },
   },
   {
@@ -243,9 +250,9 @@ export const GIRO_DE_RIGO_SERVICES: TravelService[] = [
     carriesPassenger: false,
     optionsTitle: "¿Cómo nos entregas la bici?",
     prices: {
-      ida: { local: 140000, domicilio: 180000 },
-      regreso: { local: 140000, domicilio: 180000 },
-      "ida-vuelta": { local: 270000, domicilio: 350000 },
+      ida: { local: 170000, domicilio: 229000 },
+      regreso: { local: 170000, domicilio: 229000 },
+      "ida-vuelta": { local: 320000, domicilio: 429000 },
     },
   },
 ]
