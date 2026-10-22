@@ -479,6 +479,93 @@ async function runSchemaSetup() {
   await createIndexSafe(pool, "CREATE UNIQUE INDEX uq_app_sales_log_row ON app_sales_log(sheet, row_key)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_sales_log_date ON app_sales_log(sale_date, channel)")
 
+  // ROAS por creativo: la columna "Campaña" del Excel trae la letra del
+  // creativo de origen, y el ROAS se fecha por el CONTACTO (cuando el cliente
+  // escribio desde el anuncio), no por la compra.
+  await pool.execute(`
+    ALTER TABLE app_sales_log
+    ADD COLUMN IF NOT EXISTS creative_letter VARCHAR(10) NULL,
+    ADD COLUMN IF NOT EXISTS contact_date    DATE        NULL
+  `)
+  await createIndexSafe(pool, "CREATE INDEX idx_app_sales_log_creative ON app_sales_log(creative_letter, contact_date)")
+
+  // Gasto y resultados diarios por anuncio, copiados de Meta en cada corrida
+  // de las 6 PM. Montos SIN IVA, tal como los entrega Meta; el IVA se suma al
+  // calcular (lib/meta-roas.ts).
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_meta_ad_daily (
+      date              DATE           NOT NULL,
+      ad_id             VARCHAR(40)    NOT NULL,
+      account_id        VARCHAR(40)    NOT NULL,
+      ad_name           VARCHAR(255)   NOT NULL,
+      adset_name        VARCHAR(255)   NULL,
+      campaign_id       VARCHAR(40)    NOT NULL,
+      campaign_name     VARCHAR(255)   NOT NULL,
+      objective         VARCHAR(60)    NULL,
+      optimization_goal VARCHAR(60)    NULL,
+      spend             DECIMAL(15,2)  NOT NULL DEFAULT 0,
+      impressions       INT            NOT NULL DEFAULT 0,
+      link_clicks       INT            NOT NULL DEFAULT 0,
+      results           INT            NOT NULL DEFAULT 0,
+      updated_at        DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (date, ad_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await createIndexSafe(pool, "CREATE INDEX idx_app_meta_ad_daily_campaign ON app_meta_ad_daily(campaign_id, date)")
+
+  // Letra de cada creativo (la misma que se escribe en la columna "Campaña"
+  // del Excel). Varios anuncios pueden compartir letra si usan el mismo creativo.
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_ad_creatives (
+      ad_id      VARCHAR(40)   PRIMARY KEY,
+      letter     VARCHAR(10)   NOT NULL,
+      label      VARCHAR(120)  NULL,
+      created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await createIndexSafe(pool, "CREATE INDEX idx_app_ad_creatives_letter ON app_ad_creatives(letter)")
+  // Letras que Ivan ya uso al atribuir las ventas de sep-oct 2026.
+  await pool.execute(`
+    INSERT IGNORE INTO app_ad_creatives (ad_id, letter, label) VALUES
+      ('52516719112406', 'F', 'Fotografia front bag 2023'),
+      ('52516719130806', 'S', 'Saddlebag (Mensajes Foto)'),
+      ('52516719107606', 'T', 'Front Bag (WSP Tutorial)')
+  `)
+
+  // Alertas de pausar / limitar / escalar generadas en la corrida diaria.
+  // Una por (dia, alcance, clave, tipo): si la corrida se repite el mismo dia
+  // no se duplican.
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_ads_alerts (
+      id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+      run_date    DATE          NOT NULL,
+      scope       VARCHAR(20)   NOT NULL,
+      scope_key   VARCHAR(60)   NOT NULL,
+      scope_label VARCHAR(255)  NOT NULL,
+      kind        VARCHAR(20)   NOT NULL,
+      title       VARCHAR(255)  NOT NULL,
+      detail      TEXT          NOT NULL,
+      metrics     JSON          NULL,
+      seen_at     DATETIME      NULL,
+      emailed_at  DATETIME      NULL,
+      created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_app_ads_alerts_day (run_date, scope, scope_key, kind)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  // Registro de cada corrida diaria (para mostrar "ultima actualizacion" y
+  // diagnosticar si un dia no corrio).
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_meta_roas_runs (
+      id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+      ran_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      ok          TINYINT(1)    NOT NULL,
+      ads_synced  INT           NOT NULL DEFAULT 0,
+      alerts      INT           NOT NULL DEFAULT 0,
+      message     TEXT          NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   await createIndexSafe(pool, "CREATE INDEX idx_app_products_slug ON app_products(slug)")
   await createIndexSafe(pool, "CREATE UNIQUE INDEX uq_app_products_sku_prefix ON app_products(sku_prefix)")
   await createIndexSafe(pool, "CREATE INDEX idx_app_customers_email ON app_customers(email)")

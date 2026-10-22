@@ -20,6 +20,8 @@ const rowSchema = z.object({
   shipping: z.number().finite(),
   netAmount: z.number().finite(),
   isReturn: z.boolean(),
+  creativeLetter: z.string().trim().max(10).nullish(),
+  contactDate: z.string().regex(DATE_RE).nullish(),
 })
 
 const syncSchema = z.object({

@@ -13,6 +13,8 @@ export type SalesLogInputRow = {
   shipping: number
   netAmount: number
   isReturn: boolean
+  creativeLetter?: string | null
+  contactDate?: string | null
 }
 
 export type SalesLogRow = {
@@ -56,7 +58,7 @@ export async function replaceSalesLogForSheet(sheet: string, rows: SalesLogInput
 
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK)
-      const placeholders = chunk.map(() => "(?,?,?,?,?,?,?,?,?,?,?,?)").join(",")
+      const placeholders = chunk.map(() => "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").join(",")
       const params = chunk.flatMap((r) => [
         sheet,
         r.rowKey,
@@ -70,10 +72,13 @@ export async function replaceSalesLogForSheet(sheet: string, rows: SalesLogInput
         r.shipping,
         r.netAmount,
         r.isReturn ? 1 : 0,
+        r.creativeLetter ?? null,
+        r.contactDate ?? null,
       ])
       await conn.execute(
         `INSERT INTO app_sales_log
-           (sheet, row_key, sale_date, channel, channel_raw, customer_name, product_code, quantity, gross_amount, shipping, net_amount, is_return)
+           (sheet, row_key, sale_date, channel, channel_raw, customer_name, product_code, quantity, gross_amount, shipping, net_amount, is_return,
+            creative_letter, contact_date)
          VALUES ${placeholders}`,
         params
       )

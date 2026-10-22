@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LogOut, Package, Boxes, Tag, Receipt, Ticket, Activity, TrendingUp, BarChart3, Bus } from "lucide-react"
+import { LogOut, Package, Boxes, Tag, Receipt, Ticket, Activity, TrendingUp, BarChart3, Bus, Target } from "lucide-react"
 import { assetUrl } from "@/lib/assets"
 
 export function AdminNav() {
@@ -26,6 +26,7 @@ export function AdminNav() {
     { href: "/admin/ofertas", label: "Ofertas", icon: Tag },
     { href: "/admin/cupones", label: "Cupones", icon: Ticket },
     { href: "/admin/ventas", label: "Ventas", icon: TrendingUp },
+    { href: "/admin/roas", label: "ROAS Meta", icon: Target },
     { href: "/admin/travel", label: "Servicios", icon: Bus },
     { href: "/admin/trafico", label: "Tráfico", icon: BarChart3 },
     { href: "/admin/servicios", label: "Estado de Servicios", icon: Activity },
@@ -61,14 +62,14 @@ export function AdminNav() {
         </div>
 
         {/* Tabs de navegación */}
-        <nav className="flex gap-1 -mb-px">
+        <nav className="flex gap-1 -mb-px overflow-x-auto">
           {tabs.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href)
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   active
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"

@@ -628,3 +628,83 @@ export async function sendTravelQuoteEmail(data: TravelQuoteFormData): Promise<v
     throw new Error(error.message)
   }
 }
+
+type AdsAlertEmailItem = {
+  kind: "pause" | "limit" | "scale" | "account"
+  scopeLabel: string
+  title: string
+  detail: string
+}
+
+const ADS_ALERT_STYLE: Record<AdsAlertEmailItem["kind"], { label: string; color: string }> = {
+  account: { label: "CUENTA", color: "#E00000" },
+  pause: { label: "PAUSAR", color: "#E00000" },
+  limit: { label: "LIMITAR GASTO", color: "#F59E0B" },
+  scale: { label: "ESCALAR", color: "#22C55E" },
+}
+
+function buildAdsAlertsEmailHtml(alerts: AdsAlertEmailItem[], runDate: string): string {
+  const rows = alerts
+    .map((a) => {
+      const style = ADS_ALERT_STYLE[a.kind]
+      return `
+      <div style="border-left:4px solid ${style.color};background-color:${BRAND.bg};border-radius:6px;padding:14px 16px;margin:0 0 12px;">
+        <p style="margin:0 0 4px;color:${style.color};font-size:12px;font-weight:700;letter-spacing:1px;">${style.label}</p>
+        <p style="margin:0 0 6px;color:${BRAND.text};font-size:15px;font-weight:700;">${escapeHtml(a.scopeLabel)}</p>
+        <p style="margin:0 0 6px;color:${BRAND.text};font-size:14px;">${escapeHtml(a.title)}</p>
+        <p style="margin:0;color:${BRAND.muted};font-size:13px;line-height:1.6;">${escapeHtml(a.detail)}</p>
+      </div>`
+    })
+    .join("")
+
+  return buildEmailShell(`
+    <h1 style="margin:0 0 4px;color:${BRAND.text};font-size:20px;">Alertas de pauta en Meta</h1>
+    <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.6;">
+      Revisión del ${escapeHtml(runDate)}: últimos 7 días completos contra los 7 anteriores. Gastos con IVA del 19% incluido;
+      ventas de Mensajería 2026 atribuidas por la letra del creativo.
+    </p>
+    ${rows}
+    <p style="margin:24px 0 0;">
+      <a href="${SITE_BASE_URL}/admin/roas" style="color:${BRAND.accent};font-size:14px;">Ver el ROAS completo en el panel →</a>
+    </p>
+  `)
+}
+
+// Resumen diario de la corrida de las 6 PM: solo se envia si hay alertas
+// nuevas ese dia. Las alertas recomiendan; nunca se pausa ni se cambia el
+// presupuesto automaticamente.
+export async function sendAdsAlertsEmail(alerts: AdsAlertEmailItem[], runDate: string): Promise<boolean> {
+  if (alerts.length === 0) return false
+
+  const resend = getClient()
+  const storeEmail = process.env.STORE_NOTIFICATION_EMAIL
+  if (!resend || !storeEmail) {
+    console.error("sendAdsAlertsEmail: RESEND_API_KEY o STORE_NOTIFICATION_EMAIL no configurados, se omite el envío")
+    return false
+  }
+
+  const counts = {
+    pause: alerts.filter((a) => a.kind === "pause" || a.kind === "account").length,
+    limit: alerts.filter((a) => a.kind === "limit").length,
+    scale: alerts.filter((a) => a.kind === "scale").length,
+  }
+  const parts = [
+    counts.pause && `${counts.pause} para pausar`,
+    counts.limit && `${counts.limit} para limitar`,
+    counts.scale && `${counts.scale} para escalar`,
+  ].filter(Boolean)
+  const icon = counts.pause ? "🛑" : counts.limit ? "⚠️" : "🚀"
+
+  const { error } = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || "CERO.UNO <onboarding@resend.dev>",
+    to: storeEmail,
+    subject: `${icon} Meta Ads: ${parts.join(", ")} — ${runDate}`,
+    html: buildAdsAlertsEmailHtml(alerts, runDate),
+  })
+
+  if (error) {
+    console.error("sendAdsAlertsEmail: fallo enviando email", error)
+    return false
+  }
+  return true
+}
