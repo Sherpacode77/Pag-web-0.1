@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { ensureAdminSession } from "@/lib/auth"
 import { hasDatabaseUrl } from "@/lib/db"
-import { ALERT_RULES, IVA, getLastRun, getRoasReport, listRecentAlerts, markAlertsSeen } from "@/lib/meta-roas"
+import { ALERT_RULES, IVA, getBusinessProfit, getLastRun, getRoasReport, listRecentAlerts, markAlertsSeen } from "@/lib/meta-roas"
 
 export const runtime = "nodejs"
 
@@ -21,8 +21,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [report, alerts, lastRun] = await Promise.all([getRoasReport(since, until), listRecentAlerts(14), getLastRun()])
-    return NextResponse.json({ report, alerts, lastRun, rules: ALERT_RULES, iva: IVA })
+    const [report, business, alerts, lastRun] = await Promise.all([
+      getRoasReport(since, until),
+      getBusinessProfit(since, until),
+      listRecentAlerts(14),
+      getLastRun(),
+    ])
+    return NextResponse.json({ report, business, alerts, lastRun, rules: ALERT_RULES, iva: IVA })
   } catch (error) {
     console.error("GET /api/meta-roas:", error)
     return NextResponse.json({ error: "Error obteniendo el ROAS" }, { status: 500 })

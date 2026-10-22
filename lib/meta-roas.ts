@@ -275,6 +275,11 @@ export type RoasRow = {
   costPerSale: number | null
   lastSpendDate: string | null
   hasSalesTracking: boolean
+  // Utilidad aproximada = ingreso - costo de compra de lo vendido - gasto con IVA
+  productCost: number | null
+  profit: number | null
+  unitsWithoutCost: number
+  references: string[]
 }
 
 export type UnattributedSale = { customerName: string | null; contactDate: string; letter: string | null; amount: number }
@@ -282,7 +287,15 @@ export type UnattributedSale = { customerName: string | null; contactDate: strin
 export type RoasReport = {
   since: string
   until: string
-  totals: { spend: number; spendMeta: number; sales: number; revenue: number; roas: number | null }
+  totals: {
+    spend: number
+    spendMeta: number
+    sales: number
+    revenue: number
+    roas: number | null
+    productCost: number
+    profit: number
+  }
   campaigns: RoasRow[]
   creatives: RoasRow[]
   unattributed: UnattributedSale[]
@@ -334,14 +347,21 @@ async function loadAdAggregates(since: string, until: string): Promise<AdAgg[]> 
   }))
 }
 
-type SaleAgg = { letter: string | null; customerName: string | null; contactDate: string; amount: number }
+type SaleAgg = {
+  letter: string | null
+  customerName: string | null
+  contactDate: string
+  amount: number
+  productCode: string | null
+  quantity: number
+}
 
 // Ventas de Meta Ads fechadas por el contacto (si falta, por la compra).
 async function loadMetaSales(since: string, until: string): Promise<SaleAgg[]> {
   const [rows] = await getDbPool().execute<RowDataPacket[]>(
     `SELECT UPPER(TRIM(creative_letter)) AS letter, customer_name,
             DATE_FORMAT(COALESCE(contact_date, sale_date), '%Y-%m-%d') AS contact_date,
-            net_amount
+            net_amount, LOWER(TRIM(product_code)) AS product_code, quantity
      FROM app_sales_log
      WHERE is_return = 0 AND channel = ? AND COALESCE(contact_date, sale_date) BETWEEN ? AND ?`,
     [META_SALES_CHANNEL, since, until]
@@ -351,7 +371,65 @@ async function loadMetaSales(since: string, until: string): Promise<SaleAgg[]> {
     customerName: r.customer_name ? String(r.customer_name) : null,
     contactDate: String(r.contact_date),
     amount: Number(r.net_amount),
+    productCode: r.product_code ? String(r.product_code) : null,
+    quantity: Number(r.quantity) || 1,
   }))
+}
+
+// ---------------------------------------------------------------------------
+// Costos de compra por referencia y referencias de cada creativo
+// ---------------------------------------------------------------------------
+export type ProductCost = { code: string; name: string; unitCost: number }
+
+export async function listProductCosts(): Promise<ProductCost[]> {
+  await ensureDbSchema()
+  const [rows] = await getDbPool().execute<RowDataPacket[]>(`SELECT code, name, unit_cost FROM app_product_costs ORDER BY name`)
+  return rows.map((r) => ({ code: String(r.code), name: String(r.name), unitCost: Number(r.unit_cost) }))
+}
+
+export async function setProductCost(code: string, name: string, unitCost: number) {
+  await ensureDbSchema()
+  await getDbPool().execute(
+    `INSERT INTO app_product_costs (code, name, unit_cost) VALUES (?,?,?)
+     ON DUPLICATE KEY UPDATE name = VALUES(name), unit_cost = VALUES(unit_cost)`,
+    [code.trim().toLowerCase(), name.trim(), unitCost]
+  )
+}
+
+export async function listLetterReferences(): Promise<Map<string, string[]>> {
+  await ensureDbSchema()
+  const [rows] = await getDbPool().execute<RowDataPacket[]>(`SELECT letter, product_codes FROM app_creative_letters`)
+  return new Map(
+    rows.map((r) => [
+      String(r.letter).toUpperCase(),
+      String(r.product_codes)
+        .split(",")
+        .map((c) => c.trim().toLowerCase())
+        .filter(Boolean),
+    ])
+  )
+}
+
+export async function setLetterReferences(letter: string, codes: string[]) {
+  await ensureDbSchema()
+  await getDbPool().execute(
+    `INSERT INTO app_creative_letters (letter, product_codes) VALUES (?,?)
+     ON DUPLICATE KEY UPDATE product_codes = VALUES(product_codes)`,
+    [letter.toUpperCase(), codes.map((c) => c.trim().toLowerCase()).filter(Boolean).join(",")]
+  )
+}
+
+type CostMap = Map<string, number>
+
+function productCostOf(sales: { productCode: string | null; quantity: number }[], costs: CostMap) {
+  let cost = 0
+  let missing = 0
+  for (const s of sales) {
+    const unit = s.productCode ? costs.get(s.productCode) : undefined
+    if (unit === undefined) missing += s.quantity
+    else cost += unit * s.quantity
+  }
+  return { cost, missing }
 }
 
 // Un cliente con varios productos ocupa varias filas del Excel; para contar
@@ -360,9 +438,19 @@ function countOrders(sales: SaleAgg[]): number {
   return new Set(sales.map((s) => `${(s.customerName ?? "").trim().toLowerCase()}|${s.contactDate}`)).size
 }
 
-function finishRow(row: Omit<RoasRow, "costPerResult" | "roas" | "costPerSale">): RoasRow {
+function finishRow(
+  row: Omit<RoasRow, "costPerResult" | "roas" | "costPerSale" | "profit" | "productCost" | "unitsWithoutCost" | "references">,
+  salesRows: SaleAgg[],
+  costs: CostMap,
+  references: string[] = []
+): RoasRow {
+  const { cost, missing } = productCostOf(salesRows, costs)
   return {
     ...row,
+    references,
+    productCost: row.hasSalesTracking ? cost : null,
+    unitsWithoutCost: row.hasSalesTracking ? missing : 0,
+    profit: row.hasSalesTracking ? row.revenue - cost - row.spend : null,
     costPerResult: costPerResult(row.spend, row.results, row.resultType),
     roas: row.hasSalesTracking && row.spend > 0 ? row.revenue / row.spend : null,
     costPerSale: row.hasSalesTracking && row.sales > 0 ? row.spend / row.sales : null,
@@ -380,7 +468,13 @@ function dominantResultType(ads: AdAgg[]): ResultType {
 
 export async function getRoasReport(since: string, until: string): Promise<RoasReport> {
   await ensureDbSchema()
-  const [ads, sales] = await Promise.all([loadAdAggregates(since, until), loadMetaSales(since, until)])
+  const [ads, sales, costList, letterRefs] = await Promise.all([
+    loadAdAggregates(since, until),
+    loadMetaSales(since, until),
+    listProductCosts(),
+    listLetterReferences(),
+  ])
+  const costs: CostMap = new Map(costList.map((c) => [c.code, c.unitCost]))
 
   const salesByLetter = new Map<string, SaleAgg[]>()
   for (const s of sales) {
@@ -415,7 +509,7 @@ export async function getRoasReport(since: string, until: string): Promise<RoasR
       revenue: letterSales.reduce((s, x) => s + x.amount, 0),
       lastSpendDate: lastSpend,
       hasSalesTracking: Boolean(letter),
-    })
+    }, letterSales, costs, letter ? letterRefs.get(letter) ?? [] : [])
   })
 
   // Campanas: las ventas de cada letra van a la campana donde ese creativo
@@ -449,7 +543,7 @@ export async function getRoasReport(since: string, until: string): Promise<RoasR
       revenue: campaignSales.reduce((s, x) => s + x.amount, 0),
       lastSpendDate: group.map((a) => a.last_spend_date).filter(Boolean).sort().pop() ?? null,
       hasSalesTracking: letters.length > 0,
-    })
+    }, campaignSales, costs, [...new Set(letters.flatMap((l) => letterRefs.get(l) ?? []))])
   })
 
   const knownLetters = new Set(letterHome.keys())
@@ -460,6 +554,7 @@ export async function getRoasReport(since: string, until: string): Promise<RoasR
   const spendMeta = ads.reduce((s, a) => s + a.spend, 0)
   const attributed = sales.filter((s) => s.letter && knownLetters.has(s.letter))
   const revenue = attributed.reduce((s, x) => s + x.amount, 0)
+  const attributedCost = productCostOf(attributed, costs).cost
 
   const bySpend = (a: RoasRow, b: RoasRow) => b.spend - a.spend
   return {
@@ -471,10 +566,114 @@ export async function getRoasReport(since: string, until: string): Promise<RoasR
       sales: countOrders(attributed),
       revenue,
       roas: spendMeta > 0 ? revenue / withIva(spendMeta) : null,
+      productCost: attributedCost,
+      profit: revenue - attributedCost - withIva(spendMeta),
     },
     campaigns: campaigns.sort(bySpend),
     creatives: creatives.sort(bySpend),
     unattributed,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Utilidad aproximada del negocio en un rango: TODAS las ventas del Excel
+// (cualquier canal, por fecha de compra, como el informe de Ventas) menos su
+// costo de compra y menos toda la pauta de Meta con IVA. No incluye empaques,
+// comisiones ni costos fijos.
+// ---------------------------------------------------------------------------
+export type BusinessChannelProfit = {
+  channel: string
+  sales: number
+  units: number
+  revenue: number
+  productCost: number
+  grossProfit: number
+}
+
+export type BusinessProfit = {
+  revenue: number
+  productCost: number
+  grossProfit: number
+  metaSpend: number // con IVA
+  metaSpendProducts: number // anuncios con letra (producto)
+  metaSpendOther: number // anuncios sin letra (servicios u otros)
+  profit: number
+  margin: number | null
+  units: number
+  unitsWithoutCost: number
+  unknownCodes: string[]
+  byChannel: BusinessChannelProfit[]
+}
+
+export async function getBusinessProfit(since: string, until: string): Promise<BusinessProfit> {
+  await ensureDbSchema()
+  const pool = getDbPool()
+  const [[salesRows], [spendRows], costList] = await Promise.all([
+    pool.execute<RowDataPacket[]>(
+      `SELECT channel, LOWER(TRIM(product_code)) AS product_code, quantity, net_amount, customer_name,
+              DATE_FORMAT(sale_date, '%Y-%m-%d') AS sale_date
+       FROM app_sales_log
+       WHERE is_return = 0 AND sale_date BETWEEN ? AND ?`,
+      [since, until]
+    ),
+    pool.execute<RowDataPacket[]>(
+      `SELECT SUM(d.spend) AS spend, SUM(CASE WHEN c.letter IS NOT NULL THEN d.spend ELSE 0 END) AS product_spend
+       FROM app_meta_ad_daily d LEFT JOIN app_ad_creatives c ON c.ad_id = d.ad_id
+       WHERE d.date BETWEEN ? AND ?`,
+      [since, until]
+    ),
+    listProductCosts(),
+  ])
+  const costs: CostMap = new Map(costList.map((c) => [c.code, c.unitCost]))
+
+  const channels = new Map<string, { orders: Set<string>; units: number; revenue: number; cost: number }>()
+  let unitsWithoutCost = 0
+  const unknown = new Set<string>()
+  for (const r of salesRows) {
+    const code = r.product_code ? String(r.product_code) : null
+    const qty = Number(r.quantity) || 1
+    const unit = code ? costs.get(code) : undefined
+    if (unit === undefined) {
+      unitsWithoutCost += qty
+      unknown.add(code ?? "(vacío)")
+    }
+    const ch = channels.get(String(r.channel)) ?? { orders: new Set<string>(), units: 0, revenue: 0, cost: 0 }
+    ch.orders.add(`${String(r.customer_name ?? "").trim().toLowerCase()}|${r.sale_date}`)
+    ch.units += qty
+    ch.revenue += Number(r.net_amount)
+    ch.cost += (unit ?? 0) * qty
+    channels.set(String(r.channel), ch)
+  }
+
+  const byChannel = [...channels.entries()]
+    .map(([channel, c]) => ({
+      channel,
+      sales: c.orders.size,
+      units: c.units,
+      revenue: c.revenue,
+      productCost: c.cost,
+      grossProfit: c.revenue - c.cost,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+
+  const revenue = byChannel.reduce((s, c) => s + c.revenue, 0)
+  const productCost = byChannel.reduce((s, c) => s + c.productCost, 0)
+  const metaSpend = withIva(Number(spendRows[0]?.spend ?? 0))
+  const metaSpendProducts = withIva(Number(spendRows[0]?.product_spend ?? 0))
+  const profit = revenue - productCost - metaSpend
+  return {
+    revenue,
+    productCost,
+    grossProfit: revenue - productCost,
+    metaSpend,
+    metaSpendProducts,
+    metaSpendOther: metaSpend - metaSpendProducts,
+    profit,
+    margin: revenue > 0 ? (profit / revenue) * 100 : null,
+    units: byChannel.reduce((s, c) => s + c.units, 0),
+    unitsWithoutCost,
+    unknownCodes: [...unknown].sort(),
+    byChannel,
   }
 }
 
@@ -803,6 +1002,8 @@ export async function setCreativeLetter(adId: string, letter: string | null, lab
      ON DUPLICATE KEY UPDATE letter = VALUES(letter), label = VALUES(label)`,
     [adId, letter.toUpperCase(), label]
   )
+  // La letra queda lista para registrarle sus referencias en el panel.
+  await pool.execute(`INSERT IGNORE INTO app_creative_letters (letter, product_codes) VALUES (?, '')`, [letter.toUpperCase()])
 }
 
 // ---------------------------------------------------------------------------

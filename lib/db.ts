@@ -532,6 +532,39 @@ async function runSchemaSetup() {
       ('52516719107606', 'T', 'Front Bag (WSP Tutorial)')
   `)
 
+  // Referencias que ofrece cada creativo (por letra), con los codigos de
+  // producto del Excel. Regla de Ivan: todo creativo de producto debe tenerlas.
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_creative_letters (
+      letter        VARCHAR(10)   PRIMARY KEY,
+      product_codes VARCHAR(255)  NOT NULL DEFAULT '',
+      updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await pool.execute(`
+    INSERT IGNORE INTO app_creative_letters (letter, product_codes) VALUES ('F', 'fb'), ('S', 'sb'), ('T', 'fbl')
+  `)
+
+  // Costo de compra por unidad de cada referencia (codigo de la columna
+  // Producto del Excel, en minusculas) para aproximar la utilidad.
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS app_product_costs (
+      code       VARCHAR(40)    PRIMARY KEY,
+      name       VARCHAR(120)   NOT NULL,
+      unit_cost  DECIMAL(15,2)  NOT NULL,
+      updated_at DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await pool.execute(`
+    INSERT IGNORE INTO app_product_costs (code, name, unit_cost) VALUES
+      ('fb',     'Alforja frontal de 4 Litros',             25000),
+      ('fbl',    'Alforja frontal de 8 Litros',             35000),
+      ('sb',     'Alforja trasera de 12 Litros',            48000),
+      ('fb+c',   'Alforja frontal de 4 Litros con correa',  29000),
+      ('correa', 'Correa para llevar como maleta de mano',   4000),
+      ('ph',     'Porta herramientas ruta',                 18000)
+  `)
+
   // Alertas de pausar / limitar / escalar generadas en la corrida diaria.
   // Una por (dia, alcance, clave, tipo): si la corrida se repite el mismo dia
   // no se duplican.
