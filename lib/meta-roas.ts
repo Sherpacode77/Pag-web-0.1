@@ -25,6 +25,14 @@ export const ALERT_RULES = {
   // PAUSAR: gasto alto sin ninguna venta, o ROAS por debajo de 1 (pierde plata).
   pauseNoSalesSpend: 80_000,
   pauseRoasBelow: 1,
+  // PAUSAR por desempeno del mes: ROAS de 30 dias por debajo de 1,5x con gasto
+  // suficiente (criterio de Ivan al pausar T con 1,39x en oct-2026).
+  longWindowDays: 30,
+  pauseLongRoasBelow: 1.5,
+  pauseLongMinSpend: 100_000,
+  // La alerta de una campana se omite si un solo creativo hace este % de su
+  // gasto: diria lo mismo que la alerta del creativo.
+  campaignDuplicateShare: 0.8,
   // LIMITAR: costo por resultado sube o ventas bajan.
   limitCostPerResultUpPct: 25,
   limitSalesDownPct: 30,
@@ -500,9 +508,42 @@ function scopeName(scope: "campaign" | "creative", row: RoasRow): string {
   return `Campaña "${row.label}"`
 }
 
-function evaluateRow(scope: "campaign" | "creative", cur: RoasRow, prev: RoasRow | undefined): AdsAlert | null {
+function evaluateLong(scope: "campaign" | "creative", long: RoasRow): AdsAlert | null {
   const R = ALERT_RULES
-  if (cur.spend < R.minSpend) return null
+  if (!long.hasSalesTracking || long.roas === null || long.spend < R.pauseLongMinSpend) return null
+  if (long.roas >= R.pauseLongRoasBelow) return null
+  return {
+    scope,
+    scopeKey: long.key,
+    scopeLabel: scopeName(scope, long),
+    kind: "pause",
+    title: `Pausar: ROAS de ${roasFmt(long.roas)} en los últimos ${R.longWindowDays} días (mínimo esperado ${roasFmt(R.pauseLongRoasBelow)})`,
+    detail:
+      `En ${R.longWindowDays} días gastó ${cop(long.spend)} (con IVA) y vendió ${cop(long.revenue)} en ${long.sales} venta${long.sales === 1 ? "" : "s"}` +
+      `${long.costPerSale !== null ? `: cada venta costó ${cop(long.costPerSale)}` : ""}. ` +
+      `${long.costPerResult !== null ? `Costo ${RESULT_LABELS[long.resultType].per}: ${cop(long.costPerResult)}. ` : ""}` +
+      `Sugerencia: pausarlo y pasar ese presupuesto a los creativos más rentables.`,
+    metrics: {
+      gasto30d: Math.round(long.spend),
+      ventas30d: long.sales,
+      ingreso30d: long.revenue,
+      roas30d: Number(long.roas.toFixed(2)),
+    },
+  }
+}
+
+function evaluateRow(
+  scope: "campaign" | "creative",
+  cur: RoasRow | undefined,
+  prev: RoasRow | undefined,
+  long: RoasRow | undefined
+): AdsAlert | null {
+  const R = ALERT_RULES
+  // Lo mas grave primero: si el mes completo no rinde, se pausa aunque la
+  // ultima semana haya gastado poco (p. ej. con la cuenta bloqueada).
+  const longAlert = long ? evaluateLong(scope, long) : null
+  if (longAlert) return longAlert
+  if (!cur || cur.spend < R.minSpend) return null
 
   const label = RESULT_LABELS[cur.resultType]
   const cprChange = pctChange(cur.costPerResult, prev?.costPerResult ?? null)
@@ -602,7 +643,13 @@ export async function computeAlerts(runDate: string, accounts: AccountHealth[] =
   const prevUntil = addDays(curSince, -1)
   const prevSince = addDays(prevUntil, -(W - 1))
 
-  const [cur, prev] = await Promise.all([getRoasReport(curSince, curUntil), getRoasReport(prevSince, prevUntil)])
+  const longSince = addDays(curUntil, -(ALERT_RULES.longWindowDays - 1))
+
+  const [cur, prev, long] = await Promise.all([
+    getRoasReport(curSince, curUntil),
+    getRoasReport(prevSince, prevUntil),
+    getRoasReport(longSince, curUntil),
+  ])
   const alerts: AdsAlert[] = []
 
   const recentlyActive = await accountsWithSpendSince(addDays(runDate, -30))
@@ -621,15 +668,34 @@ export async function computeAlerts(runDate: string, accounts: AccountHealth[] =
     }
   }
 
-  const prevCampaigns = new Map(prev.campaigns.map((r) => [r.key, r]))
-  const prevCreatives = new Map(prev.creatives.map((r) => [r.key, r]))
-  for (const row of cur.creatives) {
-    const alert = evaluateRow("creative", row, prevCreatives.get(row.key))
-    if (alert) alerts.push(alert)
+  const byKey = (rows: RoasRow[]) => new Map(rows.map((r) => [r.key, r]))
+  const keysOf = (...lists: RoasRow[][]) => [...new Set(lists.flat().map((r) => r.key))]
+
+  const [curCre, prevCre, longCre] = [byKey(cur.creatives), byKey(prev.creatives), byKey(long.creatives)]
+  const creativeAlerts = new Map<string, AdsAlert>()
+  for (const key of keysOf(cur.creatives, long.creatives)) {
+    const alert = evaluateRow("creative", curCre.get(key), prevCre.get(key), longCre.get(key))
+    if (alert) creativeAlerts.set(key, alert)
   }
-  for (const row of cur.campaigns) {
-    const alert = evaluateRow("campaign", row, prevCampaigns.get(row.key))
-    if (alert) alerts.push(alert)
+  alerts.push(...creativeAlerts.values())
+
+  const [curCam, prevCam, longCam] = [byKey(cur.campaigns), byKey(prev.campaigns), byKey(long.campaigns)]
+  for (const key of keysOf(cur.campaigns, long.campaigns)) {
+    const alert = evaluateRow("campaign", curCam.get(key), prevCam.get(key), longCam.get(key))
+    if (!alert) continue
+    // Si la campana es practicamente un solo creativo que ya tiene alerta,
+    // la de la campana repetiria lo mismo.
+    const isLong = alert.metrics.roas30d !== undefined
+    const campaign = (isLong ? longCam : curCam).get(key)
+    const dominant = (isLong ? long : cur).creatives.find(
+      (c) =>
+        campaign &&
+        c.campaignName === campaign.label &&
+        campaign.spend > 0 &&
+        c.spend / campaign.spend >= ALERT_RULES.campaignDuplicateShare
+    )
+    if (dominant && creativeAlerts.has(dominant.key)) continue
+    alerts.push(alert)
   }
   return alerts
 }
@@ -639,6 +705,17 @@ export async function computeAlerts(runDate: string, accounts: AccountHealth[] =
 export async function saveAlerts(runDate: string, alerts: AdsAlert[]): Promise<AdsAlert[]> {
   const pool = getDbPool()
   const fresh: AdsAlert[] = []
+  // Si se repite la corrida el mismo dia, las alertas de hoy que ya no aplican
+  // (datos corregidos o reglas nuevas) se retiran.
+  const current = new Set(alerts.map((a) => `${a.scope}|${a.scopeKey}|${a.kind}`))
+  const [today] = await pool.execute<RowDataPacket[]>(
+    `SELECT id, scope, scope_key, kind FROM app_ads_alerts WHERE run_date = ?`,
+    [runDate]
+  )
+  const stale = today.filter((r) => !current.has(`${r.scope}|${r.scope_key}|${r.kind}`)).map((r) => Number(r.id))
+  if (stale.length) {
+    await pool.execute(`DELETE FROM app_ads_alerts WHERE id IN (${stale.map(() => "?").join(",")})`, stale)
+  }
   for (const a of alerts) {
     const [res] = await pool.execute(
       `INSERT IGNORE INTO app_ads_alerts (run_date, scope, scope_key, scope_label, kind, title, detail, metrics)

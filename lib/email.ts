@@ -660,7 +660,7 @@ function buildAdsAlertsEmailHtml(alerts: AdsAlertEmailItem[], runDate: string): 
   return buildEmailShell(`
     <h1 style="margin:0 0 4px;color:${BRAND.text};font-size:20px;">Alertas de pauta en Meta</h1>
     <p style="margin:0 0 24px;color:${BRAND.muted};font-size:14px;line-height:1.6;">
-      Revisión del ${escapeHtml(runDate)}: últimos 7 días completos contra los 7 anteriores. Gastos con IVA del 19% incluido;
+      Revisión del ${escapeHtml(runDate)}: últimos 7 días completos contra los 7 anteriores, y ROAS de los últimos 30 días. Gastos con IVA del 19% incluido;
       ventas de Mensajería 2026 atribuidas por la letra del creativo.
     </p>
     ${rows}

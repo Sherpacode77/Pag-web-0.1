@@ -193,8 +193,8 @@ export function MetaRoasDashboard() {
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          Se calculan cada día con los últimos 7 días completos contra los 7 anteriores. Son recomendaciones: nada se
-          pausa ni cambia de presupuesto solo.
+          Se calculan cada día: los últimos 7 días completos contra los 7 anteriores, y el ROAS de los últimos 30 días
+          (pausar si queda por debajo de 1,5x). Son recomendaciones: nada se pausa ni cambia de presupuesto solo.
         </p>
         {unseen.length === 0 && (
           <p className="rounded-sm bg-secondary/60 p-3 text-sm text-muted-foreground">No hay alertas pendientes.</p>
