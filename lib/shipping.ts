@@ -10,6 +10,17 @@ export const SHIPPING_COST_NACIONAL = 12500
 // por recaudar el dinero y devolverlo, más el riesgo de pedidos rechazados.
 export const CASH_ON_DELIVERY_SURCHARGE = 5000
 
+// Promocion "Envio gratis a toda Colombia" (oct-2026): mientras este vigente
+// no se cobra envio ni el recargo de contraentrega. Vence sola: pasada la fecha
+// todo vuelve a las tarifas normales sin tocar codigo. Servidor y navegador
+// usan la misma regla, asi que el total mostrado y el cobrado coinciden.
+export const FREE_SHIPPING_PROMO_ENDS_AT = Date.parse("2026-10-25T23:59:59-05:00")
+export const FREE_SHIPPING_PROMO_LABEL = "hasta el domingo 25 de octubre"
+
+export function isFreeShippingPromoActive(now: number = Date.now()): boolean {
+  return now <= FREE_SHIPPING_PROMO_ENDS_AT
+}
+
 export type PaymentMethod = "mercadopago" | "contraentrega"
 // "servicio" = pedido compuesto solo por servicios de CERO.UNO Travel:
 // no se despacha a ninguna direccion, asi que no paga flete ni recargo.
@@ -79,7 +90,7 @@ export function calculateShippingCost(
   city?: string | null
 ): number {
   if (deliveryMethod === "retiro" || deliveryMethod === "servicio") return 0
-  if (freeShippingOverride) return 0
+  if (freeShippingOverride || isFreeShippingPromoActive()) return 0
   if (subtotal >= FREE_SHIPPING_THRESHOLD) return 0
   return getShippingRate(city)
 }
@@ -93,5 +104,6 @@ export function calculateCodSurcharge(
   deliveryMethod: DeliveryMethod = "envio"
 ): number {
   if (deliveryMethod === "retiro" || deliveryMethod === "servicio") return 0
+  if (isFreeShippingPromoActive()) return 0
   return paymentMethod === "contraentrega" ? CASH_ON_DELIVERY_SURCHARGE : 0
 }

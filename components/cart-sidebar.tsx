@@ -11,7 +11,7 @@ import { assetUrl } from "@/lib/assets"
 import { FreeShippingBar } from "@/components/free-shipping-bar"
 import { CheckoutForm, type CheckoutFormData } from "@/components/checkout-form"
 import { OrderSummary } from "@/components/order-summary"
-import { CASH_ON_DELIVERY_SURCHARGE, PICKUP_LOCATION, type PaymentMethod } from "@/lib/shipping"
+import { CASH_ON_DELIVERY_SURCHARGE, PICKUP_LOCATION, isFreeShippingPromoActive, type PaymentMethod } from "@/lib/shipping"
 import {
   isTravelServiceId,
   travelServiceCarriesPassenger,
@@ -333,7 +333,9 @@ export function CartSidebar() {
               <p className="mt-2 text-left text-xs text-muted-foreground">
                 {deliveryMethod === "retiro"
                   ? `Sin recargo por pagar al recoger. Te esperamos en ${PICKUP_LOCATION.address}; te contactamos por WhatsApp para confirmar tu visita.`
-                  : `Incluye el recargo de ${formatPrice(CASH_ON_DELIVERY_SURCHARGE)} por pago contraentrega y el costo de envío. Te contactamos por WhatsApp para coordinar la entrega.`}
+                  : isFreeShippingPromoActive()
+                    ? "Envío gratis y sin recargo por pagar contraentrega. Te contactamos por WhatsApp para coordinar la entrega."
+                    : `Incluye el recargo de ${formatPrice(CASH_ON_DELIVERY_SURCHARGE)} por pago contraentrega y el costo de envío. Te contactamos por WhatsApp para coordinar la entrega.`}
               </p>
             </div>
             <a

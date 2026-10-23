@@ -5,6 +5,8 @@ import { TermsModal } from "./terms-modal"
 import { Combobox } from "./ui/combobox"
 import { COLOMBIAN_CITIES, COLOMBIAN_DEPARTMENTS, BOGOTA_CITY_NAME, BOGOTA_LOCALITIES } from "@/lib/colombia-locations"
 import {
+  FREE_SHIPPING_PROMO_LABEL,
+  isFreeShippingPromoActive,
   CASH_ON_DELIVERY_SURCHARGE,
   SHIPPING_COST_SABANA,
   SHIPPING_COST_NACIONAL,
@@ -147,6 +149,7 @@ export function CheckoutForm({
   // El recargo por pagar al recibir solo existe cuando hay transportadora de por
   // medio; recogiendo en tienda el pago en efectivo no cuesta nada extra.
   const isPickup = form.deliveryMethod === "retiro"
+  const promoActive = isFreeShippingPromoActive()
 
   function update<K extends keyof CheckoutFormData>(key: K, value: CheckoutFormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -515,7 +518,7 @@ export function CheckoutForm({
                 isPickup ? "text-primary" : "text-foreground"
               }`}
             >
-              {isPickup ? "Sin recargo" : `+${formatPrice(CASH_ON_DELIVERY_SURCHARGE)}`}
+              {isPickup ? "Sin recargo" : promoActive ? "Sin recargo" : `+${formatPrice(CASH_ON_DELIVERY_SURCHARGE)}`}
             </span>
           </button>
           )}
@@ -523,7 +526,12 @@ export function CheckoutForm({
 
         {form.paymentMethod === "contraentrega" && (
           <p className="mt-2 rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-            {isPickup ? (
+            {promoActive && !isPickup ? (
+              <>
+                <strong className="text-primary">Promoción:</strong> pagar contraentrega no tiene recargo y el envío
+                es gratis a toda Colombia {FREE_SHIPPING_PROMO_LABEL}.
+              </>
+            ) : isPickup ? (
               <>
                 Al recoger en tienda no hay recargo: el costo adicional de{" "}
                 <strong className="text-card-foreground">{formatPrice(CASH_ON_DELIVERY_SURCHARGE)}</strong>{" "}
@@ -541,7 +549,9 @@ export function CheckoutForm({
 
         {form.deliveryMethod === "envio" && (
           <p className="mt-2 text-xs text-muted-foreground">
-            {form.city
+            {promoActive
+              ? `Envío GRATIS a toda Colombia ${FREE_SHIPPING_PROMO_LABEL}.`
+              : form.city
               ? getShippingZone(form.city) === "sabana"
                 ? `Envío a ${form.city}: ${formatPrice(SHIPPING_COST_SABANA)}.`
                 : `Envío a ${form.city}: ${formatPrice(SHIPPING_COST_NACIONAL)}.`
